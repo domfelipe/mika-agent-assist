@@ -3,6 +3,7 @@ import type { QueryClient } from "@tanstack/react-query";
 import { QueryClientProvider } from "@tanstack/react-query";
 import { Toaster } from "@/components/ui/sonner";
 import { ThemeProvider } from "@/components/theme-provider";
+import { PaymentTestModeBanner } from "@/components/mika/PaymentTestModeBanner";
 
 import appCss from "../styles.css?url";
 
@@ -98,6 +99,7 @@ function RootComponent() {
   return (
     <QueryClientProvider client={queryClient}>
       <ThemeProvider>
+        <PaymentTestModeBanner />
         <Outlet />
         <Toaster richColors position="top-right" />
       </ThemeProvider>

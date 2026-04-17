@@ -3,6 +3,7 @@
 import { useQuery } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "./use-auth";
+import { getPaddleEnv } from "@/lib/paddle";
 
 export interface Profile {
   id: string;
@@ -12,6 +13,7 @@ export interface Profile {
   phone: string | null;
   avatar_url: string | null;
   stripe_customer_id: string | null;
+  paddle_customer_id: string | null;
   onboarding_completed: boolean;
 }
 
@@ -38,8 +40,12 @@ export interface SubscriptionRow {
   id: string;
   user_id: string;
   plan_id: string | null;
-  stripe_subscription_id: string | null;
-  status: "active" | "trialing" | "past_due" | "canceled" | "incomplete" | "incomplete_expired" | "unpaid";
+  paddle_subscription_id: string | null;
+  paddle_customer_id: string | null;
+  product_id: string | null;
+  price_id: string | null;
+  environment: "sandbox" | "live";
+  status: "active" | "trialing" | "past_due" | "canceled" | "incomplete" | "incomplete_expired" | "unpaid" | "paused";
   billing_cycle: "monthly" | "yearly";
   current_period_start: string | null;
   current_period_end: string | null;
@@ -48,9 +54,10 @@ export interface SubscriptionRow {
 
 export function useSubscription() {
   const { user } = useAuth();
+  const env = getPaddleEnv();
 
   return useQuery({
-    queryKey: ["subscription", user?.id],
+    queryKey: ["subscription", user?.id, env],
     enabled: !!user,
     queryFn: async (): Promise<SubscriptionRow | null> => {
       if (!user) return null;
@@ -58,6 +65,7 @@ export function useSubscription() {
         .from("subscriptions")
         .select("*")
         .eq("user_id", user.id)
+        .eq("environment", env)
         .order("created_at", { ascending: false })
         .limit(1)
         .maybeSingle();
