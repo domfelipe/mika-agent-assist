@@ -42,8 +42,8 @@ export function HeroSection() {
               transition={{ duration: 0.6, delay: 0.1 }}
               className="mt-6 text-4xl sm:text-5xl lg:text-[3rem] xl:text-[3.5rem] leading-[1.1] font-bold tracking-tight text-balance"
             >
-              Seu assistente pessoal de IA, sempre disponível no{" "}
-              <span className="bg-gradient-primary bg-clip-text text-transparent">Telegram</span>
+              Seu assistente pessoal de IA, sempre disponível na{" "}
+              <span className="bg-gradient-primary bg-clip-text text-transparent">palma de sua mão.</span>
             </motion.h1>
 
             <motion.p
