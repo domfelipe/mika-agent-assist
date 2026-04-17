@@ -17,6 +17,7 @@ import { useQuery } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/hooks/use-auth";
 import { useProfile } from "@/hooks/use-profile";
+import { useSubscriptionRealtime } from "@/hooks/use-subscription-realtime";
 
 const PADDLE_ENV = (import.meta.env.VITE_PADDLE_ENVIRONMENT as string) === "production" ? "live" : "sandbox";
 import { Logo } from "@/components/mika/Logo";
