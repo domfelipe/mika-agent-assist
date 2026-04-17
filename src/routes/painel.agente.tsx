@@ -11,11 +11,7 @@ import { useAuth } from "@/hooks/use-auth";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Skeleton } from "@/components/ui/skeleton";
-import {
-  Tooltip,
-  TooltipContent,
-  TooltipTrigger,
-} from "@/components/ui/tooltip";
+import { TelegramStatusCard } from "@/components/mika/telegram/TelegramStatusCard";
 import { formatDistanceToNow } from "date-fns";
 import { ptBR } from "date-fns/locale";
 import { cn } from "@/lib/utils";
@@ -121,26 +117,8 @@ function AgentePage() {
           </Badge>
         </div>
 
-        {/* Card 3: Canais conectados */}
-        <div className="rounded-xl border border-border bg-card p-6 shadow-soft">
-          <div className="flex items-center gap-3 mb-3">
-            <MessageSquare className="h-5 w-5 text-primary" />
-            <h3 className="font-semibold">Canais conectados</h3>
-          </div>
-          <div className="flex items-center justify-between">
-            <div className="flex items-center gap-2">
-              <span className="text-sm font-medium">Telegram</span>
-            </div>
-            <Tooltip>
-              <TooltipTrigger asChild>
-                <Button variant="outline" size="sm" disabled>
-                  Conectar
-                </Button>
-              </TooltipTrigger>
-              <TooltipContent>Disponível em breve</TooltipContent>
-            </Tooltip>
-          </div>
-        </div>
+        {/* Card 3: Telegram */}
+        <TelegramStatusCard />
 
         {/* Card 4: Estatísticas */}
         <div className="lg:col-span-2 rounded-xl border border-border bg-card p-6 shadow-soft">
