@@ -13,9 +13,12 @@ import {
   Sparkles,
   User,
 } from "lucide-react";
+import { useQuery } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/hooks/use-auth";
 import { useProfile } from "@/hooks/use-profile";
+
+const PADDLE_ENV = (import.meta.env.VITE_PADDLE_ENVIRONMENT as string) === "production" ? "live" : "sandbox";
 import { Logo } from "@/components/mika/Logo";
 import { ThemeToggle } from "@/components/mika/ThemeToggle";
 import { Button } from "@/components/ui/button";
@@ -80,13 +83,38 @@ function PainelLayout() {
   const location = useLocation();
   const [mobileOpen, setMobileOpen] = useState(false);
 
+  // Faturamento permanece acessível mesmo sem assinatura ativa
+  // (para que o usuário possa ver o estado e assinar / gerenciar).
+  const skipSubGuard = location.pathname.startsWith("/painel/faturamento");
+
+  const { data: hasActiveSub, isLoading: subLoading } = useQuery({
+    queryKey: ["has-active-subscription", user?.id, PADDLE_ENV],
+    enabled: !!user && !skipSubGuard,
+    queryFn: async () => {
+      const { data, error } = await supabase.rpc("has_active_subscription", {
+        user_uuid: user!.id,
+        check_env: PADDLE_ENV,
+      });
+      if (error) throw error;
+      return data === true;
+    },
+  });
+
   useEffect(() => {
     if (!loading && !user) {
       navigate({ to: "/login", search: { redirect: location.pathname } });
     }
   }, [loading, user, navigate, location.pathname]);
 
-  if (loading || !user) {
+  useEffect(() => {
+    if (!loading && user && !skipSubGuard && !subLoading && hasActiveSub === false) {
+      window.location.href = "/#planos";
+    }
+  }, [loading, user, skipSubGuard, subLoading, hasActiveSub]);
+
+  const checkingSub = !skipSubGuard && (subLoading || hasActiveSub === false);
+
+  if (loading || !user || checkingSub) {
     return (
       <div className="min-h-screen flex items-center justify-center bg-background">
         <div className="h-8 w-8 rounded-full border-2 border-primary border-t-transparent animate-spin" />
