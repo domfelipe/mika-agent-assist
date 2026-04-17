@@ -18,6 +18,7 @@ import { Route as IndexRouteImport } from './routes/index'
 import { Route as PainelIndexRouteImport } from './routes/painel.index'
 import { Route as PainelFaturamentoRouteImport } from './routes/painel.faturamento'
 import { Route as PainelConfiguracoesRouteImport } from './routes/painel.configuracoes'
+import { Route as CheckoutSucessoRouteImport } from './routes/checkout.sucesso'
 
 const SignupRoute = SignupRouteImport.update({
   id: '/signup',
@@ -64,6 +65,11 @@ const PainelConfiguracoesRoute = PainelConfiguracoesRouteImport.update({
   path: '/configuracoes',
   getParentRoute: () => PainelRoute,
 } as any)
+const CheckoutSucessoRoute = CheckoutSucessoRouteImport.update({
+  id: '/checkout/sucesso',
+  path: '/checkout/sucesso',
+  getParentRoute: () => rootRouteImport,
+} as any)
 
 export interface FileRoutesByFullPath {
   '/': typeof IndexRoute
@@ -72,6 +78,7 @@ export interface FileRoutesByFullPath {
   '/recuperar-senha': typeof RecuperarSenhaRoute
   '/redefinir-senha': typeof RedefinirSenhaRoute
   '/signup': typeof SignupRoute
+  '/checkout/sucesso': typeof CheckoutSucessoRoute
   '/painel/configuracoes': typeof PainelConfiguracoesRoute
   '/painel/faturamento': typeof PainelFaturamentoRoute
   '/painel/': typeof PainelIndexRoute
@@ -82,6 +89,7 @@ export interface FileRoutesByTo {
   '/recuperar-senha': typeof RecuperarSenhaRoute
   '/redefinir-senha': typeof RedefinirSenhaRoute
   '/signup': typeof SignupRoute
+  '/checkout/sucesso': typeof CheckoutSucessoRoute
   '/painel/configuracoes': typeof PainelConfiguracoesRoute
   '/painel/faturamento': typeof PainelFaturamentoRoute
   '/painel': typeof PainelIndexRoute
@@ -94,6 +102,7 @@ export interface FileRoutesById {
   '/recuperar-senha': typeof RecuperarSenhaRoute
   '/redefinir-senha': typeof RedefinirSenhaRoute
   '/signup': typeof SignupRoute
+  '/checkout/sucesso': typeof CheckoutSucessoRoute
   '/painel/configuracoes': typeof PainelConfiguracoesRoute
   '/painel/faturamento': typeof PainelFaturamentoRoute
   '/painel/': typeof PainelIndexRoute
@@ -107,6 +116,7 @@ export interface FileRouteTypes {
     | '/recuperar-senha'
     | '/redefinir-senha'
     | '/signup'
+    | '/checkout/sucesso'
     | '/painel/configuracoes'
     | '/painel/faturamento'
     | '/painel/'
@@ -117,6 +127,7 @@ export interface FileRouteTypes {
     | '/recuperar-senha'
     | '/redefinir-senha'
     | '/signup'
+    | '/checkout/sucesso'
     | '/painel/configuracoes'
     | '/painel/faturamento'
     | '/painel'
@@ -128,6 +139,7 @@ export interface FileRouteTypes {
     | '/recuperar-senha'
     | '/redefinir-senha'
     | '/signup'
+    | '/checkout/sucesso'
     | '/painel/configuracoes'
     | '/painel/faturamento'
     | '/painel/'
@@ -140,6 +152,7 @@ export interface RootRouteChildren {
   RecuperarSenhaRoute: typeof RecuperarSenhaRoute
   RedefinirSenhaRoute: typeof RedefinirSenhaRoute
   SignupRoute: typeof SignupRoute
+  CheckoutSucessoRoute: typeof CheckoutSucessoRoute
 }
 
 declare module '@tanstack/react-router' {
@@ -207,6 +220,13 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof PainelConfiguracoesRouteImport
       parentRoute: typeof PainelRoute
     }
+    '/checkout/sucesso': {
+      id: '/checkout/sucesso'
+      path: '/checkout/sucesso'
+      fullPath: '/checkout/sucesso'
+      preLoaderRoute: typeof CheckoutSucessoRouteImport
+      parentRoute: typeof rootRouteImport
+    }
   }
 }
 
@@ -232,7 +252,17 @@ const rootRouteChildren: RootRouteChildren = {
   RecuperarSenhaRoute: RecuperarSenhaRoute,
   RedefinirSenhaRoute: RedefinirSenhaRoute,
   SignupRoute: SignupRoute,
+  CheckoutSucessoRoute: CheckoutSucessoRoute,
 }
 export const routeTree = rootRouteImport
   ._addFileChildren(rootRouteChildren)
   ._addFileTypes<FileRouteTypes>()
+
+import type { getRouter } from './router.tsx'
+import type { createStart } from '@tanstack/react-start'
+declare module '@tanstack/react-start' {
+  interface Register {
+    ssr: true
+    router: Awaited<ReturnType<typeof getRouter>>
+  }
+}
