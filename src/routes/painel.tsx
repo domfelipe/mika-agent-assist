@@ -84,6 +84,9 @@ function PainelLayout() {
   const location = useLocation();
   const [mobileOpen, setMobileOpen] = useState(false);
 
+  // Atualiza queries quando o webhook gravar/alterar a assinatura
+  useSubscriptionRealtime();
+
   // Faturamento permanece acessível mesmo sem assinatura ativa
   // (para que o usuário possa ver o estado e assinar / gerenciar).
   const skipSubGuard = location.pathname.startsWith("/painel/faturamento");
