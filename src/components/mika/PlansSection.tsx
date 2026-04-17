@@ -102,7 +102,7 @@ export function PlansSection() {
             <Switch checked={yearly} onCheckedChange={setYearly} aria-label="Alternar entre mensal e anual" />
             <span className={cn("text-sm font-medium flex items-center gap-2", yearly && "text-foreground", !yearly && "text-muted-foreground")}>
               Anual
-              <Badge className="bg-secondary/15 text-secondary hover:bg-secondary/15 border-0 font-semibold">20% off</Badge>
+              <Badge className="bg-success/15 text-success hover:bg-success/15 border-0 font-semibold">20% off</Badge>
             </span>
           </div>
         </div>
@@ -156,7 +156,7 @@ export function PlansSection() {
                 <ul className="mt-6 space-y-3 flex-1">
                   {plan.features.map((f) => (
                     <li key={f} className="flex items-start gap-2 text-sm">
-                      <Check className="h-4 w-4 text-secondary mt-0.5 flex-shrink-0" aria-hidden />
+                      <Check className="h-4 w-4 text-success mt-0.5 flex-shrink-0" aria-hidden />
                       <span>{f}</span>
                     </li>
                   ))}

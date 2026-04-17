@@ -1,5 +1,5 @@
 <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 64 64" width="64" height="64">
   <rect width="64" height="64" rx="14" fill="#FFFFFF"/>
   <text x="32" y="46" font-family="Inter, system-ui, sans-serif" font-size="44" font-weight="800"
-        text-anchor="middle" fill="#6366F1" letter-spacing="-2">M<tspan fill="#F59E0B">.</tspan></text>
+        text-anchor="middle" fill="#F97316" letter-spacing="-2">M<tspan fill="#FACC15">.</tspan></text>
 </svg>
