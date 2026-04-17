@@ -38,7 +38,7 @@ export const Route = createRootRoute({
           "Agentes de IA personalizados que aprendem com você e te atendem direto no Telegram. Planos a partir de R$ 69,90/mês.",
       },
       { name: "author", content: "DOMCO" },
-      { name: "theme-color", content: "#6366F1" },
+      { name: "theme-color", content: "#F97316" },
       { property: "og:title", content: "Mika — Seu assistente de IA pessoal no Telegram" },
       {
         property: "og:description",

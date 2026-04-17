@@ -39,7 +39,7 @@ export function LandingFooter() {
             <p className="mt-4 text-sm text-muted-foreground max-w-xs">
               Seu assistente de IA pessoal no Telegram, gerenciado e em português.
             </p>
-            <Badge className="mt-4 bg-secondary/15 text-secondary hover:bg-secondary/15 border-0 font-semibold">
+            <Badge className="mt-4 bg-success/15 text-success hover:bg-success/15 border-0 font-semibold">
               Feito no Brasil 🇧🇷
             </Badge>
           </div>
