@@ -632,6 +632,23 @@ export type Database = {
         Args: { check_env?: string; user_uuid: string }
         Returns: boolean
       }
+      vault_create_secret: {
+        Args: {
+          secret_description?: string
+          secret_name: string
+          secret_value: string
+        }
+        Returns: {
+          secret_id: string
+        }[]
+      }
+      vault_decrypt_secret: {
+        Args: { secret_id: string }
+        Returns: {
+          decrypted_secret: string
+        }[]
+      }
+      vault_delete_secret: { Args: { secret_id: string }; Returns: undefined }
     }
     Enums: {
       [_ in never]: never
