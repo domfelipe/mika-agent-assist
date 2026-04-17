@@ -17,6 +17,7 @@ import { useQuery } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/hooks/use-auth";
 import { useProfile } from "@/hooks/use-profile";
+import { useSubscriptionRealtime } from "@/hooks/use-subscription-realtime";
 
 const PADDLE_ENV = (import.meta.env.VITE_PADDLE_ENVIRONMENT as string) === "production" ? "live" : "sandbox";
 import { Logo } from "@/components/mika/Logo";
@@ -82,6 +83,9 @@ function PainelLayout() {
   const navigate = useNavigate();
   const location = useLocation();
   const [mobileOpen, setMobileOpen] = useState(false);
+
+  // Atualiza queries quando o webhook gravar/alterar a assinatura
+  useSubscriptionRealtime();
 
   // Faturamento permanece acessível mesmo sem assinatura ativa
   // (para que o usuário possa ver o estado e assinar / gerenciar).
