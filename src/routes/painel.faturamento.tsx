@@ -1,10 +1,12 @@
 "use client";
 
+import { useState } from "react";
 import { createFileRoute } from "@tanstack/react-router";
 import { format } from "date-fns";
 import { ptBR } from "date-fns/locale";
-import { CreditCard, ExternalLink } from "lucide-react";
-import { useSubscription, useProfile } from "@/hooks/use-profile";
+import { CreditCard, ExternalLink, Loader2 } from "lucide-react";
+import { toast } from "sonner";
+import { useSubscription } from "@/hooks/use-profile";
 import { useQuery } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
 import { Button } from "@/components/ui/button";
@@ -16,7 +18,7 @@ export const Route = createFileRoute("/painel/faturamento")({
 
 function BillingPage() {
   const { data: subscription, isLoading } = useSubscription();
-  const { data: profile } = useProfile();
+  const [portalLoading, setPortalLoading] = useState(false);
 
   const { data: plan } = useQuery({
     queryKey: ["plan", subscription?.plan_id],
@@ -30,6 +32,20 @@ function BillingPage() {
       return data;
     },
   });
+
+  const openPortal = async () => {
+    setPortalLoading(true);
+    try {
+      const { data, error } = await supabase.functions.invoke("create-portal-session");
+      if (error || !data?.url) {
+        toast.error("Não foi possível abrir o portal. Tente novamente.");
+        return;
+      }
+      window.open(data.url, "_blank", "noopener,noreferrer");
+    } finally {
+      setPortalLoading(false);
+    }
+  };
 
   return (
     <div className="space-y-8">
@@ -75,10 +91,15 @@ function BillingPage() {
             </p>
           )}
           <Button
-            disabled={!profile?.stripe_customer_id}
+            disabled={!subscription?.paddle_subscription_id || portalLoading}
+            onClick={openPortal}
             className="mt-6 rounded-lg bg-primary hover:bg-primary-dark text-primary-foreground"
           >
-            <ExternalLink className="h-4 w-4 mr-2" />
+            {portalLoading ? (
+              <Loader2 className="h-4 w-4 mr-2 animate-spin" />
+            ) : (
+              <ExternalLink className="h-4 w-4 mr-2" />
+            )}
             Gerenciar assinatura
           </Button>
         </section>
