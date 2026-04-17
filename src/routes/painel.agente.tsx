@@ -24,11 +24,11 @@ export const Route = createFileRoute("/painel/agente")({
   component: AgentePage,
 });
 
-const STATUS_MAP: Record<string, { label: string; color: string; pulse?: boolean }> = {
-  provisioning: { label: "Provisionando", color: "bg-amber-500/15 text-amber-600 dark:text-amber-400 border-amber-500/30", pulse: true },
-  active: { label: "Online", color: "bg-emerald-500/15 text-emerald-600 dark:text-emerald-400 border-emerald-500/30" },
-  suspended: { label: "Suspenso", color: "bg-destructive/15 text-destructive border-destructive/30" },
-  error: { label: "Erro", color: "bg-destructive/15 text-destructive border-destructive/30" },
+const STATUS_MAP: Record<string, { label: string; variant: "warning" | "success" | "destructive"; pulse?: boolean }> = {
+  provisioning: { label: "Provisionando", variant: "warning", pulse: true },
+  active: { label: "Online", variant: "success" },
+  suspended: { label: "Suspenso", variant: "destructive" },
+  error: { label: "Erro", variant: "destructive" },
 };
 
 function AgentePage() {
@@ -84,16 +84,16 @@ function AgentePage() {
           <div className="flex items-start gap-4">
             <div className={cn(
               "h-14 w-14 rounded-full flex items-center justify-center shrink-0",
-              status === "active" ? "bg-emerald-500/10" : "bg-primary/10",
+              status === "active" ? "bg-success/10" : "bg-primary/10",
             )}>
-              <Bot className={cn("h-7 w-7", status === "active" ? "text-emerald-500" : "text-primary")} />
+              <Bot className={cn("h-7 w-7", status === "active" ? "text-success" : "text-primary")} />
             </div>
             <div className="flex-1">
               <div className="flex items-center gap-3 flex-wrap">
                 <h2 className="text-xl font-bold">{agentName}</h2>
                 <Badge
-                  variant="outline"
-                  className={cn(statusInfo.color, statusInfo.pulse && "animate-pulse")}
+                  variant={statusInfo.variant}
+                  className={cn(statusInfo.pulse && "animate-pulse")}
                 >
                   {statusInfo.label}
                 </Badge>
