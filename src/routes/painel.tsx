@@ -21,6 +21,7 @@ import { useSubscriptionRealtime } from "@/hooks/use-subscription-realtime";
 
 const PADDLE_ENV = (import.meta.env.VITE_PADDLE_ENVIRONMENT as string) === "production" ? "live" : "sandbox";
 import { Logo } from "@/components/mika/Logo";
+import { PaymentIssueBanner } from "@/components/mika/PaymentIssueBanner";
 import { ThemeToggle } from "@/components/mika/ThemeToggle";
 import { Button } from "@/components/ui/button";
 import {
@@ -152,6 +153,8 @@ function PainelLayout() {
 
             <UserMenu />
           </header>
+
+          <PaymentIssueBanner />
 
           <main className="flex-1 px-4 sm:px-6 py-6 sm:py-8">
             <div className="mx-auto max-w-6xl">
