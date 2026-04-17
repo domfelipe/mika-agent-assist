@@ -5,3 +5,12 @@ verify_jwt = false
 
 [functions.get-paddle-price]
 verify_jwt = false
+
+[functions.generate-skill-markdown]
+verify_jwt = true
+
+[functions.test-skill-dry-run]
+verify_jwt = true
+
+[functions.publish-skill-version]
+verify_jwt = true

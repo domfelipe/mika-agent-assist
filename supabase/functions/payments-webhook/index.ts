@@ -123,6 +123,18 @@ async function upsertSubscription(data: any, env: PaddleEnv) {
 
   // Atualiza paddle_customer_id no profile
   await supabase.from('profiles').update({ paddle_customer_id: customerId }).eq('id', userId);
+
+  // Provisiona agent_instance se ainda não existir (idempotente via unique index em user_id).
+  // TODO Fase 5: dispatch provisioning job (criar container Docker na VPS via Coolify API)
+  if (status === 'active' || status === 'trialing') {
+    const { error: agentErr } = await supabase
+      .from('agent_instances')
+      .insert({ user_id: userId, status: 'provisioning' });
+    // 23505 = já existe (esperado para usuários retornando), ignora
+    if (agentErr && agentErr.code !== '23505') {
+      console.error('Failed to provision agent_instance:', agentErr);
+    }
+  }
 }
 
 async function markCanceled(data: any, env: PaddleEnv) {

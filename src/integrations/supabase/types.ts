@@ -59,6 +59,13 @@ export type Database = {
             referencedRelation: "profiles"
             referencedColumns: ["id"]
           },
+          {
+            foreignKeyName: "agent_instances_user_id_fkey"
+            columns: ["user_id"]
+            isOneToOne: true
+            referencedRelation: "user_skill_limits"
+            referencedColumns: ["user_id"]
+          },
         ]
       }
       enterprise_leads: {
@@ -214,6 +221,183 @@ export type Database = {
         }
         Relationships: []
       }
+      skill_test_runs: {
+        Row: {
+          created_at: string
+          duration_ms: number | null
+          error_message: string | null
+          id: string
+          skill_version_id: string
+          status: string
+          test_input: string
+          test_output: string | null
+          test_type: string
+          user_id: string
+        }
+        Insert: {
+          created_at?: string
+          duration_ms?: number | null
+          error_message?: string | null
+          id?: string
+          skill_version_id: string
+          status: string
+          test_input: string
+          test_output?: string | null
+          test_type?: string
+          user_id: string
+        }
+        Update: {
+          created_at?: string
+          duration_ms?: number | null
+          error_message?: string | null
+          id?: string
+          skill_version_id?: string
+          status?: string
+          test_input?: string
+          test_output?: string | null
+          test_type?: string
+          user_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "skill_test_runs_skill_version_id_fkey"
+            columns: ["skill_version_id"]
+            isOneToOne: false
+            referencedRelation: "skill_versions"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "skill_test_runs_user_id_fkey"
+            columns: ["user_id"]
+            isOneToOne: false
+            referencedRelation: "profiles"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "skill_test_runs_user_id_fkey"
+            columns: ["user_id"]
+            isOneToOne: false
+            referencedRelation: "user_skill_limits"
+            referencedColumns: ["user_id"]
+          },
+        ]
+      }
+      skill_versions: {
+        Row: {
+          created_at: string
+          created_by: string
+          form_inputs: Json
+          id: string
+          is_live: boolean
+          markdown_content: string
+          skill_id: string
+          version_number: number
+        }
+        Insert: {
+          created_at?: string
+          created_by: string
+          form_inputs: Json
+          id?: string
+          is_live?: boolean
+          markdown_content: string
+          skill_id: string
+          version_number: number
+        }
+        Update: {
+          created_at?: string
+          created_by?: string
+          form_inputs?: Json
+          id?: string
+          is_live?: boolean
+          markdown_content?: string
+          skill_id?: string
+          version_number?: number
+        }
+        Relationships: [
+          {
+            foreignKeyName: "skill_versions_created_by_fkey"
+            columns: ["created_by"]
+            isOneToOne: false
+            referencedRelation: "profiles"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "skill_versions_created_by_fkey"
+            columns: ["created_by"]
+            isOneToOne: false
+            referencedRelation: "user_skill_limits"
+            referencedColumns: ["user_id"]
+          },
+          {
+            foreignKeyName: "skill_versions_skill_id_fkey"
+            columns: ["skill_id"]
+            isOneToOne: false
+            referencedRelation: "skills"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      skills: {
+        Row: {
+          agent_instance_id: string
+          created_at: string
+          current_version_id: string | null
+          description: string
+          id: string
+          name: string
+          status: string
+          trigger_keywords: string
+          updated_at: string
+          user_id: string
+        }
+        Insert: {
+          agent_instance_id: string
+          created_at?: string
+          current_version_id?: string | null
+          description: string
+          id?: string
+          name: string
+          status?: string
+          trigger_keywords: string
+          updated_at?: string
+          user_id: string
+        }
+        Update: {
+          agent_instance_id?: string
+          created_at?: string
+          current_version_id?: string | null
+          description?: string
+          id?: string
+          name?: string
+          status?: string
+          trigger_keywords?: string
+          updated_at?: string
+          user_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "skills_agent_instance_id_fkey"
+            columns: ["agent_instance_id"]
+            isOneToOne: false
+            referencedRelation: "agent_instances"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "skills_user_id_fkey"
+            columns: ["user_id"]
+            isOneToOne: false
+            referencedRelation: "profiles"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "skills_user_id_fkey"
+            columns: ["user_id"]
+            isOneToOne: false
+            referencedRelation: "user_skill_limits"
+            referencedColumns: ["user_id"]
+          },
+        ]
+      }
       stripe_webhook_events: {
         Row: {
           event_type: string
@@ -308,11 +492,26 @@ export type Database = {
             referencedRelation: "profiles"
             referencedColumns: ["id"]
           },
+          {
+            foreignKeyName: "subscriptions_user_id_fkey"
+            columns: ["user_id"]
+            isOneToOne: false
+            referencedRelation: "user_skill_limits"
+            referencedColumns: ["user_id"]
+          },
         ]
       }
     }
     Views: {
-      [_ in never]: never
+      user_skill_limits: {
+        Row: {
+          current_skills_count: number | null
+          max_skills: number | null
+          plan_slug: string | null
+          user_id: string | null
+        }
+        Relationships: []
+      }
     }
     Functions: {
       has_active_subscription: {
