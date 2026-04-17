@@ -46,7 +46,7 @@ export function PaymentIssueBanner() {
       className={
         isUnpaid
           ? "border-b border-destructive/30 bg-destructive/10"
-          : "border-b border-amber-500/30 bg-amber-500/10"
+          : "border-b border-warning/30 bg-warning/10"
       }
     >
       <div className="mx-auto max-w-6xl px-4 sm:px-6 py-3 flex flex-col sm:flex-row sm:items-center gap-3">
@@ -54,14 +54,14 @@ export function PaymentIssueBanner() {
           <AlertTriangle
             className={
               "h-5 w-5 shrink-0 mt-0.5 " +
-              (isUnpaid ? "text-destructive" : "text-amber-600 dark:text-amber-500")
+              (isUnpaid ? "text-destructive" : "text-warning")
             }
           />
           <div className="min-w-0">
             <p
               className={
                 "text-sm font-semibold " +
-                (isUnpaid ? "text-destructive" : "text-amber-700 dark:text-amber-400")
+                (isUnpaid ? "text-destructive" : "text-warning")
               }
             >
               {isUnpaid
