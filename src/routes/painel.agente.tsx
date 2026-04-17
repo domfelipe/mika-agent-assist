@@ -1,7 +1,7 @@
 "use client";
 
-import { createFileRoute, Link } from "@tanstack/react-router";
-import { Bot, Cpu, MessageSquare, Sparkles, BarChart3, Loader2 } from "lucide-react";
+import { createFileRoute } from "@tanstack/react-router";
+import { Bot, Cpu, BarChart3 } from "lucide-react";
 import { useProfile } from "@/hooks/use-profile";
 import { useAgentInstance } from "@/hooks/use-agent-instance";
 import { useUserSkillLimits } from "@/hooks/use-user-skill-limits";
@@ -9,7 +9,6 @@ import { useQuery } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/hooks/use-auth";
 import { Badge } from "@/components/ui/badge";
-import { Button } from "@/components/ui/button";
 import { Skeleton } from "@/components/ui/skeleton";
 import { TelegramStatusCard } from "@/components/mika/telegram/TelegramStatusCard";
 import { formatDistanceToNow } from "date-fns";
