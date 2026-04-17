@@ -4,7 +4,7 @@ import { useState } from "react";
 import { createFileRoute } from "@tanstack/react-router";
 import { format } from "date-fns";
 import { ptBR } from "date-fns/locale";
-import { CreditCard, ExternalLink, Loader2 } from "lucide-react";
+import { CalendarClock, CreditCard, ExternalLink, Loader2 } from "lucide-react";
 import { toast } from "sonner";
 import { useSubscription } from "@/hooks/use-profile";
 import { useQuery } from "@tanstack/react-query";
