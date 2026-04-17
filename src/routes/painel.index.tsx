@@ -24,6 +24,27 @@ export const Route = createFileRoute("/painel/")({
 function DashboardPage() {
   const { data: subscription, isLoading } = useSubscription();
   const { data: profile } = useProfile();
+  const { data: agent } = useAgentInstance();
+  const search = Route.useSearch();
+  const navigate = Route.useNavigate();
+  const [wizardOpen, setWizardOpen] = useState(false);
+
+  // Auto-open do wizard ao voltar com ?status=success
+  useEffect(() => {
+    if (search.status !== "success" || !agent) return;
+    if (agent.status === "suspended" || agent.status === "error") {
+      navigate({ search: {}, replace: true });
+      return;
+    }
+    if (!agent.telegram_bot_username) setWizardOpen(true);
+    navigate({ search: {}, replace: true });
+  }, [search.status, agent, navigate]);
+
+  useEffect(() => {
+    if (search.status === "success" && !agent && !isLoading) {
+      toast.info("Seu agente ainda não está pronto. Aguarde o provisionamento.");
+    }
+  }, [search.status, agent, isLoading]);
 
   if (isLoading) {
     return (
