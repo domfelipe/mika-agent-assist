@@ -14,7 +14,257 @@ export type Database = {
   }
   public: {
     Tables: {
-      [_ in never]: never
+      agent_instances: {
+        Row: {
+          container_name: string | null
+          created_at: string
+          id: string
+          status: string
+          telegram_bot_token_vault_id: string | null
+          telegram_bot_username: string | null
+          updated_at: string
+          user_id: string
+          uuid_tenant: string
+          vps_host: string | null
+        }
+        Insert: {
+          container_name?: string | null
+          created_at?: string
+          id?: string
+          status?: string
+          telegram_bot_token_vault_id?: string | null
+          telegram_bot_username?: string | null
+          updated_at?: string
+          user_id: string
+          uuid_tenant?: string
+          vps_host?: string | null
+        }
+        Update: {
+          container_name?: string | null
+          created_at?: string
+          id?: string
+          status?: string
+          telegram_bot_token_vault_id?: string | null
+          telegram_bot_username?: string | null
+          updated_at?: string
+          user_id?: string
+          uuid_tenant?: string
+          vps_host?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "agent_instances_user_id_fkey"
+            columns: ["user_id"]
+            isOneToOne: true
+            referencedRelation: "profiles"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      enterprise_leads: {
+        Row: {
+          company_name: string
+          contact_name: string
+          created_at: string
+          email: string
+          id: string
+          message: string | null
+          phone: string | null
+          status: string
+          team_size: string
+        }
+        Insert: {
+          company_name: string
+          contact_name: string
+          created_at?: string
+          email: string
+          id?: string
+          message?: string | null
+          phone?: string | null
+          status?: string
+          team_size: string
+        }
+        Update: {
+          company_name?: string
+          contact_name?: string
+          created_at?: string
+          email?: string
+          id?: string
+          message?: string | null
+          phone?: string | null
+          status?: string
+          team_size?: string
+        }
+        Relationships: []
+      }
+      plans: {
+        Row: {
+          created_at: string
+          description: string | null
+          display_order: number
+          features: Json
+          highlighted: boolean
+          id: string
+          is_enterprise: boolean
+          name: string
+          price_monthly_brl: number | null
+          price_yearly_brl: number | null
+          slug: string
+          stripe_price_id_monthly: string | null
+          stripe_price_id_yearly: string | null
+        }
+        Insert: {
+          created_at?: string
+          description?: string | null
+          display_order?: number
+          features?: Json
+          highlighted?: boolean
+          id?: string
+          is_enterprise?: boolean
+          name: string
+          price_monthly_brl?: number | null
+          price_yearly_brl?: number | null
+          slug: string
+          stripe_price_id_monthly?: string | null
+          stripe_price_id_yearly?: string | null
+        }
+        Update: {
+          created_at?: string
+          description?: string | null
+          display_order?: number
+          features?: Json
+          highlighted?: boolean
+          id?: string
+          is_enterprise?: boolean
+          name?: string
+          price_monthly_brl?: number | null
+          price_yearly_brl?: number | null
+          slug?: string
+          stripe_price_id_monthly?: string | null
+          stripe_price_id_yearly?: string | null
+        }
+        Relationships: []
+      }
+      profiles: {
+        Row: {
+          avatar_url: string | null
+          company_name: string | null
+          cpf_cnpj: string | null
+          created_at: string
+          full_name: string
+          id: string
+          onboarding_completed: boolean
+          phone: string | null
+          stripe_customer_id: string | null
+          updated_at: string
+        }
+        Insert: {
+          avatar_url?: string | null
+          company_name?: string | null
+          cpf_cnpj?: string | null
+          created_at?: string
+          full_name?: string
+          id: string
+          onboarding_completed?: boolean
+          phone?: string | null
+          stripe_customer_id?: string | null
+          updated_at?: string
+        }
+        Update: {
+          avatar_url?: string | null
+          company_name?: string | null
+          cpf_cnpj?: string | null
+          created_at?: string
+          full_name?: string
+          id?: string
+          onboarding_completed?: boolean
+          phone?: string | null
+          stripe_customer_id?: string | null
+          updated_at?: string
+        }
+        Relationships: []
+      }
+      stripe_webhook_events: {
+        Row: {
+          event_type: string
+          id: string
+          payload: Json | null
+          processed_at: string
+          stripe_event_id: string
+        }
+        Insert: {
+          event_type: string
+          id?: string
+          payload?: Json | null
+          processed_at?: string
+          stripe_event_id: string
+        }
+        Update: {
+          event_type?: string
+          id?: string
+          payload?: Json | null
+          processed_at?: string
+          stripe_event_id?: string
+        }
+        Relationships: []
+      }
+      subscriptions: {
+        Row: {
+          billing_cycle: string
+          cancel_at_period_end: boolean
+          created_at: string
+          current_period_end: string | null
+          current_period_start: string | null
+          id: string
+          plan_id: string | null
+          status: string
+          stripe_subscription_id: string | null
+          updated_at: string
+          user_id: string
+        }
+        Insert: {
+          billing_cycle: string
+          cancel_at_period_end?: boolean
+          created_at?: string
+          current_period_end?: string | null
+          current_period_start?: string | null
+          id?: string
+          plan_id?: string | null
+          status: string
+          stripe_subscription_id?: string | null
+          updated_at?: string
+          user_id: string
+        }
+        Update: {
+          billing_cycle?: string
+          cancel_at_period_end?: boolean
+          created_at?: string
+          current_period_end?: string | null
+          current_period_start?: string | null
+          id?: string
+          plan_id?: string | null
+          status?: string
+          stripe_subscription_id?: string | null
+          updated_at?: string
+          user_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "subscriptions_plan_id_fkey"
+            columns: ["plan_id"]
+            isOneToOne: false
+            referencedRelation: "plans"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "subscriptions_user_id_fkey"
+            columns: ["user_id"]
+            isOneToOne: false
+            referencedRelation: "profiles"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
     }
     Views: {
       [_ in never]: never
