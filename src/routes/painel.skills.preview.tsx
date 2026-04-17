@@ -103,7 +103,8 @@ function SkillPreviewPage() {
           skill_id: skill.id,
           version_number: 1,
           markdown_content: markdown,
-          form_inputs: formInputs as Record<string, unknown>,
+          // eslint-disable-next-line @typescript-eslint/no-explicit-any
+          form_inputs: formInputs as any,
           is_live: false,
           created_by: user.id,
         }])
