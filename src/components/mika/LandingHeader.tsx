@@ -5,6 +5,7 @@ import { Link } from "@tanstack/react-router";
 import { Menu } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Sheet, SheetContent, SheetTrigger, SheetTitle, SheetHeader } from "@/components/ui/sheet";
+import { useAuth } from "@/hooks/use-auth";
 import { Logo } from "./Logo";
 import { ThemeToggle } from "./ThemeToggle";
 import { cn } from "@/lib/utils";
@@ -19,6 +20,7 @@ const NAV = [
 export function LandingHeader() {
   const [scrolled, setScrolled] = useState(false);
   const [open, setOpen] = useState(false);
+  const { user } = useAuth();
 
   useEffect(() => {
     const onScroll = () => setScrolled(window.scrollY > 8);
@@ -53,12 +55,20 @@ export function LandingHeader() {
 
         <div className="hidden md:flex items-center gap-2">
           <ThemeToggle />
-          <Button asChild variant="ghost" className="rounded-lg">
-            <Link to="/login">Entrar</Link>
-          </Button>
-          <Button asChild className="rounded-lg bg-primary hover:bg-primary-dark text-primary-foreground transition-all duration-150 active:scale-[0.98]">
-            <Link to="/signup">Começar agora</Link>
-          </Button>
+          {user ? (
+            <Button asChild className="rounded-lg bg-primary hover:bg-primary-dark text-primary-foreground transition-all duration-150 active:scale-[0.98]">
+              <Link to="/painel">Ir para o painel</Link>
+            </Button>
+          ) : (
+            <>
+              <Button asChild variant="ghost" className="rounded-lg">
+                <Link to="/login">Entrar</Link>
+              </Button>
+              <Button asChild className="rounded-lg bg-primary hover:bg-primary-dark text-primary-foreground transition-all duration-150 active:scale-[0.98]">
+                <Link to="/signup">Começar agora</Link>
+              </Button>
+            </>
+          )}
         </div>
 
         <div className="flex md:hidden items-center gap-1">
@@ -86,12 +96,20 @@ export function LandingHeader() {
                 ))}
               </nav>
               <div className="mt-6 flex flex-col gap-3">
-                <Button asChild variant="outline" className="rounded-lg w-full">
-                  <Link to="/login" onClick={() => setOpen(false)}>Entrar</Link>
-                </Button>
-                <Button asChild className="rounded-lg w-full bg-primary hover:bg-primary-dark text-primary-foreground">
-                  <Link to="/signup" onClick={() => setOpen(false)}>Começar agora</Link>
-                </Button>
+                {user ? (
+                  <Button asChild className="rounded-lg w-full bg-primary hover:bg-primary-dark text-primary-foreground">
+                    <Link to="/painel" onClick={() => setOpen(false)}>Ir para o painel</Link>
+                  </Button>
+                ) : (
+                  <>
+                    <Button asChild variant="outline" className="rounded-lg w-full">
+                      <Link to="/login" onClick={() => setOpen(false)}>Entrar</Link>
+                    </Button>
+                    <Button asChild className="rounded-lg w-full bg-primary hover:bg-primary-dark text-primary-foreground">
+                      <Link to="/signup" onClick={() => setOpen(false)}>Começar agora</Link>
+                    </Button>
+                  </>
+                )}
               </div>
             </SheetContent>
           </Sheet>
