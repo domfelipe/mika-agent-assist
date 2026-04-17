@@ -13,9 +13,12 @@ import {
   Sparkles,
   User,
 } from "lucide-react";
+import { useQuery } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/hooks/use-auth";
 import { useProfile } from "@/hooks/use-profile";
+
+const PADDLE_ENV = (import.meta.env.VITE_PADDLE_ENVIRONMENT as string) === "production" ? "live" : "sandbox";
 import { Logo } from "@/components/mika/Logo";
 import { ThemeToggle } from "@/components/mika/ThemeToggle";
 import { Button } from "@/components/ui/button";
