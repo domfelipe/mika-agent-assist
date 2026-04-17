@@ -1,16 +1,23 @@
 "use client";
 
 import { createFileRoute, Link } from "@tanstack/react-router";
+import { useEffect, useState } from "react";
 import { ArrowRight, CheckCircle2, Loader2, Sparkles } from "lucide-react";
 import { useSubscription } from "@/hooks/use-profile";
 import { useProfile } from "@/hooks/use-profile";
+import { useAgentInstance } from "@/hooks/use-agent-instance";
 import { Button } from "@/components/ui/button";
 import { Skeleton } from "@/components/ui/skeleton";
 import { SubscriptionBanner } from "@/components/mika/SubscriptionBanner";
 import { SkillsDashboardWidget } from "@/components/mika/SkillsDashboardWidget";
+import { TelegramOnboardingWizard } from "@/components/mika/telegram/TelegramOnboardingWizard";
+import { toast } from "sonner";
 import { cn } from "@/lib/utils";
 
 export const Route = createFileRoute("/painel/")({
+  validateSearch: (search: Record<string, unknown>) => ({
+    status: typeof search.status === "string" ? (search.status as string) : undefined,
+  }),
   component: DashboardPage,
 });
 
