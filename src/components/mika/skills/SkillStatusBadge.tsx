@@ -1,6 +1,6 @@
 "use client";
 
-import { Badge } from "@/components/ui/badge";
+import { Badge, type BadgeProps } from "@/components/ui/badge";
 import { cn } from "@/lib/utils";
 
 const STATUS_LABELS: Record<string, string> = {
@@ -11,21 +11,21 @@ const STATUS_LABELS: Record<string, string> = {
   archived: "Arquivada",
 };
 
-const STATUS_CLASSES: Record<string, string> = {
-  draft: "bg-amber-500/15 text-amber-600 dark:text-amber-400 border-amber-500/30",
-  testing: "bg-blue-500/15 text-blue-600 dark:text-blue-400 border-blue-500/30",
-  active: "bg-emerald-500/15 text-emerald-600 dark:text-emerald-400 border-emerald-500/30",
-  disabled: "bg-slate-500/15 text-slate-600 dark:text-slate-400 border-slate-500/30",
-  archived: "bg-slate-500/10 text-slate-500/70 border-slate-500/20",
+const STATUS_VARIANTS: Record<string, BadgeProps["variant"]> = {
+  draft: "warning",
+  testing: "info",
+  active: "success",
+  disabled: "muted",
+  archived: "muted",
 };
 
 export function SkillStatusBadge({ status, className }: { status: string; className?: string }) {
   return (
     <Badge
-      variant="outline"
+      variant={STATUS_VARIANTS[status] ?? "warning"}
       className={cn(
         "rounded-md font-medium",
-        STATUS_CLASSES[status] ?? STATUS_CLASSES.draft,
+        status === "archived" && "opacity-70",
         className,
       )}
     >
