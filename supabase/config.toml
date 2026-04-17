@@ -14,3 +14,15 @@ verify_jwt = true
 
 [functions.publish-skill-version]
 verify_jwt = true
+
+[functions.validate-telegram-bot]
+verify_jwt = true
+
+[functions.configure-telegram-webhook]
+verify_jwt = true
+
+[functions.disconnect-telegram]
+verify_jwt = true
+
+[functions.telegram-webhook]
+verify_jwt = false
