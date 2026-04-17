@@ -7,6 +7,7 @@ import { useProfile } from "@/hooks/use-profile";
 import { Button } from "@/components/ui/button";
 import { Skeleton } from "@/components/ui/skeleton";
 import { SubscriptionBanner } from "@/components/mika/SubscriptionBanner";
+import { SkillsDashboardWidget } from "@/components/mika/SkillsDashboardWidget";
 import { cn } from "@/lib/utils";
 
 export const Route = createFileRoute("/painel/")({
@@ -46,6 +47,8 @@ function DashboardPage() {
       {subscription && (subscription.status === "incomplete" || subscription.status === "active") && (
         <ProvisioningCard />
       )}
+
+      {subscription && subscription.status === "active" && <SkillsDashboardWidget />}
     </div>
   );
 }
