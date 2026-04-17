@@ -24,11 +24,11 @@ export const Route = createFileRoute("/painel/agente")({
   component: AgentePage,
 });
 
-const STATUS_MAP: Record<string, { label: string; color: string; pulse?: boolean }> = {
-  provisioning: { label: "Provisionando", color: "bg-amber-500/15 text-amber-600 dark:text-amber-400 border-amber-500/30", pulse: true },
-  active: { label: "Online", color: "bg-emerald-500/15 text-emerald-600 dark:text-emerald-400 border-emerald-500/30" },
-  suspended: { label: "Suspenso", color: "bg-destructive/15 text-destructive border-destructive/30" },
-  error: { label: "Erro", color: "bg-destructive/15 text-destructive border-destructive/30" },
+const STATUS_MAP: Record<string, { label: string; variant: "warning" | "success" | "destructive"; pulse?: boolean }> = {
+  provisioning: { label: "Provisionando", variant: "warning", pulse: true },
+  active: { label: "Online", variant: "success" },
+  suspended: { label: "Suspenso", variant: "destructive" },
+  error: { label: "Erro", variant: "destructive" },
 };
 
 function AgentePage() {
