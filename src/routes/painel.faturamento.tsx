@@ -4,7 +4,7 @@ import { useState } from "react";
 import { createFileRoute } from "@tanstack/react-router";
 import { format } from "date-fns";
 import { ptBR } from "date-fns/locale";
-import { CreditCard, ExternalLink, Loader2 } from "lucide-react";
+import { CalendarClock, CreditCard, ExternalLink, Loader2 } from "lucide-react";
 import { toast } from "sonner";
 import { useSubscription } from "@/hooks/use-profile";
 import { useQuery } from "@tanstack/react-query";
@@ -83,7 +83,21 @@ function BillingPage() {
                     : "—"
                 }
               />
-              <Field label="Status" value={statusLabel(subscription.status)} />
+              <div>
+                <p className="text-xs uppercase tracking-wide text-muted-foreground">Status</p>
+                <div className="mt-1 flex flex-wrap items-center gap-2">
+                  <p className="font-medium">{statusLabel(subscription.status)}</p>
+                  {subscription.cancel_at_period_end &&
+                    (subscription.status === "active" || subscription.status === "trialing") && (
+                      <span className="inline-flex items-center gap-1 rounded-full border border-warning/30 bg-warning/10 px-2 py-0.5 text-xs font-medium text-warning">
+                        <CalendarClock className="h-3 w-3" />
+                        {subscription.current_period_end
+                          ? `Cancelamento em ${format(new Date(subscription.current_period_end), "d 'de' MMM 'de' yyyy", { locale: ptBR })}`
+                          : "Cancelamento agendado"}
+                      </span>
+                    )}
+                </div>
+              </div>
             </div>
           ) : (
             <p className="mt-3 text-sm text-muted-foreground">
