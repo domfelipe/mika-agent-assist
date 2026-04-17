@@ -204,7 +204,7 @@ function NovaSkillPage() {
                   return (
                     <li key={f.key} className="flex items-center gap-2 text-sm">
                       {done ? (
-                        <Check className="h-4 w-4 text-emerald-500 shrink-0" />
+                        <Check className="h-4 w-4 text-success shrink-0" />
                       ) : (
                         <CircleDashed className="h-4 w-4 text-muted-foreground/50 shrink-0" />
                       )}

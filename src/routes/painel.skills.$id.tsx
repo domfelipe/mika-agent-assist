@@ -356,7 +356,7 @@ function SkillDetailPage() {
                 <div className="flex items-center justify-between">
                   <span className="font-medium">v{v.version_number}</span>
                   {v.is_live && (
-                    <Badge className="bg-emerald-500/15 text-emerald-600 dark:text-emerald-400 border-emerald-500/30 text-[10px]">
+                    <Badge variant="success" className="text-[10px]">
                       Live
                     </Badge>
                   )}
