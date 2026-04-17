@@ -84,16 +84,16 @@ function AgentePage() {
           <div className="flex items-start gap-4">
             <div className={cn(
               "h-14 w-14 rounded-full flex items-center justify-center shrink-0",
-              status === "active" ? "bg-emerald-500/10" : "bg-primary/10",
+              status === "active" ? "bg-success/10" : "bg-primary/10",
             )}>
-              <Bot className={cn("h-7 w-7", status === "active" ? "text-emerald-500" : "text-primary")} />
+              <Bot className={cn("h-7 w-7", status === "active" ? "text-success" : "text-primary")} />
             </div>
             <div className="flex-1">
               <div className="flex items-center gap-3 flex-wrap">
                 <h2 className="text-xl font-bold">{agentName}</h2>
                 <Badge
-                  variant="outline"
-                  className={cn(statusInfo.color, statusInfo.pulse && "animate-pulse")}
+                  variant={statusInfo.variant}
+                  className={cn(statusInfo.pulse && "animate-pulse")}
                 >
                   {statusInfo.label}
                 </Badge>
