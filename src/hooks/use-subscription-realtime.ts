@@ -45,19 +45,39 @@ export function useSubscriptionRealtime() {
           const newStatus = newRow?.status ?? null;
           const prevStatus = lastStatusRef.current;
 
-          if (
-            newStatus &&
-            ACTIVE_STATUSES.has(newStatus) &&
-            prevStatus !== newStatus &&
-            !(prevStatus && ACTIVE_STATUSES.has(prevStatus))
-          ) {
-            if (newStatus === "trialing") {
-              toast.success("Período de teste ativado!", {
-                description: "Aproveite todos os recursos do seu plano.",
+          if (newStatus && newStatus !== prevStatus) {
+            const wasActive = prevStatus ? ACTIVE_STATUSES.has(prevStatus) : false;
+            const isActive = ACTIVE_STATUSES.has(newStatus);
+
+            if (isActive && !wasActive) {
+              if (newStatus === "trialing") {
+                toast.success("Período de teste ativado!", {
+                  description: "Aproveite todos os recursos do seu plano.",
+                });
+              } else {
+                toast.success("Assinatura ativada!", {
+                  description: "Tudo pronto — seu plano já está liberado.",
+                });
+              }
+            } else if (newStatus === "canceled") {
+              toast.error("Assinatura cancelada", {
+                description: "Você manterá acesso até o fim do período pago.",
               });
-            } else {
-              toast.success("Assinatura ativada!", {
-                description: "Tudo pronto — seu plano já está liberado.",
+            } else if (newStatus === "past_due") {
+              toast.warning("Pagamento pendente", {
+                description: "Atualize seu método de pagamento para evitar a suspensão.",
+              });
+            } else if (newStatus === "unpaid") {
+              toast.error("Assinatura não paga", {
+                description: "Regularize o pagamento para reativar o acesso.",
+              });
+            } else if (newStatus === "paused") {
+              toast.warning("Assinatura pausada", {
+                description: "Sua assinatura está temporariamente pausada.",
+              });
+            } else if (prevStatus && wasActive && !isActive) {
+              toast.warning("Status da assinatura alterado", {
+                description: "Verifique os detalhes em Faturamento.",
               });
             }
           }
