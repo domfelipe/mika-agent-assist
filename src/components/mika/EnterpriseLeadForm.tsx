@@ -6,6 +6,8 @@ import { zodResolver } from "@hookform/resolvers/zod";
 import { z } from "zod";
 import { IMaskInput } from "react-imask";
 import { toast } from "sonner";
+import { supabase } from "@/integrations/supabase/client";
+import { translateAuthError } from "@/lib/auth-errors";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Textarea } from "@/components/ui/textarea";
@@ -37,17 +39,22 @@ export function EnterpriseLeadForm() {
 
   const onSubmit = async (data: FormValues) => {
     setSubmitting(true);
-    try {
-      // Etapa 2: gravar em enterprise_leads via supabase.from(...).insert(...)
-      // Por ora: feedback otimista para o usuário.
-      await new Promise((r) => setTimeout(r, 700));
-      toast.success("Recebemos seu contato! Falamos com você em até 1 dia útil.");
-      reset();
-    } catch {
-      toast.error("Algo deu errado do nosso lado. Já estamos investigando.");
-    } finally {
-      setSubmitting(false);
+    const { error } = await supabase.from("enterprise_leads").insert({
+      company_name: data.company_name,
+      contact_name: data.contact_name,
+      email: data.email,
+      phone: data.phone,
+      team_size: data.team_size,
+      message: data.message || null,
+      status: "new",
+    });
+    setSubmitting(false);
+    if (error) {
+      toast.error(translateAuthError(error.message));
+      return;
     }
+    toast.success("Recebemos seu contato! Falamos com você em até 1 dia útil.");
+    reset();
   };
 
   const phone = watch("phone") || "";
