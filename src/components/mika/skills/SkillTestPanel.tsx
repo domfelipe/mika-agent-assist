@@ -199,7 +199,7 @@ export function SkillTestPanel({
                         variant="outline"
                         className={
                           run.status === "success"
-                            ? "bg-emerald-500/15 text-emerald-600 dark:text-emerald-400 border-emerald-500/30"
+                            ? "bg-success/15 text-success border-success/30"
                             : "bg-destructive/15 text-destructive border-destructive/30"
                         }
                       >
