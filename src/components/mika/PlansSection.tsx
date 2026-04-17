@@ -1,8 +1,8 @@
 "use client";
 
 import { useState } from "react";
-import { Link } from "@tanstack/react-router";
-import { Check } from "lucide-react";
+import { Link, useNavigate } from "@tanstack/react-router";
+import { Check, Loader2 } from "lucide-react";
 import { useQuery } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
 import { Button } from "@/components/ui/button";
@@ -18,6 +18,8 @@ import {
   DialogTrigger,
 } from "@/components/ui/dialog";
 import { EnterpriseLeadForm } from "./EnterpriseLeadForm";
+import { useAuth } from "@/hooks/use-auth";
+import { usePaddleCheckout } from "@/hooks/use-paddle-checkout";
 import { cn } from "@/lib/utils";
 
 interface PlanRow {
@@ -57,6 +59,26 @@ function usePlans() {
 export function PlansSection() {
   const [yearly, setYearly] = useState(false);
   const { data: plans, isLoading } = usePlans();
+  const { user } = useAuth();
+  const navigate = useNavigate();
+  const { openCheckout, loading: checkoutLoading } = usePaddleCheckout();
+  const [pendingSlug, setPendingSlug] = useState<string | null>(null);
+
+  const handleSubscribe = async (slug: string) => {
+    const cycle = yearly ? "yearly" : "monthly";
+    if (!user) {
+      navigate({ to: "/signup", search: { plan: slug, cycle } });
+      return;
+    }
+    const priceId = `${slug}_${cycle}`;
+    setPendingSlug(slug);
+    await openCheckout({
+      priceId,
+      userId: user.id,
+      customerEmail: user.email || undefined,
+    });
+    setPendingSlug(null);
+  };
 
   return (
     <section id="planos" className="py-20 sm:py-28 bg-background scroll-mt-20">
@@ -179,7 +201,8 @@ export function PlansSection() {
                         </Dialog>
                       ) : (
                         <Button
-                          asChild
+                          onClick={() => handleSubscribe(plan.slug)}
+                          disabled={checkoutLoading && pendingSlug === plan.slug}
                           className={cn(
                             "w-full rounded-lg transition-all duration-150 active:scale-[0.98]",
                             plan.highlighted
@@ -187,12 +210,14 @@ export function PlansSection() {
                               : "bg-foreground hover:bg-foreground/90 text-background",
                           )}
                         >
-                          <Link
-                            to="/signup"
-                            search={{ plan: plan.slug, cycle: yearly ? "yearly" : "monthly" }}
-                          >
-                            Assinar agora
-                          </Link>
+                          {checkoutLoading && pendingSlug === plan.slug ? (
+                            <>
+                              <Loader2 className="h-4 w-4 mr-2 animate-spin" />
+                              Abrindo checkout…
+                            </>
+                          ) : (
+                            "Assinar agora"
+                          )}
                         </Button>
                       )}
                       <p className="mt-3 text-xs text-muted-foreground text-center">
