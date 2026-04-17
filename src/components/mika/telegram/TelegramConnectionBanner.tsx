@@ -51,6 +51,26 @@ export function TelegramConnectionBanner() {
     );
   }
 
+  // Onboarding iniciado mas não finalizado (usuário fechou o wizard antes do fim)
+  if (agent.telegram_bot_username && !agent.telegram_onboarding_completed) {
+    return (
+      <>
+        <div className="sticky top-16 z-30 -mx-4 sm:mx-0 sm:rounded-lg border-y sm:border border-primary/30 bg-primary/5 px-4 py-3 text-sm">
+          <div className="flex items-start sm:items-center gap-3 flex-wrap">
+            <AlertTriangle className="h-4 w-4 text-primary shrink-0" />
+            <span className="flex-1">
+              Você começou a configurar o Telegram. Termine os últimos passos para conversar com o Mika.
+            </span>
+            <Button size="sm" onClick={() => setOpen(true)}>
+              Continuar configuração
+            </Button>
+          </div>
+        </div>
+        <TelegramOnboardingWizard open={open} onOpenChange={setOpen} />
+      </>
+    );
+  }
+
   if (agent.telegram_bot_username) return null;
 
   return (
