@@ -22,6 +22,12 @@ export type Database = {
           status: string
           telegram_bot_token_vault_id: string | null
           telegram_bot_username: string | null
+          telegram_connected_at: string | null
+          telegram_first_message_received_at: string | null
+          telegram_onboarding_completed: boolean
+          telegram_token_invalid: boolean
+          telegram_webhook_configured: boolean
+          telegram_webhook_secret: string | null
           updated_at: string
           user_id: string
           uuid_tenant: string
@@ -34,6 +40,12 @@ export type Database = {
           status?: string
           telegram_bot_token_vault_id?: string | null
           telegram_bot_username?: string | null
+          telegram_connected_at?: string | null
+          telegram_first_message_received_at?: string | null
+          telegram_onboarding_completed?: boolean
+          telegram_token_invalid?: boolean
+          telegram_webhook_configured?: boolean
+          telegram_webhook_secret?: string | null
           updated_at?: string
           user_id: string
           uuid_tenant?: string
@@ -46,6 +58,12 @@ export type Database = {
           status?: string
           telegram_bot_token_vault_id?: string | null
           telegram_bot_username?: string | null
+          telegram_connected_at?: string | null
+          telegram_first_message_received_at?: string | null
+          telegram_onboarding_completed?: boolean
+          telegram_token_invalid?: boolean
+          telegram_webhook_configured?: boolean
+          telegram_webhook_secret?: string | null
           updated_at?: string
           user_id?: string
           uuid_tenant?: string
@@ -498,6 +516,102 @@ export type Database = {
             isOneToOne: false
             referencedRelation: "user_skill_limits"
             referencedColumns: ["user_id"]
+          },
+        ]
+      }
+      telegram_messages_log: {
+        Row: {
+          agent_instance_id: string
+          created_at: string
+          direction: string
+          id: string
+          is_first_message: boolean
+          message_text: string | null
+          message_type: string
+          raw_payload: Json | null
+          telegram_chat_id: number
+          telegram_user_id: number | null
+          telegram_username: string | null
+          user_id: string
+        }
+        Insert: {
+          agent_instance_id: string
+          created_at?: string
+          direction: string
+          id?: string
+          is_first_message?: boolean
+          message_text?: string | null
+          message_type?: string
+          raw_payload?: Json | null
+          telegram_chat_id: number
+          telegram_user_id?: number | null
+          telegram_username?: string | null
+          user_id: string
+        }
+        Update: {
+          agent_instance_id?: string
+          created_at?: string
+          direction?: string
+          id?: string
+          is_first_message?: boolean
+          message_text?: string | null
+          message_type?: string
+          raw_payload?: Json | null
+          telegram_chat_id?: number
+          telegram_user_id?: number | null
+          telegram_username?: string | null
+          user_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "telegram_messages_log_agent_instance_id_fkey"
+            columns: ["agent_instance_id"]
+            isOneToOne: false
+            referencedRelation: "agent_instances"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "telegram_messages_log_user_id_fkey"
+            columns: ["user_id"]
+            isOneToOne: false
+            referencedRelation: "profiles"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "telegram_messages_log_user_id_fkey"
+            columns: ["user_id"]
+            isOneToOne: false
+            referencedRelation: "user_skill_limits"
+            referencedColumns: ["user_id"]
+          },
+        ]
+      }
+      telegram_rate_limit_bucket: {
+        Row: {
+          agent_instance_id: string
+          request_count: number
+          updated_at: string
+          window_start: string
+        }
+        Insert: {
+          agent_instance_id: string
+          request_count?: number
+          updated_at?: string
+          window_start?: string
+        }
+        Update: {
+          agent_instance_id?: string
+          request_count?: number
+          updated_at?: string
+          window_start?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "telegram_rate_limit_bucket_agent_instance_id_fkey"
+            columns: ["agent_instance_id"]
+            isOneToOne: true
+            referencedRelation: "agent_instances"
+            referencedColumns: ["id"]
           },
         ]
       }
