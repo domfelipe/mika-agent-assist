@@ -99,14 +99,14 @@ function SkillPreviewPage() {
       // 2. Create version
       const { data: ver, error: verErr } = await supabase
         .from("skill_versions")
-        .insert({
+        .insert([{
           skill_id: skill.id,
           version_number: 1,
           markdown_content: markdown,
           form_inputs: formInputs as Record<string, unknown>,
           is_live: false,
           created_by: user.id,
-        })
+        }])
         .select("id")
         .single();
 

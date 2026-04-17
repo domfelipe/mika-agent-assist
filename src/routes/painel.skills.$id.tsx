@@ -105,14 +105,14 @@ function SkillDetailPage() {
       const maxVer = Math.max(...versions.data.map((v) => v.version_number), 0);
       const { data, error } = await supabase
         .from("skill_versions")
-        .insert({
+        .insert([{
           skill_id: id,
           version_number: maxVer + 1,
           markdown_content: markdown,
-          form_inputs: currentVersion?.form_inputs ?? {},
+          form_inputs: (currentVersion?.form_inputs ?? {}) as Record<string, unknown>,
           is_live: false,
           created_by: user.id,
-        })
+        }])
         .select("id, version_number")
         .single();
       if (error) throw error;
