@@ -16,9 +16,15 @@ import { Route as PainelRouteImport } from './routes/painel'
 import { Route as LoginRouteImport } from './routes/login'
 import { Route as IndexRouteImport } from './routes/index'
 import { Route as PainelIndexRouteImport } from './routes/painel.index'
+import { Route as PainelSkillsRouteImport } from './routes/painel.skills'
 import { Route as PainelFaturamentoRouteImport } from './routes/painel.faturamento'
 import { Route as PainelConfiguracoesRouteImport } from './routes/painel.configuracoes'
+import { Route as PainelAgenteRouteImport } from './routes/painel.agente'
 import { Route as CheckoutSucessoRouteImport } from './routes/checkout.sucesso'
+import { Route as PainelSkillsIndexRouteImport } from './routes/painel.skills.index'
+import { Route as PainelSkillsPreviewRouteImport } from './routes/painel.skills.preview'
+import { Route as PainelSkillsNovaRouteImport } from './routes/painel.skills.nova'
+import { Route as PainelSkillsIdRouteImport } from './routes/painel.skills.$id'
 
 const SignupRoute = SignupRouteImport.update({
   id: '/signup',
@@ -55,6 +61,11 @@ const PainelIndexRoute = PainelIndexRouteImport.update({
   path: '/',
   getParentRoute: () => PainelRoute,
 } as any)
+const PainelSkillsRoute = PainelSkillsRouteImport.update({
+  id: '/skills',
+  path: '/skills',
+  getParentRoute: () => PainelRoute,
+} as any)
 const PainelFaturamentoRoute = PainelFaturamentoRouteImport.update({
   id: '/faturamento',
   path: '/faturamento',
@@ -65,10 +76,35 @@ const PainelConfiguracoesRoute = PainelConfiguracoesRouteImport.update({
   path: '/configuracoes',
   getParentRoute: () => PainelRoute,
 } as any)
+const PainelAgenteRoute = PainelAgenteRouteImport.update({
+  id: '/agente',
+  path: '/agente',
+  getParentRoute: () => PainelRoute,
+} as any)
 const CheckoutSucessoRoute = CheckoutSucessoRouteImport.update({
   id: '/checkout/sucesso',
   path: '/checkout/sucesso',
   getParentRoute: () => rootRouteImport,
+} as any)
+const PainelSkillsIndexRoute = PainelSkillsIndexRouteImport.update({
+  id: '/',
+  path: '/',
+  getParentRoute: () => PainelSkillsRoute,
+} as any)
+const PainelSkillsPreviewRoute = PainelSkillsPreviewRouteImport.update({
+  id: '/preview',
+  path: '/preview',
+  getParentRoute: () => PainelSkillsRoute,
+} as any)
+const PainelSkillsNovaRoute = PainelSkillsNovaRouteImport.update({
+  id: '/nova',
+  path: '/nova',
+  getParentRoute: () => PainelSkillsRoute,
+} as any)
+const PainelSkillsIdRoute = PainelSkillsIdRouteImport.update({
+  id: '/$id',
+  path: '/$id',
+  getParentRoute: () => PainelSkillsRoute,
 } as any)
 
 export interface FileRoutesByFullPath {
@@ -79,9 +115,15 @@ export interface FileRoutesByFullPath {
   '/redefinir-senha': typeof RedefinirSenhaRoute
   '/signup': typeof SignupRoute
   '/checkout/sucesso': typeof CheckoutSucessoRoute
+  '/painel/agente': typeof PainelAgenteRoute
   '/painel/configuracoes': typeof PainelConfiguracoesRoute
   '/painel/faturamento': typeof PainelFaturamentoRoute
+  '/painel/skills': typeof PainelSkillsRouteWithChildren
   '/painel/': typeof PainelIndexRoute
+  '/painel/skills/$id': typeof PainelSkillsIdRoute
+  '/painel/skills/nova': typeof PainelSkillsNovaRoute
+  '/painel/skills/preview': typeof PainelSkillsPreviewRoute
+  '/painel/skills/': typeof PainelSkillsIndexRoute
 }
 export interface FileRoutesByTo {
   '/': typeof IndexRoute
@@ -90,9 +132,14 @@ export interface FileRoutesByTo {
   '/redefinir-senha': typeof RedefinirSenhaRoute
   '/signup': typeof SignupRoute
   '/checkout/sucesso': typeof CheckoutSucessoRoute
+  '/painel/agente': typeof PainelAgenteRoute
   '/painel/configuracoes': typeof PainelConfiguracoesRoute
   '/painel/faturamento': typeof PainelFaturamentoRoute
   '/painel': typeof PainelIndexRoute
+  '/painel/skills/$id': typeof PainelSkillsIdRoute
+  '/painel/skills/nova': typeof PainelSkillsNovaRoute
+  '/painel/skills/preview': typeof PainelSkillsPreviewRoute
+  '/painel/skills': typeof PainelSkillsIndexRoute
 }
 export interface FileRoutesById {
   __root__: typeof rootRouteImport
@@ -103,9 +150,15 @@ export interface FileRoutesById {
   '/redefinir-senha': typeof RedefinirSenhaRoute
   '/signup': typeof SignupRoute
   '/checkout/sucesso': typeof CheckoutSucessoRoute
+  '/painel/agente': typeof PainelAgenteRoute
   '/painel/configuracoes': typeof PainelConfiguracoesRoute
   '/painel/faturamento': typeof PainelFaturamentoRoute
+  '/painel/skills': typeof PainelSkillsRouteWithChildren
   '/painel/': typeof PainelIndexRoute
+  '/painel/skills/$id': typeof PainelSkillsIdRoute
+  '/painel/skills/nova': typeof PainelSkillsNovaRoute
+  '/painel/skills/preview': typeof PainelSkillsPreviewRoute
+  '/painel/skills/': typeof PainelSkillsIndexRoute
 }
 export interface FileRouteTypes {
   fileRoutesByFullPath: FileRoutesByFullPath
@@ -117,9 +170,15 @@ export interface FileRouteTypes {
     | '/redefinir-senha'
     | '/signup'
     | '/checkout/sucesso'
+    | '/painel/agente'
     | '/painel/configuracoes'
     | '/painel/faturamento'
+    | '/painel/skills'
     | '/painel/'
+    | '/painel/skills/$id'
+    | '/painel/skills/nova'
+    | '/painel/skills/preview'
+    | '/painel/skills/'
   fileRoutesByTo: FileRoutesByTo
   to:
     | '/'
@@ -128,9 +187,14 @@ export interface FileRouteTypes {
     | '/redefinir-senha'
     | '/signup'
     | '/checkout/sucesso'
+    | '/painel/agente'
     | '/painel/configuracoes'
     | '/painel/faturamento'
     | '/painel'
+    | '/painel/skills/$id'
+    | '/painel/skills/nova'
+    | '/painel/skills/preview'
+    | '/painel/skills'
   id:
     | '__root__'
     | '/'
@@ -140,9 +204,15 @@ export interface FileRouteTypes {
     | '/redefinir-senha'
     | '/signup'
     | '/checkout/sucesso'
+    | '/painel/agente'
     | '/painel/configuracoes'
     | '/painel/faturamento'
+    | '/painel/skills'
     | '/painel/'
+    | '/painel/skills/$id'
+    | '/painel/skills/nova'
+    | '/painel/skills/preview'
+    | '/painel/skills/'
   fileRoutesById: FileRoutesById
 }
 export interface RootRouteChildren {
@@ -206,6 +276,13 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof PainelIndexRouteImport
       parentRoute: typeof PainelRoute
     }
+    '/painel/skills': {
+      id: '/painel/skills'
+      path: '/skills'
+      fullPath: '/painel/skills'
+      preLoaderRoute: typeof PainelSkillsRouteImport
+      parentRoute: typeof PainelRoute
+    }
     '/painel/faturamento': {
       id: '/painel/faturamento'
       path: '/faturamento'
@@ -220,6 +297,13 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof PainelConfiguracoesRouteImport
       parentRoute: typeof PainelRoute
     }
+    '/painel/agente': {
+      id: '/painel/agente'
+      path: '/agente'
+      fullPath: '/painel/agente'
+      preLoaderRoute: typeof PainelAgenteRouteImport
+      parentRoute: typeof PainelRoute
+    }
     '/checkout/sucesso': {
       id: '/checkout/sucesso'
       path: '/checkout/sucesso'
@@ -227,18 +311,68 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof CheckoutSucessoRouteImport
       parentRoute: typeof rootRouteImport
     }
+    '/painel/skills/': {
+      id: '/painel/skills/'
+      path: '/'
+      fullPath: '/painel/skills/'
+      preLoaderRoute: typeof PainelSkillsIndexRouteImport
+      parentRoute: typeof PainelSkillsRoute
+    }
+    '/painel/skills/preview': {
+      id: '/painel/skills/preview'
+      path: '/preview'
+      fullPath: '/painel/skills/preview'
+      preLoaderRoute: typeof PainelSkillsPreviewRouteImport
+      parentRoute: typeof PainelSkillsRoute
+    }
+    '/painel/skills/nova': {
+      id: '/painel/skills/nova'
+      path: '/nova'
+      fullPath: '/painel/skills/nova'
+      preLoaderRoute: typeof PainelSkillsNovaRouteImport
+      parentRoute: typeof PainelSkillsRoute
+    }
+    '/painel/skills/$id': {
+      id: '/painel/skills/$id'
+      path: '/$id'
+      fullPath: '/painel/skills/$id'
+      preLoaderRoute: typeof PainelSkillsIdRouteImport
+      parentRoute: typeof PainelSkillsRoute
+    }
   }
 }
 
+interface PainelSkillsRouteChildren {
+  PainelSkillsIdRoute: typeof PainelSkillsIdRoute
+  PainelSkillsNovaRoute: typeof PainelSkillsNovaRoute
+  PainelSkillsPreviewRoute: typeof PainelSkillsPreviewRoute
+  PainelSkillsIndexRoute: typeof PainelSkillsIndexRoute
+}
+
+const PainelSkillsRouteChildren: PainelSkillsRouteChildren = {
+  PainelSkillsIdRoute: PainelSkillsIdRoute,
+  PainelSkillsNovaRoute: PainelSkillsNovaRoute,
+  PainelSkillsPreviewRoute: PainelSkillsPreviewRoute,
+  PainelSkillsIndexRoute: PainelSkillsIndexRoute,
+}
+
+const PainelSkillsRouteWithChildren = PainelSkillsRoute._addFileChildren(
+  PainelSkillsRouteChildren,
+)
+
 interface PainelRouteChildren {
+  PainelAgenteRoute: typeof PainelAgenteRoute
   PainelConfiguracoesRoute: typeof PainelConfiguracoesRoute
   PainelFaturamentoRoute: typeof PainelFaturamentoRoute
+  PainelSkillsRoute: typeof PainelSkillsRouteWithChildren
   PainelIndexRoute: typeof PainelIndexRoute
 }
 
 const PainelRouteChildren: PainelRouteChildren = {
+  PainelAgenteRoute: PainelAgenteRoute,
   PainelConfiguracoesRoute: PainelConfiguracoesRoute,
   PainelFaturamentoRoute: PainelFaturamentoRoute,
+  PainelSkillsRoute: PainelSkillsRouteWithChildren,
   PainelIndexRoute: PainelIndexRoute,
 }
 

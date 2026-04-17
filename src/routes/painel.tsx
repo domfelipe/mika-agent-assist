@@ -58,7 +58,7 @@ export const Route = createFileRoute("/painel")({
 });
 
 interface NavItem {
-  to: "/painel" | "/painel/faturamento" | "/painel/configuracoes";
+  to: "/painel" | "/painel/agente" | "/painel/skills" | "/painel/faturamento" | "/painel/configuracoes";
   label: string;
   icon: React.ComponentType<{ className?: string }>;
   disabled?: boolean;
@@ -73,8 +73,8 @@ interface DisabledNavItem {
 
 const NAV: (NavItem | DisabledNavItem)[] = [
   { to: "/painel", label: "Dashboard", icon: Home },
-  { to: null, label: "Meu Agente", icon: Bot, disabled: true },
-  { to: null, label: "Skills", icon: Sparkles, disabled: true },
+  { to: "/painel/agente", label: "Meu Agente", icon: Bot },
+  { to: "/painel/skills", label: "Skills", icon: Sparkles },
   { to: null, label: "Integrações", icon: Plug, disabled: true },
   { to: "/painel/faturamento", label: "Faturamento", icon: CreditCard },
   { to: "/painel/configuracoes", label: "Configurações", icon: Settings },
