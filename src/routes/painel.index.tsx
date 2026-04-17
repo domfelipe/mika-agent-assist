@@ -77,6 +77,8 @@ function DashboardPage() {
       )}
 
       {subscription && subscription.status === "active" && <SkillsDashboardWidget />}
+
+      <TelegramOnboardingWizard open={wizardOpen} onOpenChange={setWizardOpen} />
     </div>
   );
 }
