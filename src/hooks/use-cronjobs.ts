@@ -24,11 +24,12 @@ export interface ScheduledJob {
   updated_at: string;
 }
 
-function normalizeJob(row: Record<string, unknown>): ScheduledJob {
+function normalizeJob(row: unknown): ScheduledJob {
+  const r = row as ScheduledJob & { required_mcp_slugs: unknown };
   return {
-    ...(row as ScheduledJob),
-    required_mcp_slugs: Array.isArray(row.required_mcp_slugs)
-      ? (row.required_mcp_slugs as string[])
+    ...r,
+    required_mcp_slugs: Array.isArray(r.required_mcp_slugs)
+      ? (r.required_mcp_slugs as string[])
       : [],
   };
 }
@@ -140,7 +141,7 @@ export function useUpdateCronjobStatus() {
   const qc = useQueryClient();
   return useMutation({
     mutationFn: async ({ id, status }: { id: string; status: "active" | "paused" }) => {
-      const update: Record<string, unknown> = { status };
+      const update: { status: "active" | "paused"; auto_paused_reason?: null } = { status };
       if (status === "paused") update.auto_paused_reason = null;
       const { error } = await supabase
         .from("scheduled_jobs")
