@@ -10,6 +10,9 @@ import { Button } from "@/components/ui/button";
 import { Skeleton } from "@/components/ui/skeleton";
 import { SubscriptionBanner } from "@/components/mika/SubscriptionBanner";
 import { SkillsDashboardWidget } from "@/components/mika/SkillsDashboardWidget";
+import { CronjobsDashboardWidget } from "@/components/mika/cronjobs/CronjobsDashboardWidget";
+import { IntegrationsDashboardWidget } from "@/components/mika/integrations/IntegrationsDashboardWidget";
+import { AutoPausedBanner } from "@/components/mika/cronjobs/AutoPausedBanner";
 import { TelegramOnboardingWizard } from "@/components/mika/telegram/TelegramOnboardingWizard";
 import { toast } from "sonner";
 import { cn } from "@/lib/utils";
@@ -76,7 +79,16 @@ function DashboardPage() {
         <ProvisioningCard />
       )}
 
-      {subscription && subscription.status === "active" && <SkillsDashboardWidget />}
+      {subscription && subscription.status === "active" && (
+        <>
+          <AutoPausedBanner />
+          <div className="grid gap-6 lg:grid-cols-2">
+            <SkillsDashboardWidget />
+            <CronjobsDashboardWidget />
+          </div>
+          <IntegrationsDashboardWidget />
+        </>
+      )}
 
       <TelegramOnboardingWizard open={wizardOpen} onOpenChange={setWizardOpen} />
     </div>

@@ -79,6 +79,82 @@ A Edge Function `telegram-webhook` hoje responde com um placeholder. O `TODO Fas
 
 ---
 
+## Fase 4 — Integrações OAuth + Automações (✅ entregue)
+
+### O que foi entregue
+
+- **5 providers OAuth** cadastrados em `available_mcps`: Google Workspace, Notion, Todoist, Cal.com, Microsoft 365
+- **Edge Functions**:
+  - `oauth-start` — gera state token + URL de autorização (PKCE quando aplicável)
+  - `oauth-callback` (público, `verify_jwt = false`) — troca code por tokens, persiste no Vault
+  - `refresh-integration-token` — renova access_token via refresh_token
+  - `disconnect-integration` — revoga no provider + apaga do Vault + auto-pausa cronjobs dependentes
+  - `test-integration` — verifica conectividade sem consumir refresh
+  - `parse-cronjob-natural-language` — Lovable AI Gateway (gemini-2.5-flash) → cron + prompt
+- **Frontend `/painel/integracoes`** — grid com 4 estados (available, locked, connected, error), página de detalhe com `DisconnectMCPDialog` que lista cronjobs dependentes
+- **Frontend `/painel/cronjobs`** — wizard 3 passos (NL → revisão obrigatória → checagem de dependências MCP), gestão de status (active/paused/auto_paused)
+- **Dashboard** — widgets de Skills, Automações e Integrações + banner de auto-pausa
+- **Enforcement via banco** — views `user_jobs_limits` e `user_integration_limits` aplicam limites por plano
+- **Cleanup oauth_states** — trigger `FOR EACH STATEMENT` (não FOR EACH ROW) limpa tokens expirados
+
+### Etapas pós-deploy (uma única vez)
+
+#### 1. Configurar OAuth apps em cada provider
+
+Para cada provider abaixo, crie um OAuth app e configure a **Redirect URI**:
+
+```
+https://smsarmgoirlcedmqvdgc.supabase.co/functions/v1/oauth-callback
+```
+
+| Provider | Console | Scopes mínimos |
+|----------|---------|----------------|
+| **Google Workspace** | [console.cloud.google.com](https://console.cloud.google.com) → APIs & Services → Credentials → OAuth 2.0 Client ID (Web app) | `openid email profile https://www.googleapis.com/auth/gmail.readonly https://www.googleapis.com/auth/calendar` |
+| **Microsoft 365** | [Azure Portal](https://portal.azure.com) → App registrations → New registration → Web | `openid email profile offline_access Mail.Read Calendars.ReadWrite` |
+| **Notion** | [notion.so/my-integrations](https://www.notion.so/my-integrations) → New integration (Public) | (definidos na integração) |
+| **Todoist** | [developer.todoist.com](https://developer.todoist.com/appconsole.html) → App management → Create app | `data:read_write` |
+| **Cal.com** | [app.cal.com/settings/developer](https://app.cal.com/settings/developer/oauth-clients) → New OAuth Client | `READ_BOOKING WRITE_BOOKING READ_PROFILE` |
+
+#### 2. Adicionar os 10 secrets no Lovable Cloud
+
+Pelo menu **Connectors → Lovable Cloud → Secrets**, adicione:
+
+```
+GOOGLE_OAUTH_CLIENT_ID
+GOOGLE_OAUTH_CLIENT_SECRET
+MICROSOFT_OAUTH_CLIENT_ID
+MICROSOFT_OAUTH_CLIENT_SECRET
+NOTION_OAUTH_CLIENT_ID
+NOTION_OAUTH_CLIENT_SECRET
+TODOIST_OAUTH_CLIENT_ID
+TODOIST_OAUTH_CLIENT_SECRET
+CALCOM_OAUTH_CLIENT_ID
+CALCOM_OAUTH_CLIENT_SECRET
+```
+
+#### 3. Verificar publicação Realtime
+
+A view `user_integration_limits` e `user_jobs_limits` usam dados de `user_integrations` e `scheduled_jobs`. Não precisam estar em realtime, mas confirme que os RPCs Vault permanecem restritos ao `service_role`.
+
+#### 4. Teste end-to-end
+
+1. Acesse `/painel/integracoes` → conecte uma integração (ex: Notion)
+2. Acesse `/painel/cronjobs/nova` → descreva "todo dia útil às 9h, criar uma página no Notion com resumo do dia"
+3. Confirme a revisão (cron + prompt)
+4. A automação deve aparecer ativa em `/painel/cronjobs`
+5. Desconecte a integração Notion → a automação deve aparecer **auto-pausada** com banner no dashboard
+
+### O que **não** está nesta fase
+
+- ❌ Execução real de cronjobs (Fase 5 — scheduler + Hermes)
+- ❌ Sync Mika ↔ Container (Fase 5)
+- ❌ MCPs corporativos privados / BYOA
+- ❌ Histórico de execuções de cronjobs
+- ❌ Dashboard de uso de API calls
+- ❌ Providers além dos 5 listados
+
+---
+
 ## Comandos úteis
 
 ```bash
