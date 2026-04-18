@@ -81,10 +81,81 @@ export type Database = {
             foreignKeyName: "agent_instances_user_id_fkey"
             columns: ["user_id"]
             isOneToOne: true
+            referencedRelation: "user_integration_limits"
+            referencedColumns: ["user_id"]
+          },
+          {
+            foreignKeyName: "agent_instances_user_id_fkey"
+            columns: ["user_id"]
+            isOneToOne: true
+            referencedRelation: "user_jobs_limits"
+            referencedColumns: ["user_id"]
+          },
+          {
+            foreignKeyName: "agent_instances_user_id_fkey"
+            columns: ["user_id"]
+            isOneToOne: true
             referencedRelation: "user_skill_limits"
             referencedColumns: ["user_id"]
           },
         ]
+      }
+      available_mcps: {
+        Row: {
+          available_in_plans: Json
+          created_at: string
+          description: string
+          display_order: number
+          icon_url: string
+          id: string
+          is_active: boolean
+          name: string
+          oauth_authorize_url: string
+          oauth_revoke_url: string | null
+          oauth_token_url: string
+          provider: string
+          required_scopes: Json
+          slug: string
+          supports_refresh_token: boolean
+          updated_at: string
+        }
+        Insert: {
+          available_in_plans?: Json
+          created_at?: string
+          description: string
+          display_order?: number
+          icon_url: string
+          id?: string
+          is_active?: boolean
+          name: string
+          oauth_authorize_url: string
+          oauth_revoke_url?: string | null
+          oauth_token_url: string
+          provider: string
+          required_scopes?: Json
+          slug: string
+          supports_refresh_token?: boolean
+          updated_at?: string
+        }
+        Update: {
+          available_in_plans?: Json
+          created_at?: string
+          description?: string
+          display_order?: number
+          icon_url?: string
+          id?: string
+          is_active?: boolean
+          name?: string
+          oauth_authorize_url?: string
+          oauth_revoke_url?: string | null
+          oauth_token_url?: string
+          provider?: string
+          required_scopes?: Json
+          slug?: string
+          supports_refresh_token?: boolean
+          updated_at?: string
+        }
+        Relationships: []
       }
       enterprise_leads: {
         Row: {
@@ -121,6 +192,44 @@ export type Database = {
           team_size?: string
         }
         Relationships: []
+      }
+      oauth_state_tokens: {
+        Row: {
+          consumed: boolean
+          created_at: string
+          expires_at: string
+          id: string
+          mcp_id: string
+          state_token: string
+          user_id: string
+        }
+        Insert: {
+          consumed?: boolean
+          created_at?: string
+          expires_at?: string
+          id?: string
+          mcp_id: string
+          state_token: string
+          user_id: string
+        }
+        Update: {
+          consumed?: boolean
+          created_at?: string
+          expires_at?: string
+          id?: string
+          mcp_id?: string
+          state_token?: string
+          user_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "oauth_state_tokens_mcp_id_fkey"
+            columns: ["mcp_id"]
+            isOneToOne: false
+            referencedRelation: "available_mcps"
+            referencedColumns: ["id"]
+          },
+        ]
       }
       paddle_webhook_events: {
         Row: {
@@ -209,6 +318,7 @@ export type Database = {
           paddle_customer_id: string | null
           phone: string | null
           stripe_customer_id: string | null
+          timezone: string
           updated_at: string
         }
         Insert: {
@@ -222,6 +332,7 @@ export type Database = {
           paddle_customer_id?: string | null
           phone?: string | null
           stripe_customer_id?: string | null
+          timezone?: string
           updated_at?: string
         }
         Update: {
@@ -235,9 +346,78 @@ export type Database = {
           paddle_customer_id?: string | null
           phone?: string | null
           stripe_customer_id?: string | null
+          timezone?: string
           updated_at?: string
         }
         Relationships: []
+      }
+      scheduled_jobs: {
+        Row: {
+          action_prompt: string
+          agent_instance_id: string
+          auto_paused_reason: string | null
+          created_at: string
+          cron_expression: string
+          description: string | null
+          human_readable: string
+          id: string
+          last_run_at: string | null
+          name: string
+          natural_language_input: string
+          next_run_at: string | null
+          required_mcp_slugs: Json
+          status: string
+          timezone: string
+          updated_at: string
+          user_id: string
+        }
+        Insert: {
+          action_prompt: string
+          agent_instance_id: string
+          auto_paused_reason?: string | null
+          created_at?: string
+          cron_expression: string
+          description?: string | null
+          human_readable: string
+          id?: string
+          last_run_at?: string | null
+          name: string
+          natural_language_input: string
+          next_run_at?: string | null
+          required_mcp_slugs?: Json
+          status?: string
+          timezone?: string
+          updated_at?: string
+          user_id: string
+        }
+        Update: {
+          action_prompt?: string
+          agent_instance_id?: string
+          auto_paused_reason?: string | null
+          created_at?: string
+          cron_expression?: string
+          description?: string | null
+          human_readable?: string
+          id?: string
+          last_run_at?: string | null
+          name?: string
+          natural_language_input?: string
+          next_run_at?: string | null
+          required_mcp_slugs?: Json
+          status?: string
+          timezone?: string
+          updated_at?: string
+          user_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "scheduled_jobs_agent_instance_id_fkey"
+            columns: ["agent_instance_id"]
+            isOneToOne: false
+            referencedRelation: "agent_instances"
+            referencedColumns: ["id"]
+          },
+        ]
       }
       skill_test_runs: {
         Row: {
@@ -295,6 +475,20 @@ export type Database = {
             foreignKeyName: "skill_test_runs_user_id_fkey"
             columns: ["user_id"]
             isOneToOne: false
+            referencedRelation: "user_integration_limits"
+            referencedColumns: ["user_id"]
+          },
+          {
+            foreignKeyName: "skill_test_runs_user_id_fkey"
+            columns: ["user_id"]
+            isOneToOne: false
+            referencedRelation: "user_jobs_limits"
+            referencedColumns: ["user_id"]
+          },
+          {
+            foreignKeyName: "skill_test_runs_user_id_fkey"
+            columns: ["user_id"]
+            isOneToOne: false
             referencedRelation: "user_skill_limits"
             referencedColumns: ["user_id"]
           },
@@ -338,6 +532,20 @@ export type Database = {
             isOneToOne: false
             referencedRelation: "profiles"
             referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "skill_versions_created_by_fkey"
+            columns: ["created_by"]
+            isOneToOne: false
+            referencedRelation: "user_integration_limits"
+            referencedColumns: ["user_id"]
+          },
+          {
+            foreignKeyName: "skill_versions_created_by_fkey"
+            columns: ["created_by"]
+            isOneToOne: false
+            referencedRelation: "user_jobs_limits"
+            referencedColumns: ["user_id"]
           },
           {
             foreignKeyName: "skill_versions_created_by_fkey"
@@ -406,6 +614,20 @@ export type Database = {
             isOneToOne: false
             referencedRelation: "profiles"
             referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "skills_user_id_fkey"
+            columns: ["user_id"]
+            isOneToOne: false
+            referencedRelation: "user_integration_limits"
+            referencedColumns: ["user_id"]
+          },
+          {
+            foreignKeyName: "skills_user_id_fkey"
+            columns: ["user_id"]
+            isOneToOne: false
+            referencedRelation: "user_jobs_limits"
+            referencedColumns: ["user_id"]
           },
           {
             foreignKeyName: "skills_user_id_fkey"
@@ -514,6 +736,20 @@ export type Database = {
             foreignKeyName: "subscriptions_user_id_fkey"
             columns: ["user_id"]
             isOneToOne: false
+            referencedRelation: "user_integration_limits"
+            referencedColumns: ["user_id"]
+          },
+          {
+            foreignKeyName: "subscriptions_user_id_fkey"
+            columns: ["user_id"]
+            isOneToOne: false
+            referencedRelation: "user_jobs_limits"
+            referencedColumns: ["user_id"]
+          },
+          {
+            foreignKeyName: "subscriptions_user_id_fkey"
+            columns: ["user_id"]
+            isOneToOne: false
             referencedRelation: "user_skill_limits"
             referencedColumns: ["user_id"]
           },
@@ -581,6 +817,20 @@ export type Database = {
             foreignKeyName: "telegram_messages_log_user_id_fkey"
             columns: ["user_id"]
             isOneToOne: false
+            referencedRelation: "user_integration_limits"
+            referencedColumns: ["user_id"]
+          },
+          {
+            foreignKeyName: "telegram_messages_log_user_id_fkey"
+            columns: ["user_id"]
+            isOneToOne: false
+            referencedRelation: "user_jobs_limits"
+            referencedColumns: ["user_id"]
+          },
+          {
+            foreignKeyName: "telegram_messages_log_user_id_fkey"
+            columns: ["user_id"]
+            isOneToOne: false
             referencedRelation: "user_skill_limits"
             referencedColumns: ["user_id"]
           },
@@ -615,8 +865,85 @@ export type Database = {
           },
         ]
       }
+      user_integrations: {
+        Row: {
+          access_token_vault_id: string | null
+          connected_account_email: string | null
+          connected_account_name: string | null
+          created_at: string
+          error_message: string | null
+          granted_scopes: Json
+          id: string
+          last_refreshed_at: string | null
+          mcp_id: string
+          refresh_token_vault_id: string | null
+          status: string
+          token_expires_at: string | null
+          updated_at: string
+          user_id: string
+        }
+        Insert: {
+          access_token_vault_id?: string | null
+          connected_account_email?: string | null
+          connected_account_name?: string | null
+          created_at?: string
+          error_message?: string | null
+          granted_scopes?: Json
+          id?: string
+          last_refreshed_at?: string | null
+          mcp_id: string
+          refresh_token_vault_id?: string | null
+          status?: string
+          token_expires_at?: string | null
+          updated_at?: string
+          user_id: string
+        }
+        Update: {
+          access_token_vault_id?: string | null
+          connected_account_email?: string | null
+          connected_account_name?: string | null
+          created_at?: string
+          error_message?: string | null
+          granted_scopes?: Json
+          id?: string
+          last_refreshed_at?: string | null
+          mcp_id?: string
+          refresh_token_vault_id?: string | null
+          status?: string
+          token_expires_at?: string | null
+          updated_at?: string
+          user_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "user_integrations_mcp_id_fkey"
+            columns: ["mcp_id"]
+            isOneToOne: false
+            referencedRelation: "available_mcps"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
     }
     Views: {
+      user_integration_limits: {
+        Row: {
+          current_integrations_count: number | null
+          max_integrations: number | null
+          plan_slug: string | null
+          user_id: string | null
+        }
+        Relationships: []
+      }
+      user_jobs_limits: {
+        Row: {
+          current_jobs_count: number | null
+          max_jobs: number | null
+          plan_slug: string | null
+          user_id: string | null
+        }
+        Relationships: []
+      }
       user_skill_limits: {
         Row: {
           current_skills_count: number | null
