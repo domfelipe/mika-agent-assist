@@ -23,10 +23,13 @@ import { Route as PainelAgenteRouteImport } from './routes/painel.agente'
 import { Route as CheckoutSucessoRouteImport } from './routes/checkout.sucesso'
 import { Route as PainelSkillsIndexRouteImport } from './routes/painel.skills.index'
 import { Route as PainelIntegracoesIndexRouteImport } from './routes/painel.integracoes.index'
+import { Route as PainelCronjobsIndexRouteImport } from './routes/painel.cronjobs.index'
 import { Route as PainelSkillsPreviewRouteImport } from './routes/painel.skills.preview'
 import { Route as PainelSkillsNovaRouteImport } from './routes/painel.skills.nova'
 import { Route as PainelSkillsIdRouteImport } from './routes/painel.skills.$id'
 import { Route as PainelIntegracoesSlugRouteImport } from './routes/painel.integracoes.$slug'
+import { Route as PainelCronjobsNovaRouteImport } from './routes/painel.cronjobs.nova'
+import { Route as PainelCronjobsIdRouteImport } from './routes/painel.cronjobs.$id'
 
 const SignupRoute = SignupRouteImport.update({
   id: '/signup',
@@ -98,6 +101,11 @@ const PainelIntegracoesIndexRoute = PainelIntegracoesIndexRouteImport.update({
   path: '/integracoes/',
   getParentRoute: () => PainelRoute,
 } as any)
+const PainelCronjobsIndexRoute = PainelCronjobsIndexRouteImport.update({
+  id: '/cronjobs/',
+  path: '/cronjobs/',
+  getParentRoute: () => PainelRoute,
+} as any)
 const PainelSkillsPreviewRoute = PainelSkillsPreviewRouteImport.update({
   id: '/preview',
   path: '/preview',
@@ -118,6 +126,16 @@ const PainelIntegracoesSlugRoute = PainelIntegracoesSlugRouteImport.update({
   path: '/integracoes/$slug',
   getParentRoute: () => PainelRoute,
 } as any)
+const PainelCronjobsNovaRoute = PainelCronjobsNovaRouteImport.update({
+  id: '/cronjobs/nova',
+  path: '/cronjobs/nova',
+  getParentRoute: () => PainelRoute,
+} as any)
+const PainelCronjobsIdRoute = PainelCronjobsIdRouteImport.update({
+  id: '/cronjobs/$id',
+  path: '/cronjobs/$id',
+  getParentRoute: () => PainelRoute,
+} as any)
 
 export interface FileRoutesByFullPath {
   '/': typeof IndexRoute
@@ -132,10 +150,13 @@ export interface FileRoutesByFullPath {
   '/painel/faturamento': typeof PainelFaturamentoRoute
   '/painel/skills': typeof PainelSkillsRouteWithChildren
   '/painel/': typeof PainelIndexRoute
+  '/painel/cronjobs/$id': typeof PainelCronjobsIdRoute
+  '/painel/cronjobs/nova': typeof PainelCronjobsNovaRoute
   '/painel/integracoes/$slug': typeof PainelIntegracoesSlugRoute
   '/painel/skills/$id': typeof PainelSkillsIdRoute
   '/painel/skills/nova': typeof PainelSkillsNovaRoute
   '/painel/skills/preview': typeof PainelSkillsPreviewRoute
+  '/painel/cronjobs/': typeof PainelCronjobsIndexRoute
   '/painel/integracoes/': typeof PainelIntegracoesIndexRoute
   '/painel/skills/': typeof PainelSkillsIndexRoute
 }
@@ -150,10 +171,13 @@ export interface FileRoutesByTo {
   '/painel/configuracoes': typeof PainelConfiguracoesRoute
   '/painel/faturamento': typeof PainelFaturamentoRoute
   '/painel': typeof PainelIndexRoute
+  '/painel/cronjobs/$id': typeof PainelCronjobsIdRoute
+  '/painel/cronjobs/nova': typeof PainelCronjobsNovaRoute
   '/painel/integracoes/$slug': typeof PainelIntegracoesSlugRoute
   '/painel/skills/$id': typeof PainelSkillsIdRoute
   '/painel/skills/nova': typeof PainelSkillsNovaRoute
   '/painel/skills/preview': typeof PainelSkillsPreviewRoute
+  '/painel/cronjobs': typeof PainelCronjobsIndexRoute
   '/painel/integracoes': typeof PainelIntegracoesIndexRoute
   '/painel/skills': typeof PainelSkillsIndexRoute
 }
@@ -171,10 +195,13 @@ export interface FileRoutesById {
   '/painel/faturamento': typeof PainelFaturamentoRoute
   '/painel/skills': typeof PainelSkillsRouteWithChildren
   '/painel/': typeof PainelIndexRoute
+  '/painel/cronjobs/$id': typeof PainelCronjobsIdRoute
+  '/painel/cronjobs/nova': typeof PainelCronjobsNovaRoute
   '/painel/integracoes/$slug': typeof PainelIntegracoesSlugRoute
   '/painel/skills/$id': typeof PainelSkillsIdRoute
   '/painel/skills/nova': typeof PainelSkillsNovaRoute
   '/painel/skills/preview': typeof PainelSkillsPreviewRoute
+  '/painel/cronjobs/': typeof PainelCronjobsIndexRoute
   '/painel/integracoes/': typeof PainelIntegracoesIndexRoute
   '/painel/skills/': typeof PainelSkillsIndexRoute
 }
@@ -193,10 +220,13 @@ export interface FileRouteTypes {
     | '/painel/faturamento'
     | '/painel/skills'
     | '/painel/'
+    | '/painel/cronjobs/$id'
+    | '/painel/cronjobs/nova'
     | '/painel/integracoes/$slug'
     | '/painel/skills/$id'
     | '/painel/skills/nova'
     | '/painel/skills/preview'
+    | '/painel/cronjobs/'
     | '/painel/integracoes/'
     | '/painel/skills/'
   fileRoutesByTo: FileRoutesByTo
@@ -211,10 +241,13 @@ export interface FileRouteTypes {
     | '/painel/configuracoes'
     | '/painel/faturamento'
     | '/painel'
+    | '/painel/cronjobs/$id'
+    | '/painel/cronjobs/nova'
     | '/painel/integracoes/$slug'
     | '/painel/skills/$id'
     | '/painel/skills/nova'
     | '/painel/skills/preview'
+    | '/painel/cronjobs'
     | '/painel/integracoes'
     | '/painel/skills'
   id:
@@ -231,10 +264,13 @@ export interface FileRouteTypes {
     | '/painel/faturamento'
     | '/painel/skills'
     | '/painel/'
+    | '/painel/cronjobs/$id'
+    | '/painel/cronjobs/nova'
     | '/painel/integracoes/$slug'
     | '/painel/skills/$id'
     | '/painel/skills/nova'
     | '/painel/skills/preview'
+    | '/painel/cronjobs/'
     | '/painel/integracoes/'
     | '/painel/skills/'
   fileRoutesById: FileRoutesById
@@ -349,6 +385,13 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof PainelIntegracoesIndexRouteImport
       parentRoute: typeof PainelRoute
     }
+    '/painel/cronjobs/': {
+      id: '/painel/cronjobs/'
+      path: '/cronjobs'
+      fullPath: '/painel/cronjobs/'
+      preLoaderRoute: typeof PainelCronjobsIndexRouteImport
+      parentRoute: typeof PainelRoute
+    }
     '/painel/skills/preview': {
       id: '/painel/skills/preview'
       path: '/preview'
@@ -375,6 +418,20 @@ declare module '@tanstack/react-router' {
       path: '/integracoes/$slug'
       fullPath: '/painel/integracoes/$slug'
       preLoaderRoute: typeof PainelIntegracoesSlugRouteImport
+      parentRoute: typeof PainelRoute
+    }
+    '/painel/cronjobs/nova': {
+      id: '/painel/cronjobs/nova'
+      path: '/cronjobs/nova'
+      fullPath: '/painel/cronjobs/nova'
+      preLoaderRoute: typeof PainelCronjobsNovaRouteImport
+      parentRoute: typeof PainelRoute
+    }
+    '/painel/cronjobs/$id': {
+      id: '/painel/cronjobs/$id'
+      path: '/cronjobs/$id'
+      fullPath: '/painel/cronjobs/$id'
+      preLoaderRoute: typeof PainelCronjobsIdRouteImport
       parentRoute: typeof PainelRoute
     }
   }
@@ -404,7 +461,10 @@ interface PainelRouteChildren {
   PainelFaturamentoRoute: typeof PainelFaturamentoRoute
   PainelSkillsRoute: typeof PainelSkillsRouteWithChildren
   PainelIndexRoute: typeof PainelIndexRoute
+  PainelCronjobsIdRoute: typeof PainelCronjobsIdRoute
+  PainelCronjobsNovaRoute: typeof PainelCronjobsNovaRoute
   PainelIntegracoesSlugRoute: typeof PainelIntegracoesSlugRoute
+  PainelCronjobsIndexRoute: typeof PainelCronjobsIndexRoute
   PainelIntegracoesIndexRoute: typeof PainelIntegracoesIndexRoute
 }
 
@@ -414,7 +474,10 @@ const PainelRouteChildren: PainelRouteChildren = {
   PainelFaturamentoRoute: PainelFaturamentoRoute,
   PainelSkillsRoute: PainelSkillsRouteWithChildren,
   PainelIndexRoute: PainelIndexRoute,
+  PainelCronjobsIdRoute: PainelCronjobsIdRoute,
+  PainelCronjobsNovaRoute: PainelCronjobsNovaRoute,
   PainelIntegracoesSlugRoute: PainelIntegracoesSlugRoute,
+  PainelCronjobsIndexRoute: PainelCronjobsIndexRoute,
   PainelIntegracoesIndexRoute: PainelIntegracoesIndexRoute,
 }
 
