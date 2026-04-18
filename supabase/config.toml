@@ -26,3 +26,15 @@ verify_jwt = true
 
 [functions.telegram-webhook]
 verify_jwt = false
+
+[functions.oauth-start]
+verify_jwt = true
+
+[functions.oauth-callback]
+verify_jwt = false
+
+[functions.refresh-integration-token]
+verify_jwt = true
+
+[functions.disconnect-integration]
+verify_jwt = true
