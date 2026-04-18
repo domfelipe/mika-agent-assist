@@ -22,9 +22,11 @@ import { Route as PainelConfiguracoesRouteImport } from './routes/painel.configu
 import { Route as PainelAgenteRouteImport } from './routes/painel.agente'
 import { Route as CheckoutSucessoRouteImport } from './routes/checkout.sucesso'
 import { Route as PainelSkillsIndexRouteImport } from './routes/painel.skills.index'
+import { Route as PainelIntegracoesIndexRouteImport } from './routes/painel.integracoes.index'
 import { Route as PainelSkillsPreviewRouteImport } from './routes/painel.skills.preview'
 import { Route as PainelSkillsNovaRouteImport } from './routes/painel.skills.nova'
 import { Route as PainelSkillsIdRouteImport } from './routes/painel.skills.$id'
+import { Route as PainelIntegracoesSlugRouteImport } from './routes/painel.integracoes.$slug'
 
 const SignupRoute = SignupRouteImport.update({
   id: '/signup',
@@ -91,6 +93,11 @@ const PainelSkillsIndexRoute = PainelSkillsIndexRouteImport.update({
   path: '/',
   getParentRoute: () => PainelSkillsRoute,
 } as any)
+const PainelIntegracoesIndexRoute = PainelIntegracoesIndexRouteImport.update({
+  id: '/integracoes/',
+  path: '/integracoes/',
+  getParentRoute: () => PainelRoute,
+} as any)
 const PainelSkillsPreviewRoute = PainelSkillsPreviewRouteImport.update({
   id: '/preview',
   path: '/preview',
@@ -106,6 +113,11 @@ const PainelSkillsIdRoute = PainelSkillsIdRouteImport.update({
   path: '/$id',
   getParentRoute: () => PainelSkillsRoute,
 } as any)
+const PainelIntegracoesSlugRoute = PainelIntegracoesSlugRouteImport.update({
+  id: '/integracoes/$slug',
+  path: '/integracoes/$slug',
+  getParentRoute: () => PainelRoute,
+} as any)
 
 export interface FileRoutesByFullPath {
   '/': typeof IndexRoute
@@ -120,9 +132,11 @@ export interface FileRoutesByFullPath {
   '/painel/faturamento': typeof PainelFaturamentoRoute
   '/painel/skills': typeof PainelSkillsRouteWithChildren
   '/painel/': typeof PainelIndexRoute
+  '/painel/integracoes/$slug': typeof PainelIntegracoesSlugRoute
   '/painel/skills/$id': typeof PainelSkillsIdRoute
   '/painel/skills/nova': typeof PainelSkillsNovaRoute
   '/painel/skills/preview': typeof PainelSkillsPreviewRoute
+  '/painel/integracoes/': typeof PainelIntegracoesIndexRoute
   '/painel/skills/': typeof PainelSkillsIndexRoute
 }
 export interface FileRoutesByTo {
@@ -136,9 +150,11 @@ export interface FileRoutesByTo {
   '/painel/configuracoes': typeof PainelConfiguracoesRoute
   '/painel/faturamento': typeof PainelFaturamentoRoute
   '/painel': typeof PainelIndexRoute
+  '/painel/integracoes/$slug': typeof PainelIntegracoesSlugRoute
   '/painel/skills/$id': typeof PainelSkillsIdRoute
   '/painel/skills/nova': typeof PainelSkillsNovaRoute
   '/painel/skills/preview': typeof PainelSkillsPreviewRoute
+  '/painel/integracoes': typeof PainelIntegracoesIndexRoute
   '/painel/skills': typeof PainelSkillsIndexRoute
 }
 export interface FileRoutesById {
@@ -155,9 +171,11 @@ export interface FileRoutesById {
   '/painel/faturamento': typeof PainelFaturamentoRoute
   '/painel/skills': typeof PainelSkillsRouteWithChildren
   '/painel/': typeof PainelIndexRoute
+  '/painel/integracoes/$slug': typeof PainelIntegracoesSlugRoute
   '/painel/skills/$id': typeof PainelSkillsIdRoute
   '/painel/skills/nova': typeof PainelSkillsNovaRoute
   '/painel/skills/preview': typeof PainelSkillsPreviewRoute
+  '/painel/integracoes/': typeof PainelIntegracoesIndexRoute
   '/painel/skills/': typeof PainelSkillsIndexRoute
 }
 export interface FileRouteTypes {
@@ -175,9 +193,11 @@ export interface FileRouteTypes {
     | '/painel/faturamento'
     | '/painel/skills'
     | '/painel/'
+    | '/painel/integracoes/$slug'
     | '/painel/skills/$id'
     | '/painel/skills/nova'
     | '/painel/skills/preview'
+    | '/painel/integracoes/'
     | '/painel/skills/'
   fileRoutesByTo: FileRoutesByTo
   to:
@@ -191,9 +211,11 @@ export interface FileRouteTypes {
     | '/painel/configuracoes'
     | '/painel/faturamento'
     | '/painel'
+    | '/painel/integracoes/$slug'
     | '/painel/skills/$id'
     | '/painel/skills/nova'
     | '/painel/skills/preview'
+    | '/painel/integracoes'
     | '/painel/skills'
   id:
     | '__root__'
@@ -209,9 +231,11 @@ export interface FileRouteTypes {
     | '/painel/faturamento'
     | '/painel/skills'
     | '/painel/'
+    | '/painel/integracoes/$slug'
     | '/painel/skills/$id'
     | '/painel/skills/nova'
     | '/painel/skills/preview'
+    | '/painel/integracoes/'
     | '/painel/skills/'
   fileRoutesById: FileRoutesById
 }
@@ -318,6 +342,13 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof PainelSkillsIndexRouteImport
       parentRoute: typeof PainelSkillsRoute
     }
+    '/painel/integracoes/': {
+      id: '/painel/integracoes/'
+      path: '/integracoes'
+      fullPath: '/painel/integracoes/'
+      preLoaderRoute: typeof PainelIntegracoesIndexRouteImport
+      parentRoute: typeof PainelRoute
+    }
     '/painel/skills/preview': {
       id: '/painel/skills/preview'
       path: '/preview'
@@ -338,6 +369,13 @@ declare module '@tanstack/react-router' {
       fullPath: '/painel/skills/$id'
       preLoaderRoute: typeof PainelSkillsIdRouteImport
       parentRoute: typeof PainelSkillsRoute
+    }
+    '/painel/integracoes/$slug': {
+      id: '/painel/integracoes/$slug'
+      path: '/integracoes/$slug'
+      fullPath: '/painel/integracoes/$slug'
+      preLoaderRoute: typeof PainelIntegracoesSlugRouteImport
+      parentRoute: typeof PainelRoute
     }
   }
 }
@@ -366,6 +404,8 @@ interface PainelRouteChildren {
   PainelFaturamentoRoute: typeof PainelFaturamentoRoute
   PainelSkillsRoute: typeof PainelSkillsRouteWithChildren
   PainelIndexRoute: typeof PainelIndexRoute
+  PainelIntegracoesSlugRoute: typeof PainelIntegracoesSlugRoute
+  PainelIntegracoesIndexRoute: typeof PainelIntegracoesIndexRoute
 }
 
 const PainelRouteChildren: PainelRouteChildren = {
@@ -374,6 +414,8 @@ const PainelRouteChildren: PainelRouteChildren = {
   PainelFaturamentoRoute: PainelFaturamentoRoute,
   PainelSkillsRoute: PainelSkillsRouteWithChildren,
   PainelIndexRoute: PainelIndexRoute,
+  PainelIntegracoesSlugRoute: PainelIntegracoesSlugRoute,
+  PainelIntegracoesIndexRoute: PainelIntegracoesIndexRoute,
 }
 
 const PainelRouteWithChildren =
