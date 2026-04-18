@@ -1,14 +1,14 @@
 "use client";
 
 import { createFileRoute } from "@tanstack/react-router";
-import { useState, useEffect } from "react";
+import { useEffect, useMemo, useState } from "react";
 import { useForm } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { z } from "zod";
 import { useMutation, useQueryClient } from "@tanstack/react-query";
 import { IMaskInput } from "react-imask";
 import { toast } from "sonner";
-import { Loader2, LogOut } from "lucide-react";
+import { Loader2, LogOut, Globe } from "lucide-react";
 import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/hooks/use-auth";
 import { useProfile } from "@/hooks/use-profile";
@@ -17,6 +17,16 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Skeleton } from "@/components/ui/skeleton";
+import {
+  Select,
+  SelectContent,
+  SelectGroup,
+  SelectItem,
+  SelectLabel,
+  SelectTrigger,
+  SelectValue,
+} from "@/components/ui/select";
+import { TIMEZONE_OPTIONS } from "@/lib/timezones";
 
 export const Route = createFileRoute("/painel/configuracoes")({
   component: SettingsPage,
@@ -144,6 +154,8 @@ function SettingsPage() {
         </form>
       </section>
 
+      <TimezoneSection currentTimezone={profile?.timezone ?? "America/Sao_Paulo"} userId={user?.id} />
+
       <section className="rounded-xl border border-border bg-card p-6 shadow-soft">
         <h2 className="text-lg font-semibold mb-1">Segurança</h2>
         <p className="text-sm text-muted-foreground mb-6">
@@ -155,5 +167,133 @@ function SettingsPage() {
         </Button>
       </section>
     </div>
+  );
+}
+
+function TimezoneSection({
+  currentTimezone,
+  userId,
+}: {
+  currentTimezone: string;
+  userId: string | undefined;
+}) {
+  const queryClient = useQueryClient();
+  const [value, setValue] = useState(currentTimezone);
+
+  useEffect(() => {
+    setValue(currentTimezone);
+  }, [currentTimezone]);
+
+  const grouped = useMemo(() => {
+    const groups: Record<string, typeof TIMEZONE_OPTIONS> = {};
+    for (const tz of TIMEZONE_OPTIONS) {
+      (groups[tz.group] ??= []).push(tz);
+    }
+    return groups;
+  }, []);
+
+  const detected = useMemo(() => {
+    try {
+      return Intl.DateTimeFormat().resolvedOptions().timeZone;
+    } catch {
+      return null;
+    }
+  }, []);
+
+  const nowInTz = useMemo(() => {
+    try {
+      return new Intl.DateTimeFormat("pt-BR", {
+        timeZone: value,
+        dateStyle: "short",
+        timeStyle: "medium",
+      }).format(new Date());
+    } catch {
+      return "—";
+    }
+  }, [value]);
+
+  const update = useMutation({
+    mutationFn: async (tz: string) => {
+      if (!userId) throw new Error("Sem sessão");
+      const { error } = await supabase
+        .from("profiles")
+        .update({ timezone: tz })
+        .eq("id", userId);
+      if (error) throw error;
+    },
+    onSuccess: () => {
+      toast.success("Fuso horário atualizado.");
+      queryClient.invalidateQueries({ queryKey: ["profile"] });
+    },
+    onError: (e: Error) => toast.error(translateAuthError(e.message)),
+  });
+
+  const dirty = value !== currentTimezone;
+  const isDetectedListed = detected
+    ? TIMEZONE_OPTIONS.some((t) => t.value === detected)
+    : false;
+
+  return (
+    <section className="rounded-xl border border-border bg-card p-6 shadow-soft">
+      <div className="flex items-center gap-2 mb-1">
+        <Globe className="h-5 w-5 text-primary" />
+        <h2 className="text-lg font-semibold">Fuso horário</h2>
+      </div>
+      <p className="text-sm text-muted-foreground mb-6">
+        Usado para agendar e exibir suas automações (cronjobs).
+      </p>
+
+      <div className="space-y-4">
+        <div className="space-y-1.5">
+          <Label htmlFor="timezone">Selecione o fuso</Label>
+          <Select value={value} onValueChange={setValue}>
+            <SelectTrigger id="timezone" className="rounded-lg">
+              <SelectValue />
+            </SelectTrigger>
+            <SelectContent className="max-h-80">
+              {Object.entries(grouped).map(([group, items]) => (
+                <SelectGroup key={group}>
+                  <SelectLabel>{group}</SelectLabel>
+                  {items.map((tz) => (
+                    <SelectItem key={tz.value} value={tz.value}>
+                      {tz.label}
+                    </SelectItem>
+                  ))}
+                </SelectGroup>
+              ))}
+            </SelectContent>
+          </Select>
+        </div>
+
+        <div className="text-xs text-muted-foreground space-y-1">
+          <p>
+            <span className="font-medium text-foreground">Agora neste fuso:</span> {nowInTz}
+          </p>
+          {detected && detected !== value && (
+            <p>
+              Seu navegador está em <span className="font-mono">{detected}</span>.
+              {isDetectedListed && (
+                <button
+                  type="button"
+                  className="ml-1 text-primary underline"
+                  onClick={() => setValue(detected)}
+                >
+                  Usar este fuso
+                </button>
+              )}
+            </p>
+          )}
+        </div>
+
+        <Button
+          onClick={() => update.mutate(value)}
+          disabled={!dirty || update.isPending}
+          className="rounded-lg bg-primary hover:bg-primary-dark text-primary-foreground transition-all duration-150 active:scale-[0.98]"
+        >
+          {update.isPending && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
+          Salvar fuso horário
+        </Button>
+      </div>
+    </section>
   );
 }

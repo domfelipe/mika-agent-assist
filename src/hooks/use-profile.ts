@@ -15,6 +15,7 @@ export interface Profile {
   stripe_customer_id: string | null;
   paddle_customer_id: string | null;
   onboarding_completed: boolean;
+  timezone: string;
 }
 
 export function useProfile() {
