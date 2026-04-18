@@ -1,12 +1,20 @@
 "use client";
 
-import { createFileRoute } from "@tanstack/react-router";
+import { createFileRoute, useNavigate } from "@tanstack/react-router";
 import { Plug } from "lucide-react";
+import { useEffect } from "react";
+import { toast } from "sonner";
+import { useQueryClient } from "@tanstack/react-query";
 import { useIntegrationCards } from "@/hooks/use-integrations";
 import { useAgentInstance } from "@/hooks/use-agent-instance";
 import { IntegrationCard } from "@/components/mika/integrations/IntegrationCard";
 
 export const Route = createFileRoute("/painel/integracoes/")({
+  validateSearch: (search: Record<string, unknown>) => ({
+    status: typeof search.status === "string" ? search.status : undefined,
+    error: typeof search.error === "string" ? search.error : undefined,
+    mcp: typeof search.mcp === "string" ? search.mcp : undefined,
+  }),
   component: IntegracoesPage,
 });
 
@@ -14,6 +22,21 @@ function IntegracoesPage() {
   const { cards, isLoading, error, limit } = useIntegrationCards();
   const { data: agent } = useAgentInstance();
   const agentReady = agent?.status === "active" || agent?.status === "ready";
+  const search = Route.useSearch();
+  const navigate = useNavigate();
+  const queryClient = useQueryClient();
+
+  useEffect(() => {
+    if (search.status === "success" && search.mcp) {
+      toast.success(`${search.mcp} conectado com sucesso!`);
+      queryClient.invalidateQueries({ queryKey: ["user-integrations"] });
+      queryClient.invalidateQueries({ queryKey: ["user-integration-limits"] });
+      navigate({ to: "/painel/integracoes", search: {}, replace: true });
+    } else if (search.error) {
+      toast.error(`Erro ao conectar: ${search.error}`);
+      navigate({ to: "/painel/integracoes", search: {}, replace: true });
+    }
+  }, [search.status, search.error, search.mcp, navigate, queryClient]);
 
   return (
     <div className="space-y-6">
