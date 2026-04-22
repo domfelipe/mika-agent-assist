@@ -7,43 +7,43 @@ verify_jwt = false
 verify_jwt = false
 
 [functions.generate-skill-markdown]
-verify_jwt = true
+verify_jwt = false
 
 [functions.test-skill-dry-run]
-verify_jwt = true
+verify_jwt = false
 
 [functions.publish-skill-version]
-verify_jwt = true
+verify_jwt = false
 
 [functions.validate-telegram-bot]
 verify_jwt = false
 
 [functions.configure-telegram-webhook]
-verify_jwt = true
+verify_jwt = false
 
 [functions.disconnect-telegram]
-verify_jwt = true
+verify_jwt = false
 
 [functions.telegram-webhook]
 verify_jwt = false
 
 [functions.oauth-start]
-verify_jwt = true
+verify_jwt = false
 
 [functions.oauth-callback]
 verify_jwt = false
 
 [functions.refresh-integration-token]
-verify_jwt = true
+verify_jwt = false
 
 [functions.disconnect-integration]
-verify_jwt = true
+verify_jwt = false
 
 [functions.test-integration]
-verify_jwt = true
+verify_jwt = false
 
 [functions.parse-cronjob-natural-language]
-verify_jwt = true
+verify_jwt = false
 
 [functions.provision-agent]
 verify_jwt = false
