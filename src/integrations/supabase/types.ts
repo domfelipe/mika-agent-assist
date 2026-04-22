@@ -19,6 +19,9 @@ export type Database = {
           container_name: string | null
           created_at: string
           id: string
+          last_health_check_at: string | null
+          provisioned_at: string | null
+          railway_service_id: string | null
           status: string
           telegram_bot_token_vault_id: string | null
           telegram_bot_username: string | null
@@ -32,11 +35,15 @@ export type Database = {
           user_id: string
           uuid_tenant: string
           vps_host: string | null
+          vps_pool_id: string | null
         }
         Insert: {
           container_name?: string | null
           created_at?: string
           id?: string
+          last_health_check_at?: string | null
+          provisioned_at?: string | null
+          railway_service_id?: string | null
           status?: string
           telegram_bot_token_vault_id?: string | null
           telegram_bot_username?: string | null
@@ -50,11 +57,15 @@ export type Database = {
           user_id: string
           uuid_tenant?: string
           vps_host?: string | null
+          vps_pool_id?: string | null
         }
         Update: {
           container_name?: string | null
           created_at?: string
           id?: string
+          last_health_check_at?: string | null
+          provisioned_at?: string | null
+          railway_service_id?: string | null
           status?: string
           telegram_bot_token_vault_id?: string | null
           telegram_bot_username?: string | null
@@ -68,6 +79,7 @@ export type Database = {
           user_id?: string
           uuid_tenant?: string
           vps_host?: string | null
+          vps_pool_id?: string | null
         }
         Relationships: [
           {
@@ -97,6 +109,13 @@ export type Database = {
             isOneToOne: true
             referencedRelation: "user_skill_limits"
             referencedColumns: ["user_id"]
+          },
+          {
+            foreignKeyName: "agent_instances_vps_pool_id_fkey"
+            columns: ["vps_pool_id"]
+            isOneToOne: false
+            referencedRelation: "vps_pool"
+            referencedColumns: ["id"]
           },
         ]
       }
@@ -350,6 +369,75 @@ export type Database = {
           updated_at?: string
         }
         Relationships: []
+      }
+      provisioning_jobs: {
+        Row: {
+          agent_instance_id: string
+          attempt: number
+          completed_at: string | null
+          created_at: string
+          error_message: string | null
+          id: string
+          max_attempts: number
+          next_retry_at: string | null
+          payload: Json | null
+          railway_service_id: string | null
+          started_at: string | null
+          status: string
+          updated_at: string
+          user_id: string
+          vps_pool_id: string | null
+        }
+        Insert: {
+          agent_instance_id: string
+          attempt?: number
+          completed_at?: string | null
+          created_at?: string
+          error_message?: string | null
+          id?: string
+          max_attempts?: number
+          next_retry_at?: string | null
+          payload?: Json | null
+          railway_service_id?: string | null
+          started_at?: string | null
+          status?: string
+          updated_at?: string
+          user_id: string
+          vps_pool_id?: string | null
+        }
+        Update: {
+          agent_instance_id?: string
+          attempt?: number
+          completed_at?: string | null
+          created_at?: string
+          error_message?: string | null
+          id?: string
+          max_attempts?: number
+          next_retry_at?: string | null
+          payload?: Json | null
+          railway_service_id?: string | null
+          started_at?: string | null
+          status?: string
+          updated_at?: string
+          user_id?: string
+          vps_pool_id?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "provisioning_jobs_agent_instance_id_fkey"
+            columns: ["agent_instance_id"]
+            isOneToOne: false
+            referencedRelation: "agent_instances"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "provisioning_jobs_vps_pool_id_fkey"
+            columns: ["vps_pool_id"]
+            isOneToOne: false
+            referencedRelation: "vps_pool"
+            referencedColumns: ["id"]
+          },
+        ]
       }
       scheduled_jobs: {
         Row: {
@@ -924,6 +1012,69 @@ export type Database = {
           },
         ]
       }
+      user_roles: {
+        Row: {
+          created_at: string
+          id: string
+          role: Database["public"]["Enums"]["app_role"]
+          user_id: string
+        }
+        Insert: {
+          created_at?: string
+          id?: string
+          role: Database["public"]["Enums"]["app_role"]
+          user_id: string
+        }
+        Update: {
+          created_at?: string
+          id?: string
+          role?: Database["public"]["Enums"]["app_role"]
+          user_id?: string
+        }
+        Relationships: []
+      }
+      vps_pool: {
+        Row: {
+          capacity_current: number
+          capacity_max: number
+          created_at: string
+          id: string
+          is_active: boolean
+          name: string
+          notes: string | null
+          railway_environment_id: string | null
+          railway_project_id: string | null
+          region: string
+          updated_at: string
+        }
+        Insert: {
+          capacity_current?: number
+          capacity_max?: number
+          created_at?: string
+          id?: string
+          is_active?: boolean
+          name: string
+          notes?: string | null
+          railway_environment_id?: string | null
+          railway_project_id?: string | null
+          region?: string
+          updated_at?: string
+        }
+        Update: {
+          capacity_current?: number
+          capacity_max?: number
+          created_at?: string
+          id?: string
+          is_active?: boolean
+          name?: string
+          notes?: string | null
+          railway_environment_id?: string | null
+          railway_project_id?: string | null
+          region?: string
+          updated_at?: string
+        }
+        Relationships: []
+      }
     }
     Views: {
       user_integration_limits: {
@@ -959,6 +1110,13 @@ export type Database = {
         Args: { check_env?: string; user_uuid: string }
         Returns: boolean
       }
+      has_role: {
+        Args: {
+          _role: Database["public"]["Enums"]["app_role"]
+          _user_id: string
+        }
+        Returns: boolean
+      }
       vault_create_secret: {
         Args: {
           secret_description?: string
@@ -978,7 +1136,7 @@ export type Database = {
       vault_delete_secret: { Args: { secret_id: string }; Returns: undefined }
     }
     Enums: {
-      [_ in never]: never
+      app_role: "admin" | "support" | "user"
     }
     CompositeTypes: {
       [_ in never]: never
@@ -1105,6 +1263,8 @@ export type CompositeTypes<
 
 export const Constants = {
   public: {
-    Enums: {},
+    Enums: {
+      app_role: ["admin", "support", "user"],
+    },
   },
 } as const
