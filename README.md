@@ -155,6 +155,88 @@ A view `user_integration_limits` e `user_jobs_limits` usam dados de `user_integr
 
 ---
 
+## Fase 5.1 — Provisionamento Railway (parcial: schema + provision-agent + railway-webhook)
+
+### O que foi entregue nesta etapa
+
+- **Schema**:
+  - `vps_pool` (pool de projetos Railway, com `railway_project_id` / `railway_environment_id` placeholders)
+  - `provisioning_jobs` (state machine: pending/running/retrying/completed/failed, com retry exponencial `attempt²` minutos)
+  - Acréscimos em `agent_instances`: `railway_service_id`, `vps_pool_id`, `provisioned_at`, `last_health_check_at`
+  - `vps_host` e `container_name` mantidos como deprecated via comentário
+  - `user_roles` + enum `app_role` + função `has_role()` (substitui `is_admin` em profiles, mais seguro)
+  - Trigger `on_agent_instance_provisioning` usando `pg_net` chama `provision-agent` quando uma agent_instance entra em status `provisioning`
+- **Edge Functions**:
+  - `provision-agent` (verify_jwt=false): cria serviço Docker no Railway via GraphQL API, configura variáveis (TELEGRAM_BOT_TOKEN do Vault, OPENCODE_ZEN_API_KEY, etc.) e dispara deploy. Apaga webhook do Telegram antes (Hermes opera em polling). Retry com backoff exponencial até 5 tentativas.
+  - `railway-webhook` (verify_jwt=false): recebe eventos do Railway. SUCCESS → marca agent como `active`; FAILED/CRASHED → marca como `error`.
+- **Helper compartilhado**: `supabase/functions/_shared/railway.ts`
+
+### Etapas pós-deploy (uma única vez) — **OBRIGATÓRIAS**
+
+#### 1. Criar conta Railway e workspace
+
+1. Crie conta em [railway.com](https://railway.com)
+2. Crie um Workspace chamado **"Mika Agents"**
+3. Dentro dele, crie um Projeto chamado **"hermes-agents-prod"** com environment **"production"**
+
+#### 2. Gerar Account Token e adicionar como secret
+
+1. **Account Settings → Tokens → Create Token** (não confundir com Project Token, precisa ser de conta)
+2. Copie o token e adicione como secret `RAILWAY_API_TOKEN` em Lovable Cloud → Secrets
+3. As Edge Functions já leem `OPENCODE_ZEN_API_KEY` e `OPENCODE_GO_API_KEY` (também precisam estar configurados — já solicitados nesta fase)
+
+#### 3. Preencher os IDs do Railway na vps_pool
+
+Pegue o `railway_project_id` na URL do projeto (`railway.com/project/<UUID>`) e o `railway_environment_id` em **Project → Settings → Environments → production → Copy ID**, e rode via SQL:
+
+```sql
+UPDATE public.vps_pool
+SET railway_project_id = '<UUID-DO-PROJETO>',
+    railway_environment_id = '<UUID-DO-ENV-PRODUCTION>'
+WHERE name = 'railway-prod-1';
+```
+
+#### 4. Configurar webhook do Railway → Lovable Cloud
+
+No Railway: **Project Settings → Webhooks → Add Webhook** e cole:
+
+```
+https://smsarmgoirlcedmqvdgc.supabase.co/functions/v1/railway-webhook
+```
+
+Tipo: **Deployment status changes** (ou todos).
+
+#### 5. Marcar você (Felipe) como admin
+
+```sql
+INSERT INTO public.user_roles (user_id, role)
+VALUES ('<SEU_USER_UUID>', 'admin');
+```
+
+Pegue seu UUID em **Lovable Cloud → Auth → Users**.
+
+### O que ainda falta nesta fase (próxima mensagem)
+
+- ❌ Edge Functions `suspend-agent` e `resume-agent`
+- ❌ Botão "Abrir no Telegram" no `/painel` quando `status='active'`
+- ❌ Página `/admin` (lista de agentes, ações suspender/reativar, link Railway, contadores)
+- ❌ Simplificação do wizard de Telegram (capturar só token, sem configurar webhook)
+
+### O que **não** está nesta fase (5.1) por design
+
+- ❌ Sync de skills/cronjobs/MCPs para o container (Fase 5.2)
+- ❌ Backup de memória antes de desprovisionamento
+- ❌ Múltiplos environments Railway por plano
+- ❌ Auto-scaling
+
+### Notas técnicas
+
+- Hermes roda em **polling**: o container faz outbound para `api.telegram.org`, sem necessidade de domínio público nem TLS.
+- Após `provision-agent` retornar 200, o Railway leva 1–5 min para puxar a imagem Docker e iniciar. Durante esse tempo, `agent_instance.status` permanece `provisioning`. O webhook do Railway notifica quando o deploy fica `SUCCESS`.
+- A Edge Function `telegram-webhook` (Fase 3) ainda existe mas será desativada na próxima entrega — o polling do Hermes substitui o webhook do Telegram.
+
+---
+
 ## Comandos úteis
 
 ```bash
@@ -162,3 +244,4 @@ bun dev          # dev server (porta 8080)
 bun run build    # build de produção
 bun run typecheck
 ```
+
