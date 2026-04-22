@@ -1,6 +1,8 @@
 "use client";
 
 import { createFileRoute, Link } from "@tanstack/react-router";
+import { zodValidator, fallback } from "@tanstack/zod-adapter";
+import { z } from "zod";
 import { useEffect, useState } from "react";
 import { ArrowRight, CheckCircle2, Loader2, Sparkles } from "lucide-react";
 import { useSubscription } from "@/hooks/use-profile";
@@ -17,10 +19,12 @@ import { TelegramOnboardingWizard } from "@/components/mika/telegram/TelegramOnb
 import { toast } from "sonner";
 import { cn } from "@/lib/utils";
 
+const dashboardSearchSchema = z.object({
+  status: fallback(z.string().optional(), undefined),
+});
+
 export const Route = createFileRoute("/painel/")({
-  validateSearch: (search: Record<string, unknown>) => ({
-    status: typeof search.status === "string" ? (search.status as string) : undefined,
-  }),
+  validateSearch: zodValidator(dashboardSearchSchema),
   component: DashboardPage,
 });
 
@@ -36,11 +40,11 @@ function DashboardPage() {
   useEffect(() => {
     if (search.status !== "success" || !agent) return;
     if (agent.status === "suspended" || agent.status === "error") {
-      navigate({ search: {}, replace: true });
+      navigate({ search: { status: undefined }, replace: true });
       return;
     }
     if (!agent.telegram_bot_username) setWizardOpen(true);
-    navigate({ search: {}, replace: true });
+    navigate({ search: { status: undefined }, replace: true });
   }, [search.status, agent, navigate]);
 
   useEffect(() => {
