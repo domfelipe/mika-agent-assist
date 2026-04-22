@@ -1,6 +1,6 @@
 // Helper para chamar a Railway GraphQL API (Public API).
 // Docs: https://docs.railway.com/reference/public-api
-const RAILWAY_GRAPHQL = "https://backboard.railway.com/graphql/v2";
+const RAILWAY_GRAPHQL = "https://backboard.railway.app/graphql/v2";
 
 export interface RailwayError {
   message: string;
@@ -24,10 +24,15 @@ export async function railwayQuery<T>(
 
   if (!res.ok) {
     const text = await res.text();
+    console.error(`Railway HTTP ${res.status} for query:`, query.trim().split("\n")[1]?.trim(), "vars:", JSON.stringify(variables), "body:", text);
     throw new Error(`Railway HTTP ${res.status}: ${text}`);
   }
 
-  return res.json();
+  const json = await res.json();
+  if (json.errors?.length) {
+    console.error("Railway GraphQL errors:", JSON.stringify(json.errors), "for vars:", JSON.stringify(variables));
+  }
+  return json;
 }
 
 export async function createRailwayService(opts: {
