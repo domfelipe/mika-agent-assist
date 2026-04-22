@@ -38,6 +38,7 @@ interface AgentRow {
   status: string;
   uuid_tenant: string;
   telegram_bot_username: string | null;
+  telegram_bot_token_vault_id: string | null;
   railway_service_id: string | null;
   vps_pool_id: string | null;
   created_at: string;
@@ -70,7 +71,7 @@ function AdminPage() {
       const { data, error } = await supabase
         .from("agent_instances")
         .select(
-          "id, user_id, status, uuid_tenant, telegram_bot_username, railway_service_id, vps_pool_id, created_at, provisioned_at",
+          "id, user_id, status, uuid_tenant, telegram_bot_username, telegram_bot_token_vault_id, railway_service_id, vps_pool_id, created_at, provisioned_at",
         )
         .order("created_at", { ascending: false })
         .limit(100);
@@ -188,21 +189,34 @@ function AdminPage() {
                         {a.railway_service_id?.slice(0, 8) ?? "—"}
                       </TableCell>
                       <TableCell className="text-right space-x-1 whitespace-nowrap">
-                        {a.status === "provisioning" && !a.railway_service_id && (
-                          <Button
-                            size="sm"
-                            variant="outline"
-                            disabled={busy === a.id + "provision-agent"}
-                            onClick={() => action("provision-agent", a.id)}
-                          >
-                            {busy === a.id + "provision-agent" ? (
-                              <Loader2 className="h-3.5 w-3.5 animate-spin" />
-                            ) : (
-                              <RotateCw className="h-3.5 w-3.5" />
-                            )}
-                            <span className="ml-1.5">Provisionar</span>
-                          </Button>
-                        )}
+                        {(a.status === "provisioning" || a.status === "error") &&
+                          !a.railway_service_id && (
+                            <Button
+                              size="sm"
+                              variant="outline"
+                              disabled={
+                                busy === a.id + "provision-agent" ||
+                                !a.telegram_bot_token_vault_id
+                              }
+                              title={
+                                !a.telegram_bot_token_vault_id
+                                  ? "Usuário precisa concluir onboarding do Telegram primeiro"
+                                  : "Provisionar container Railway"
+                              }
+                              onClick={() => action("provision-agent", a.id)}
+                            >
+                              {busy === a.id + "provision-agent" ? (
+                                <Loader2 className="h-3.5 w-3.5 animate-spin" />
+                              ) : (
+                                <RotateCw className="h-3.5 w-3.5" />
+                              )}
+                              <span className="ml-1.5">
+                                {a.telegram_bot_token_vault_id
+                                  ? "Provisionar"
+                                  : "Aguardando token"}
+                              </span>
+                            </Button>
+                          )}
                         {a.status === "active" && (
                           <Button
                             size="sm"
