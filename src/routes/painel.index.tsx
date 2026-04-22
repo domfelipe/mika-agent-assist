@@ -1,8 +1,6 @@
 "use client";
 
 import { createFileRoute, Link } from "@tanstack/react-router";
-import { zodValidator, fallback } from "@tanstack/zod-adapter";
-import { z } from "zod";
 import { useEffect, useState } from "react";
 import { ArrowRight, CheckCircle2, Loader2, Sparkles } from "lucide-react";
 import { useSubscription } from "@/hooks/use-profile";
