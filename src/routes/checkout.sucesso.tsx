@@ -18,7 +18,7 @@ function CheckoutSuccessPage() {
     // Invalida queries de assinatura para refletir o novo estado quando o webhook chegar
     queryClient.invalidateQueries({ queryKey: ["subscription"] });
     const t = setTimeout(() => {
-      navigate({ to: "/painel" });
+      navigate({ to: "/painel", search: {} });
     }, 6000);
     return () => clearTimeout(t);
   }, [navigate, queryClient]);
@@ -37,7 +37,7 @@ function CheckoutSuccessPage() {
         </div>
         <div className="flex flex-col sm:flex-row gap-3 justify-center">
           <Button asChild className="rounded-lg bg-primary hover:bg-primary-dark text-primary-foreground">
-            <Link to="/painel">Ir para o painel</Link>
+            <Link to="/painel" search={{}}>Ir para o painel</Link>
           </Button>
           <Button asChild variant="outline" className="rounded-lg">
             <Link to="/painel/faturamento">Ver faturamento</Link>

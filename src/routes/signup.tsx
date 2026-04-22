@@ -86,9 +86,9 @@ function SignupPage() {
       toast.success("Conta criada!");
       if (plan && plan !== "enterprise") {
         // TODO Etapa 3: chamar create-checkout-session com plan/cycle
-        navigate({ to: "/painel" });
+        navigate({ to: "/painel", search: {} });
       } else {
-        navigate({ to: "/painel" });
+        navigate({ to: "/painel", search: {} });
       }
       return;
     }
