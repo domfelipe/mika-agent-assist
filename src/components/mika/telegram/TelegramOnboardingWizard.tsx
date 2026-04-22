@@ -1,49 +1,38 @@
 "use client";
 
-import { useEffect, useMemo, useState } from "react";
+import { useEffect, useState } from "react";
 import { motion, AnimatePresence } from "framer-motion";
 import { X } from "lucide-react";
 import { useQueryClient } from "@tanstack/react-query";
 import * as DialogPrimitive from "@radix-ui/react-dialog";
-import { useProfile } from "@/hooks/use-profile";
 import { useAgentInstance } from "@/hooks/use-agent-instance";
 import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/hooks/use-auth";
-import { suggestBotName, suggestBotUsername } from "@/lib/telegram-username";
 import { cn } from "@/lib/utils";
 import { toast } from "sonner";
 
 import { StepWelcome } from "./StepWelcome";
 import { StepCreateBot } from "./StepCreateBot";
-import { StepNaming } from "./StepNaming";
 import { StepToken, type ValidatedBot } from "./StepToken";
-import { StepConfiguring } from "./StepConfiguring";
 import { StepWaiting } from "./StepWaiting";
 
 const STORAGE_KEY = "mika-onboarding-last-step";
-const TOTAL_STEPS = 6;
+const TOTAL_STEPS = 4;
 
 interface Props {
   open: boolean;
   onOpenChange: (open: boolean) => void;
-  /** Step inicial (1-6). Se omitido, lê do localStorage ou começa em 1. */
+  /** Step inicial (1-4). Se omitido, lê do localStorage ou começa em 1. */
   initialStep?: number;
 }
 
 export function TelegramOnboardingWizard({ open, onOpenChange, initialStep }: Props) {
-  const { data: profile } = useProfile();
   const { data: agent } = useAgentInstance();
   const { user } = useAuth();
   const queryClient = useQueryClient();
 
   const [step, setStep] = useState(1);
   const [validated, setValidated] = useState<ValidatedBot | null>(null);
-
-  const suggestedName = useMemo(() => suggestBotName(profile?.full_name), [profile?.full_name]);
-  const suggestedUsername = useMemo(
-    () => suggestBotUsername(profile?.full_name),
-    [profile?.full_name],
-  );
 
   // Inicializa step ao abrir
   useEffect(() => {
@@ -101,13 +90,6 @@ export function TelegramOnboardingWizard({ open, onOpenChange, initialStep }: Pr
     }
   }
 
-  function handleConfigured() {
-    if (user) {
-      queryClient.invalidateQueries({ queryKey: ["agent-instance", user.id] });
-    }
-    setStep(6);
-  }
-
   const botUsername = validated?.bot_username ?? agent?.telegram_bot_username ?? "";
   const connectedAt = agent?.telegram_connected_at ?? null;
 
@@ -118,9 +100,7 @@ export function TelegramOnboardingWizard({ open, onOpenChange, initialStep }: Pr
         <DialogPrimitive.Content
           className={cn(
             "fixed z-50 bg-background shadow-2xl",
-            // Mobile: full-screen
             "inset-0 sm:inset-auto",
-            // Desktop: dialog grande centralizado
             "sm:left-[50%] sm:top-[50%] sm:translate-x-[-50%] sm:translate-y-[-50%]",
             "sm:w-full sm:max-w-2xl sm:rounded-2xl sm:max-h-[90vh] sm:overflow-y-auto",
             "data-[state=open]:animate-in data-[state=closed]:animate-out",
@@ -130,10 +110,9 @@ export function TelegramOnboardingWizard({ open, onOpenChange, initialStep }: Pr
             Conectar Telegram ao Mika
           </DialogPrimitive.Title>
           <DialogPrimitive.Description className="sr-only">
-            Wizard guiado de 6 passos para conectar seu agente Mika ao Telegram.
+            Wizard guiado para conectar seu agente Mika ao Telegram em 4 passos.
           </DialogPrimitive.Description>
 
-          {/* Header com progress + close */}
           <div className="sticky top-0 z-10 bg-background/95 backdrop-blur-sm border-b border-border">
             <div className="flex items-center justify-between px-4 sm:px-6 py-3">
               <span className="text-xs font-medium text-muted-foreground">
@@ -157,7 +136,6 @@ export function TelegramOnboardingWizard({ open, onOpenChange, initialStep }: Pr
             </div>
           </div>
 
-          {/* Conteúdo dos steps */}
           <div className="relative overflow-hidden">
             <AnimatePresence mode="wait" initial={false}>
               <motion.div
@@ -170,26 +148,13 @@ export function TelegramOnboardingWizard({ open, onOpenChange, initialStep }: Pr
                 {step === 1 && <StepWelcome onNext={() => setStep(2)} />}
                 {step === 2 && <StepCreateBot onNext={() => setStep(3)} />}
                 {step === 3 && (
-                  <StepNaming
-                    suggestedName={suggestedName}
-                    suggestedUsername={suggestedUsername}
-                    onNext={() => setStep(4)}
-                  />
-                )}
-                {step === 4 && (
                   <StepToken
                     validated={validated}
                     onValidated={handleValidated}
-                    onNext={() => setStep(5)}
+                    onNext={() => setStep(4)}
                   />
                 )}
-                {step === 5 && (
-                  <StepConfiguring
-                    onConfigured={handleConfigured}
-                    onSkip={() => setStep(6)}
-                  />
-                )}
-                {step === 6 && agent && botUsername && (
+                {step === 4 && agent && botUsername && (
                   <StepWaiting
                     agentInstanceId={agent.id}
                     botUsername={botUsername}
@@ -197,7 +162,7 @@ export function TelegramOnboardingWizard({ open, onOpenChange, initialStep }: Pr
                     onFinish={handleFinish}
                   />
                 )}
-                {step === 6 && (!agent || !botUsername) && (
+                {step === 4 && (!agent || !botUsername) && (
                   <div className="px-6 py-12 text-center text-sm text-muted-foreground">
                     Conecte o bot primeiro para receber a primeira mensagem.
                   </div>
