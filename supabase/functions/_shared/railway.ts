@@ -1,6 +1,6 @@
 // Helper para chamar a Railway GraphQL API (Public API).
 // Docs: https://docs.railway.com/reference/public-api
-const RAILWAY_GRAPHQL = "https://backboard.railway.com/graphql/v2";
+const RAILWAY_GRAPHQL = "https://backboard.railway.app/graphql/v2";
 
 export interface RailwayError {
   message: string;
