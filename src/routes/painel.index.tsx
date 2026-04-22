@@ -17,12 +17,12 @@ import { TelegramOnboardingWizard } from "@/components/mika/telegram/TelegramOnb
 import { toast } from "sonner";
 import { cn } from "@/lib/utils";
 
-const dashboardSearchSchema = z.object({
-  status: fallback(z.string().optional(), undefined),
-});
+type DashboardSearch = { status?: string };
 
 export const Route = createFileRoute("/painel/")({
-  validateSearch: zodValidator(dashboardSearchSchema),
+  validateSearch: (search: Record<string, unknown>): DashboardSearch => ({
+    status: typeof search.status === "string" ? search.status : undefined,
+  }),
   component: DashboardPage,
 });
 
