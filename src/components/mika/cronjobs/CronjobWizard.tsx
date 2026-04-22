@@ -324,7 +324,7 @@ export function CronjobWizard({ onCreated, onCancel }: Props) {
                   Conecte as integrações faltantes antes de criar.
                 </p>
                 <Button asChild size="sm" variant="outline" className="mt-2">
-                  <Link to="/painel/integracoes">Ir para Integrações</Link>
+                  <Link to="/painel/integracoes" search={{}}>Ir para Integrações</Link>
                 </Button>
               </div>
             )}

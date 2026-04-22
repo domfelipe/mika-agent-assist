@@ -149,7 +149,7 @@ function CronjobDetailPage() {
             ))}
           </ul>
           <Button asChild size="sm" variant="outline" className="mt-3">
-            <Link to="/painel/integracoes">Conectar agora</Link>
+            <Link to="/painel/integracoes" search={{}}>Conectar agora</Link>
           </Button>
         </div>
       )}

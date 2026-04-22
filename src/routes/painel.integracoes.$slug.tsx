@@ -69,7 +69,7 @@ function IntegrationDetailPage() {
     return (
       <div className="space-y-4">
         <Button variant="ghost" size="sm" asChild>
-          <Link to="/painel/integracoes">
+          <Link to="/painel/integracoes" search={{}}>
             <ArrowLeft className="h-4 w-4 mr-2" /> Voltar
           </Link>
         </Button>
@@ -84,7 +84,7 @@ function IntegrationDetailPage() {
     return (
       <div className="space-y-4">
         <Button variant="ghost" size="sm" asChild>
-          <Link to="/painel/integracoes">
+          <Link to="/painel/integracoes" search={{}}>
             <ArrowLeft className="h-4 w-4 mr-2" /> Voltar
           </Link>
         </Button>
@@ -93,7 +93,7 @@ function IntegrationDetailPage() {
             Você ainda não conectou {mcp.name}.
           </p>
           <Button asChild className="mt-4">
-            <Link to="/painel/integracoes">Conectar</Link>
+            <Link to="/painel/integracoes" search={{}}>Conectar</Link>
           </Button>
         </div>
       </div>
@@ -154,7 +154,7 @@ function IntegrationDetailPage() {
   return (
     <div className="space-y-6">
       <Button variant="ghost" size="sm" asChild>
-        <Link to="/painel/integracoes">
+        <Link to="/painel/integracoes" search={{}}>
           <ArrowLeft className="h-4 w-4 mr-2" /> Voltar
         </Link>
       </Button>
@@ -298,7 +298,7 @@ function IntegrationDetailPage() {
               .then(() => {
                 const stillConnected = integs.some((i) => i.id === integration.id);
                 if (!stillConnected) {
-                  navigate({ to: "/painel/integracoes" });
+                  navigate({ to: "/painel/integracoes", search: {} });
                 }
               });
           }

@@ -1,8 +1,6 @@
 "use client";
 
 import { createFileRoute, useNavigate } from "@tanstack/react-router";
-import { zodValidator, fallback } from "@tanstack/zod-adapter";
-import { z } from "zod";
 import { Plug } from "lucide-react";
 import { useEffect } from "react";
 import { toast } from "sonner";
@@ -11,14 +9,14 @@ import { useIntegrationCards } from "@/hooks/use-integrations";
 import { useAgentInstance } from "@/hooks/use-agent-instance";
 import { IntegrationCard } from "@/components/mika/integrations/IntegrationCard";
 
-const integracoesSearchSchema = z.object({
-  status: fallback(z.string().optional(), undefined),
-  error: fallback(z.string().optional(), undefined),
-  mcp: fallback(z.string().optional(), undefined),
-});
+type IntegracoesSearch = { status?: string; error?: string; mcp?: string };
 
 export const Route = createFileRoute("/painel/integracoes/")({
-  validateSearch: zodValidator(integracoesSearchSchema),
+  validateSearch: (search: Record<string, unknown>): IntegracoesSearch => ({
+    status: typeof search.status === "string" ? search.status : undefined,
+    error: typeof search.error === "string" ? search.error : undefined,
+    mcp: typeof search.mcp === "string" ? search.mcp : undefined,
+  }),
   component: IntegracoesPage,
 });
 

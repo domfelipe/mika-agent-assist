@@ -50,7 +50,7 @@ function LoginPage() {
       return;
     }
     toast.success("Bem-vindo de volta!");
-    navigate({ to: (redirect as "/painel") || "/painel" });
+    navigate({ to: (redirect as "/painel") || "/painel", search: {} });
   };
 
   return (

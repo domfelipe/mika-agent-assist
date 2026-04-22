@@ -40,7 +40,7 @@ export function IntegrationsDashboardWidget() {
           </div>
         </div>
         <Button asChild variant="ghost" size="sm" className="text-primary hover:text-primary">
-          <Link to="/painel/integracoes">
+          <Link to="/painel/integracoes" search={{}}>
             Gerenciar <ArrowRight className="ml-1 h-3.5 w-3.5" />
           </Link>
         </Button>
@@ -52,7 +52,7 @@ export function IntegrationsDashboardWidget() {
             Conecte serviços como Gmail, Notion e Cal.com para ampliar seu Mika.
           </p>
           <Button asChild size="sm" variant="outline" className="rounded-lg">
-            <Link to="/painel/integracoes">Explorar integrações</Link>
+            <Link to="/painel/integracoes" search={{}}>Explorar integrações</Link>
           </Button>
         </div>
       ) : (

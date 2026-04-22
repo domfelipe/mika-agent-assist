@@ -57,7 +57,7 @@ export function LandingHeader() {
           <ThemeToggle />
           {user ? (
             <Button asChild className="rounded-lg bg-primary hover:bg-primary-dark text-primary-foreground transition-all duration-150 active:scale-[0.98]">
-              <Link to="/painel">Ir para o painel</Link>
+              <Link to="/painel" search={{}}>Ir para o painel</Link>
             </Button>
           ) : (
             <>
@@ -98,7 +98,7 @@ export function LandingHeader() {
               <div className="mt-6 flex flex-col gap-3">
                 {user ? (
                   <Button asChild className="rounded-lg w-full bg-primary hover:bg-primary-dark text-primary-foreground">
-                    <Link to="/painel" onClick={() => setOpen(false)}>Ir para o painel</Link>
+                    <Link to="/painel" search={{}} onClick={() => setOpen(false)}>Ir para o painel</Link>
                   </Button>
                 ) : (
                   <>
