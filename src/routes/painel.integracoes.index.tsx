@@ -1,6 +1,8 @@
 "use client";
 
 import { createFileRoute, useNavigate } from "@tanstack/react-router";
+import { zodValidator, fallback } from "@tanstack/zod-adapter";
+import { z } from "zod";
 import { Plug } from "lucide-react";
 import { useEffect } from "react";
 import { toast } from "sonner";
@@ -9,12 +11,14 @@ import { useIntegrationCards } from "@/hooks/use-integrations";
 import { useAgentInstance } from "@/hooks/use-agent-instance";
 import { IntegrationCard } from "@/components/mika/integrations/IntegrationCard";
 
+const integracoesSearchSchema = z.object({
+  status: fallback(z.string().optional(), undefined),
+  error: fallback(z.string().optional(), undefined),
+  mcp: fallback(z.string().optional(), undefined),
+});
+
 export const Route = createFileRoute("/painel/integracoes/")({
-  validateSearch: (search: Record<string, unknown>) => ({
-    status: typeof search.status === "string" ? search.status : undefined,
-    error: typeof search.error === "string" ? search.error : undefined,
-    mcp: typeof search.mcp === "string" ? search.mcp : undefined,
-  }),
+  validateSearch: zodValidator(integracoesSearchSchema),
   component: IntegracoesPage,
 });
 
@@ -31,10 +35,10 @@ function IntegracoesPage() {
       toast.success(`${search.mcp} conectado com sucesso!`);
       queryClient.invalidateQueries({ queryKey: ["user-integrations"] });
       queryClient.invalidateQueries({ queryKey: ["user-integration-limits"] });
-      navigate({ to: "/painel/integracoes", search: {}, replace: true });
+      navigate({ to: "/painel/integracoes", search: { status: undefined, error: undefined, mcp: undefined }, replace: true });
     } else if (search.error) {
       toast.error(`Erro ao conectar: ${search.error}`);
-      navigate({ to: "/painel/integracoes", search: {}, replace: true });
+      navigate({ to: "/painel/integracoes", search: { status: undefined, error: undefined, mcp: undefined }, replace: true });
     }
   }, [search.status, search.error, search.mcp, navigate, queryClient]);
 

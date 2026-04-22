@@ -44,3 +44,9 @@ verify_jwt = true
 
 [functions.parse-cronjob-natural-language]
 verify_jwt = true
+
+[functions.provision-agent]
+verify_jwt = false
+
+[functions.railway-webhook]
+verify_jwt = false
