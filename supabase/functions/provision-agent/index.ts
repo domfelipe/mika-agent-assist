@@ -223,7 +223,16 @@ Deno.serve(async (req) => {
   // 8) Persistir railway_service_id no agent_instance e no job (status='running')
   await supabase
     .from("agent_instances")
-    .update({ railway_service_id: railwayServiceId, vps_pool_id: pool.id })
+    .update({
+      railway_service_id: railwayServiceId,
+      vps_pool_id: pool.id,
+      model_config: {
+        provider: model,
+        stt: sttProvider,
+        tts: ttsProvider,
+        agent_name: agentName,
+      },
+    })
     .eq("id", agent.id);
 
   await supabase
