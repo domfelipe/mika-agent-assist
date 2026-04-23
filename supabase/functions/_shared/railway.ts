@@ -137,44 +137,38 @@ export async function deployRailwayService(opts: {
   }
 }
 
+/**
+ * Suspende ou retoma um serviço Railway usando `sleepApplication`.
+ * Railway não aceita `numReplicas: 0` via serviceInstanceUpdate — o caminho
+ * suportado para pausar é `sleepApplication: true` (e `false` para acordar).
+ * `replicas <= 0` => sleep, `>= 1` => wake.
+ */
 export async function setRailwayReplicas(opts: {
   token: string;
   serviceId: string;
   environmentId: string;
   replicas: number;
 }): Promise<void> {
+  const sleep = opts.replicas <= 0;
   const mutation = `
     mutation ServiceInstanceUpdate($serviceId: String!, $environmentId: String!, $input: ServiceInstanceUpdateInput!) {
       serviceInstanceUpdate(serviceId: $serviceId, environmentId: $environmentId, input: $input)
     }
   `;
-  // Tenta numReplicas primeiro (formato atual da Railway API v2)
-  const tryWithKey = async (key: "numReplicas" | "replicas") => {
-    return await railwayQuery(
-      mutation,
-      {
-        serviceId: opts.serviceId,
-        environmentId: opts.environmentId,
-        input: { [key]: opts.replicas },
-      },
-      opts.token,
-    );
-  };
-
-  let res = await tryWithKey("numReplicas");
+  const res = await railwayQuery(
+    mutation,
+    {
+      serviceId: opts.serviceId,
+      environmentId: opts.environmentId,
+      input: { sleepApplication: sleep },
+    },
+    opts.token,
+  );
   if (res.errors?.length) {
-    const msg = JSON.stringify(res.errors);
-    // Fallback para `replicas` se o schema reclamar do campo
-    if (/numReplicas/i.test(msg) && /(unknown|not.*found|invalid)/i.test(msg)) {
-      console.warn("setRailwayReplicas: numReplicas rejected, retrying with `replicas`");
-      res = await tryWithKey("replicas");
-    }
-  }
-  if (res.errors?.length) {
-    throw new Error(`setRailwayReplicas failed: ${JSON.stringify(res.errors)}`);
+    throw new Error(`setRailwayReplicas (sleepApplication=${sleep}) failed: ${JSON.stringify(res.errors)}`);
   }
 
-  // Após escalar, força redeploy para aplicar a mudança imediatamente
+  // Força redeploy para aplicar imediatamente o novo estado de sleep
   try {
     await deployRailwayService({
       token: opts.token,
@@ -182,7 +176,7 @@ export async function setRailwayReplicas(opts: {
       environmentId: opts.environmentId,
     });
   } catch (e) {
-    console.warn("setRailwayReplicas: redeploy after scale failed (non-fatal):", e);
+    console.warn("setRailwayReplicas: redeploy after sleep change failed (non-fatal):", e);
   }
 }
 
