@@ -140,10 +140,6 @@ function AgentDetailPage() {
         .maybeSingle();
       if (subscriptionError) throw subscriptionError;
 
-      // Normalizar arrays vindos do PostgREST
-      // deno-lint-ignore no-explicit-any
-      const d = data as any;
-      const profile = Array.isArray(d.profile) ? d.profile[0] ?? null : d.profile;
       const subscription = subscriptionData
         ? {
             ...subscriptionData,
@@ -153,10 +149,15 @@ function AgentDetailPage() {
           }
         : null;
 
-      // Email não é acessível via client (RLS) — admin pode ver no Railway/Telegram
-      const userEmail: string | null = null;
-
-      return { ...d, profile, subscription, user_email: userEmail } as AgentDetail;
+      const result = {
+        ...data,
+        vps_pool: vpsPool,
+        profile: profileData ?? null,
+        subscription,
+        user_email: null as string | null,
+      } as AgentDetail;
+      console.log("[admin.agente] agent loaded", { id: result.id, status: result.status });
+      return result;
     },
   });
 
