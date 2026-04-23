@@ -38,7 +38,7 @@ export const Route = createRootRouteWithContext<RouterContext>()({
     meta: [
       { charSet: "utf-8" },
       { name: "viewport", content: "width=device-width, initial-scale=1" },
-      { title: "Mika — Seu assistente de IA pessoal no Telegram" },
+      { title: "Mika — Assistente Pessoal IA" },
       {
         name: "description",
         content:
@@ -46,7 +46,7 @@ export const Route = createRootRouteWithContext<RouterContext>()({
       },
       { name: "author", content: "DOMCO" },
       { name: "theme-color", content: "#F97316" },
-      { property: "og:title", content: "Mika — Seu assistente de IA pessoal no Telegram" },
+      { property: "og:title", content: "Mika — Assistente Pessoal IA" },
       {
         property: "og:description",
         content:
@@ -55,14 +55,17 @@ export const Route = createRootRouteWithContext<RouterContext>()({
       { property: "og:type", content: "website" },
       { property: "og:locale", content: "pt_BR" },
       { property: "og:url", content: "https://mika.domco.ai" },
-      { property: "og:image", content: "https://mika.domco.ai/og.svg" },
+      { property: "og:image", content: "https://pub-bb2e103a32db4e198524a2e9ed8f35b4.r2.dev/be92ada2-f87d-43b5-bd30-333f14e189e4/id-preview-6e3a7096--798b89e5-0dc6-412a-81be-a4b6dfea7b6c.lovable.app-1776957543862.png" },
       { name: "twitter:card", content: "summary_large_image" },
-      { name: "twitter:title", content: "Mika — Seu assistente de IA pessoal no Telegram" },
+      { name: "twitter:title", content: "Mika — Assistente Pessoal IA" },
       {
         name: "twitter:description",
         content: "Agentes de IA personalizados, em português, direto no Telegram.",
       },
-      { name: "twitter:image", content: "https://mika.domco.ai/og.svg" },
+      { name: "twitter:image", content: "https://pub-bb2e103a32db4e198524a2e9ed8f35b4.r2.dev/be92ada2-f87d-43b5-bd30-333f14e189e4/id-preview-6e3a7096--798b89e5-0dc6-412a-81be-a4b6dfea7b6c.lovable.app-1776957543862.png" },
+      { name: "description", content: "Mika: Seu Agente Inteligente - IA pessoal no Telegram." },
+      { property: "og:description", content: "Mika: Seu Agente Inteligente - IA pessoal no Telegram." },
+      { name: "twitter:description", content: "Mika: Seu Agente Inteligente - IA pessoal no Telegram." },
     ],
     links: [
       { rel: "stylesheet", href: appCss },
