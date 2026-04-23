@@ -6,7 +6,7 @@
 
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2.45.4";
 import { corsHeaders } from "../_shared/cors.ts";
-import { setHermesSuspended, getServiceEnvironmentId } from "../_shared/railway.ts";
+import { setHermesSuspended, getServiceContext } from "../_shared/railway.ts";
 
 const SUPABASE_URL = Deno.env.get("SUPABASE_URL")!;
 const SUPABASE_SERVICE_ROLE_KEY = Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!;
@@ -69,14 +69,16 @@ Deno.serve(async (req) => {
     environmentId = pool?.railway_environment_id ?? null;
     projectId = pool?.railway_project_id ?? undefined;
   }
-  if (!environmentId) {
-    environmentId = await getServiceEnvironmentId({
+  if (!environmentId || !projectId) {
+    const ctx = await getServiceContext({
       token: RAILWAY_API_TOKEN,
       serviceId: agent.railway_service_id,
     });
+    environmentId = environmentId ?? ctx.environmentId;
+    projectId = projectId ?? ctx.projectId ?? undefined;
   }
-  if (!environmentId) {
-    return jsonResponse(500, { error: "could not resolve railway environmentId" });
+  if (!environmentId || !projectId) {
+    return jsonResponse(500, { error: "could not resolve railway environmentId/projectId" });
   }
 
   try {
