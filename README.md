@@ -39,6 +39,21 @@ Já configuradas via `.env` (gerado automaticamente pelo Lovable Cloud):
 - `ADMIN_TELEGRAM_CHAT_ID` — chat ID do admin que recebe as notificações (ex: `179720882`).
 - (opcional, Fase 5) credenciais SSH para Hermes
 
+## Keep-alive dos agentes (substitui UptimeRobot)
+
+A Edge Function `keep-alive-agents` mantém todos os containers Railway ativos automaticamente — **não há nada para configurar por agente**. A cada 4 minutos:
+
+1. Carrega todos os `agent_instances` com `status = 'active'` e `telegram_bot_token_vault_id` preenchido.
+2. Faz `GET https://api.telegram.org/bot{token}/getMe` para cada um (em paralelo, com falhas isoladas).
+3. Esse tráfego de saída do container Hermes evita que o Railway hiberne instâncias ociosas.
+
+Agendado via `pg_cron` (job `keep-alive-agents-every-4min`, schedule `*/4 * * * *`). Consultar/desagendar:
+
+```sql
+SELECT * FROM cron.job WHERE jobname = 'keep-alive-agents-every-4min';
+SELECT cron.unschedule('keep-alive-agents-every-4min');
+```
+
 ---
 
 ## Fase 3 — Telegram Onboarding (✅ entregue)
