@@ -80,7 +80,7 @@ function AgentDetailPage() {
 
   const { data: isAdmin, isLoading: roleLoading } = useQuery({
     queryKey: ["is-admin", user?.id],
-    enabled: !!user,
+    enabled: !authLoading && !!user,
     queryFn: async () => {
       const { data, error } = await supabase.rpc("has_role", {
         _user_id: user!.id,
@@ -93,7 +93,7 @@ function AgentDetailPage() {
 
   const { data: agent, isLoading: agentLoading, error: agentError } = useQuery({
     queryKey: ["agent-detail", id],
-    enabled: !!isAdmin,
+    enabled: !authLoading && !!user && isAdmin === true,
     refetchInterval: 10_000,
     queryFn: async () => {
       console.log("[admin.agente] fetching agent detail", { id });
