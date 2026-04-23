@@ -71,24 +71,33 @@ function AdminPage() {
     enabled: !!isAdmin,
     refetchInterval: 15000,
     queryFn: async () => {
-      const { data, error } = await supabase
+      const { data: agentsData, error: agentsError } = await supabase
         .from("agent_instances")
-        .select(
-          `*,
-           profile:profiles!agent_instances_user_id_fkey(full_name, phone),
-           subscription:subscriptions!subscriptions_user_id_fkey(status, plans(slug, name))`,
-        )
+        .select(`*, profile:profiles!agent_instances_user_id_fkey(full_name, phone)`)
         .order("created_at", { ascending: false })
         .limit(100);
-      if (error) throw error;
-      // Pegar apenas a subscription ativa (primeira) — o relacionamento retorna array
+      if (agentsError) throw agentsError;
+
+      const userIds = [...new Set((agentsData ?? []).map((agent) => agent.user_id).filter(Boolean))];
+
+      const { data: subscriptionsData, error: subscriptionsError } = userIds.length
+        ? await supabase
+            .from("subscriptions")
+            .select("user_id, status, plans(name, slug)")
+            .in("user_id", userIds)
+            .order("created_at", { ascending: false })
+        : { data: [], error: null };
+      if (subscriptionsError) throw subscriptionsError;
+
+      const subscriptionsByUserId = new Map(
+        (subscriptionsData ?? []).map((subscription) => [subscription.user_id, subscription]),
+      );
+
       // deno-lint-ignore no-explicit-any
-      return (data as any[]).map((a) => ({
-        ...a,
-        profile: Array.isArray(a.profile) ? a.profile[0] ?? null : a.profile,
-        subscription: Array.isArray(a.subscription)
-          ? a.subscription.find((s: { plans: unknown }) => s.plans) ?? a.subscription[0] ?? null
-          : a.subscription,
+      return (agentsData as any[]).map((agent) => ({
+        ...agent,
+        profile: Array.isArray(agent.profile) ? agent.profile[0] ?? null : agent.profile,
+        subscription: subscriptionsByUserId.get(agent.user_id) ?? null,
       })) as AgentRow[];
     },
   });

@@ -102,20 +102,34 @@ function AgentDetailPage() {
           `id, user_id, uuid_tenant, status, telegram_bot_username, telegram_user_chat_id,
            railway_service_id, vps_pool_id, provisioned_at, created_at, model_config,
            vps_pool:vps_pool_id(railway_project_id, railway_environment_id),
-           profile:profiles!agent_instances_user_id_fkey(full_name, phone, onboarding_completed),
-           subscription:subscriptions!subscriptions_user_id_fkey(plans(slug, name))`,
+           profile:profiles!agent_instances_user_id_fkey(full_name, phone, onboarding_completed)`,
         )
         .eq("id", id)
         .maybeSingle();
       if (error) throw error;
       if (!data) return null;
+
+      const { data: subscriptionData, error: subscriptionError } = await supabase
+        .from("subscriptions")
+        .select("status, plans(slug, name)")
+        .eq("user_id", data.user_id)
+        .order("created_at", { ascending: false })
+        .limit(1)
+        .maybeSingle();
+      if (subscriptionError) throw subscriptionError;
+
       // Normalizar arrays vindos do PostgREST
       // deno-lint-ignore no-explicit-any
       const d = data as any;
       const profile = Array.isArray(d.profile) ? d.profile[0] ?? null : d.profile;
-      const subscription = Array.isArray(d.subscription)
-        ? d.subscription.find((s: { plans: unknown }) => s.plans) ?? d.subscription[0] ?? null
-        : d.subscription;
+      const subscription = subscriptionData
+        ? {
+            ...subscriptionData,
+            plans: Array.isArray(subscriptionData.plans)
+              ? subscriptionData.plans[0] ?? null
+              : subscriptionData.plans,
+          }
+        : null;
 
       // Email não é acessível via client (RLS) — admin pode ver no Railway/Telegram
       const userEmail: string | null = null;
