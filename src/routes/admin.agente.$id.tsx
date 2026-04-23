@@ -91,11 +91,12 @@ function AgentDetailPage() {
     },
   });
 
-  const { data: agent, isLoading: agentLoading } = useQuery({
+  const { data: agent, isLoading: agentLoading, error: agentError } = useQuery({
     queryKey: ["agent-detail", id],
     enabled: !!isAdmin,
     refetchInterval: 10_000,
     queryFn: async () => {
+      console.log("[admin.agente] fetching agent detail", { id });
       const { data, error } = await supabase
         .from("agent_instances")
         .select(
