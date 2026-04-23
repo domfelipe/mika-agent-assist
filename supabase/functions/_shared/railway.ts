@@ -148,18 +148,67 @@ export async function setRailwayReplicas(opts: {
       serviceInstanceUpdate(serviceId: $serviceId, environmentId: $environmentId, input: $input)
     }
   `;
-  const res = await railwayQuery(
-    mutation,
-    {
-      serviceId: opts.serviceId,
-      environmentId: opts.environmentId,
-      input: { numReplicas: opts.replicas },
-    },
-    opts.token,
-  );
+  // Tenta numReplicas primeiro (formato atual da Railway API v2)
+  const tryWithKey = async (key: "numReplicas" | "replicas") => {
+    return await railwayQuery(
+      mutation,
+      {
+        serviceId: opts.serviceId,
+        environmentId: opts.environmentId,
+        input: { [key]: opts.replicas },
+      },
+      opts.token,
+    );
+  };
+
+  let res = await tryWithKey("numReplicas");
+  if (res.errors?.length) {
+    const msg = JSON.stringify(res.errors);
+    // Fallback para `replicas` se o schema reclamar do campo
+    if (/numReplicas/i.test(msg) && /(unknown|not.*found|invalid)/i.test(msg)) {
+      console.warn("setRailwayReplicas: numReplicas rejected, retrying with `replicas`");
+      res = await tryWithKey("replicas");
+    }
+  }
   if (res.errors?.length) {
     throw new Error(`setRailwayReplicas failed: ${JSON.stringify(res.errors)}`);
   }
+
+  // Após escalar, força redeploy para aplicar a mudança imediatamente
+  try {
+    await deployRailwayService({
+      token: opts.token,
+      serviceId: opts.serviceId,
+      environmentId: opts.environmentId,
+    });
+  } catch (e) {
+    console.warn("setRailwayReplicas: redeploy after scale failed (non-fatal):", e);
+  }
+}
+
+/** Busca o environmentId do primeiro deployment de um serviço. Útil quando vps_pool_id está null. */
+export async function getServiceEnvironmentId(opts: {
+  token: string;
+  serviceId: string;
+}): Promise<string | null> {
+  const query = `
+    query Service($id: String!) {
+      service(id: $id) {
+        projectId
+        deployments(first: 1) {
+          edges { node { environmentId } }
+        }
+      }
+    }
+  `;
+  const res = await railwayQuery<{
+    service: { projectId: string; deployments: { edges: { node: { environmentId: string } }[] } };
+  }>(query, { id: opts.serviceId }, opts.token);
+  if (res.errors?.length) {
+    console.error("getServiceEnvironmentId errors:", JSON.stringify(res.errors));
+    return null;
+  }
+  return res.data?.service?.deployments?.edges?.[0]?.node?.environmentId ?? null;
 }
 
 /** Apaga o webhook do Telegram para que o Hermes assuma via polling. */
