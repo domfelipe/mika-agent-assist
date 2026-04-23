@@ -3,9 +3,10 @@
 // Quando um deployment SUCCESS bate em um railway_service_id que conhecemos,
 // marcamos o agent_instance como 'active'.
 //
-// Payload Railway (resumido):
-// { type: "DEPLOY", deployment: { id, status, serviceId, environmentId, ... }, project, ... }
-// Status possíveis: BUILDING, DEPLOYING, SUCCESS, FAILED, CRASHED, REMOVED
+// Railway envia payloads em formatos variados. Já vimos:
+//   { type: "Deployment.deployed", details: { serviceId, status, ... }, resource: {...} }
+//   { type: "DEPLOY", status, deployment: { serviceId, status, ... } }
+// Aceitamos ambos.
 
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2.45.4";
 import { corsHeaders } from "../_shared/cors.ts";
@@ -13,39 +14,43 @@ import { corsHeaders } from "../_shared/cors.ts";
 const SUPABASE_URL = Deno.env.get("SUPABASE_URL")!;
 const SUPABASE_SERVICE_ROLE_KEY = Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!;
 
-interface RailwayWebhookPayload {
-  type?: string;
-  deployment?: {
-    id?: string;
-    status?: string;
-    serviceId?: string;
-    environmentId?: string;
-  };
-  // Railway envia variantes; aceitamos serviceId/serviço em vários lugares
-  service?: { id?: string };
-  status?: string;
-}
-
 Deno.serve(async (req) => {
   if (req.method === "OPTIONS") return new Response(null, { headers: corsHeaders });
   if (req.method !== "POST") {
-    return jsonResponse(405, { error: "method not allowed" });
+    return jsonResponse(200, { ignored: true, reason: "method not allowed" });
   }
 
-  let payload: RailwayWebhookPayload;
+  let payload: Record<string, unknown>;
   try {
     payload = await req.json();
   } catch {
-    return jsonResponse(400, { error: "invalid json" });
+    console.log("railway-webhook: invalid json body");
+    return jsonResponse(200, { ignored: true, reason: "invalid json" });
   }
 
+  console.log("railway-webhook: payload recebido", JSON.stringify(payload));
+
+  // Extrai serviceId e status de qualquer um dos formatos conhecidos
+  const deployment = (payload.deployment ?? {}) as Record<string, unknown>;
+  const details = (payload.details ?? {}) as Record<string, unknown>;
+  const resource = (payload.resource ?? {}) as Record<string, unknown>;
+  const service = (payload.service ?? resource.service ?? {}) as Record<string, unknown>;
+
   const serviceId =
-    payload.deployment?.serviceId ?? payload.service?.id ?? null;
-  const status = payload.deployment?.status ?? payload.status ?? null;
+    (deployment.serviceId as string | undefined) ??
+    (details.serviceId as string | undefined) ??
+    (service.id as string | undefined) ??
+    null;
+
+  const status =
+    (deployment.status as string | undefined) ??
+    (details.status as string | undefined) ??
+    (payload.status as string | undefined) ??
+    null;
 
   if (!serviceId || !status) {
-    console.log("railway-webhook: payload sem serviceId/status — ignorando", payload);
-    return jsonResponse(200, { ignored: true });
+    console.log("railway-webhook: payload sem serviceId/status — ignorando");
+    return jsonResponse(200, { ignored: true, reason: "missing serviceId/status" });
   }
 
   const supabase = createClient(SUPABASE_URL, SUPABASE_SERVICE_ROLE_KEY, {
@@ -60,13 +65,13 @@ Deno.serve(async (req) => {
 
   if (!agent) {
     console.log(`railway-webhook: serviceId ${serviceId} não corresponde a nenhum agent_instance`);
-    return jsonResponse(200, { ignored: true });
+    return jsonResponse(200, { ignored: true, reason: "unknown serviceId" });
   }
 
   const now = new Date().toISOString();
   const upper = status.toUpperCase();
 
-  if (upper === "SUCCESS") {
+  if (upper === "SUCCESS" || upper === "ACTIVE" || upper === "DEPLOYED") {
     await supabase
       .from("agent_instances")
       .update({
@@ -80,8 +85,9 @@ Deno.serve(async (req) => {
       .from("provisioning_jobs")
       .update({ status: "completed", completed_at: now })
       .eq("agent_instance_id", agent.id)
-      .in("status", ["running", "retrying"]);
+      .in("status", ["running", "retrying", "pending"]);
 
+    console.log(`railway-webhook: agent ${agent.id} marcado como active (status=${upper})`);
     return jsonResponse(200, { ok: true, agent_id: agent.id, new_status: "active" });
   }
 
@@ -99,12 +105,14 @@ Deno.serve(async (req) => {
         completed_at: now,
       })
       .eq("agent_instance_id", agent.id)
-      .in("status", ["running", "retrying"]);
+      .in("status", ["running", "retrying", "pending"]);
 
+    console.log(`railway-webhook: agent ${agent.id} marcado como error (status=${upper})`);
     return jsonResponse(200, { ok: true, agent_id: agent.id, new_status: "error" });
   }
 
   // BUILDING / DEPLOYING / outros — apenas log
+  console.log(`railway-webhook: status ${upper} ignorado para agent ${agent.id}`);
   return jsonResponse(200, { ok: true, ignored_status: upper });
 });
 
