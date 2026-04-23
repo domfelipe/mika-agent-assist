@@ -25,6 +25,8 @@ Já configuradas via `.env` (gerado automaticamente pelo Lovable Cloud):
 - `SUPABASE_SERVICE_ROLE_KEY`
 - `RAILWAY_API_TOKEN` — token da Railway Public API, usado por `provision-agent`/`suspend-agent`/`resume-agent` para criar e gerenciar containers Hermes.
 - `OPENROUTER_API_KEY` — **obrigatório**. Injetado em cada container Hermes provisionado para que o agente possa chamar os modelos `openrouter/google/gemma-4-*-it`. Sem isso o `provision-agent` retorna 500.
+- `ADMIN_TELEGRAM_BOT_TOKEN` — token do bot de admin (ex: `@mika_test2_bot`) usado pelo `payments-webhook` para enviar notificações de novos clientes, falhas de pagamento e cancelamentos.
+- `ADMIN_TELEGRAM_CHAT_ID` — chat ID do admin que recebe as notificações (ex: `179720882`).
 - (opcional, Fase 5) credenciais SSH para Hermes
 
 ---
