@@ -19,14 +19,17 @@ interface RequestBody {
 const SUPABASE_URL = Deno.env.get("SUPABASE_URL")!;
 const SUPABASE_SERVICE_ROLE_KEY = Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!;
 const RAILWAY_API_TOKEN = Deno.env.get("RAILWAY_API_TOKEN");
-const OPENCODE_ZEN_API_KEY = Deno.env.get("OPENCODE_ZEN_API_KEY") ?? "";
-const OPENCODE_GO_API_KEY = Deno.env.get("OPENCODE_GO_API_KEY") ?? "";
+const OPENROUTER_API_KEY = Deno.env.get("OPENROUTER_API_KEY") ?? "";
 
 Deno.serve(async (req) => {
   if (req.method === "OPTIONS") return new Response(null, { headers: corsHeaders });
 
   if (!RAILWAY_API_TOKEN) {
     return jsonResponse(500, { error: "RAILWAY_API_TOKEN not configured" });
+  }
+
+  if (!OPENROUTER_API_KEY) {
+    return jsonResponse(500, { error: "OPENROUTER_API_KEY not configured" });
   }
 
   let body: RequestBody;
@@ -44,11 +47,11 @@ Deno.serve(async (req) => {
     auth: { persistSession: false, autoRefreshToken: false },
   });
 
-  // 1) Carregar agent_instance + profile
+  // 1) Carregar agent_instance
   const { data: agent, error: agentErr } = await supabase
     .from("agent_instances")
     .select(
-      "id, user_id, uuid_tenant, status, telegram_bot_token_vault_id, telegram_bot_username, railway_service_id",
+      "id, user_id, uuid_tenant, status, telegram_bot_token_vault_id, telegram_bot_username, telegram_user_chat_id, railway_service_id",
     )
     .eq("id", body.agent_instance_id)
     .maybeSingle();
@@ -64,6 +67,31 @@ Deno.serve(async (req) => {
   if (agent.railway_service_id) {
     return jsonResponse(409, { error: "agent_instance already has a railway_service_id", railway_service_id: agent.railway_service_id });
   }
+
+  // 1b) Carregar profile (full_name → nome do agente)
+  const { data: profile } = await supabase
+    .from("profiles")
+    .select("full_name")
+    .eq("id", agent.user_id)
+    .maybeSingle();
+
+  const fullName = (profile?.full_name?.trim() || "Usuário").toString();
+  const firstName = fullName.split(" ")[0] || "Usuário";
+  const agentName = `Mika de ${firstName}`;
+
+  // 1c) Carregar subscription ativa (para definir modelo Pro vs Basic)
+  const { data: subscription } = await supabase
+    .from("subscriptions")
+    .select("plan_id, status, plans(slug)")
+    .eq("user_id", agent.user_id)
+    .in("status", ["active", "trialing"])
+    .order("created_at", { ascending: false })
+    .limit(1)
+    .maybeSingle();
+
+  // deno-lint-ignore no-explicit-any
+  const planSlug = ((subscription as any)?.plans?.slug as string | undefined) ?? "basic";
+  const isPro = ["professional", "enterprise"].includes(planSlug);
 
   // 2) Buscar pool disponível (com IDs Railway preenchidos e capacidade)
   const { data: pool, error: poolErr } = await supabase
@@ -91,7 +119,12 @@ Deno.serve(async (req) => {
       status: "running",
       attempt: 1,
       started_at: new Date().toISOString(),
-      payload: { uuid_tenant: agent.uuid_tenant, telegram_bot_username: agent.telegram_bot_username },
+      payload: {
+        uuid_tenant: agent.uuid_tenant,
+        telegram_bot_username: agent.telegram_bot_username,
+        plan_slug: planSlug,
+        agent_name: agentName,
+      },
     })
     .select("id")
     .single();
@@ -101,27 +134,48 @@ Deno.serve(async (req) => {
   }
 
   // 4) Decrypt do telegram_bot_token (se existir)
-  let telegramToken = "";
+  let telegramBotToken = "";
   if (agent.telegram_bot_token_vault_id) {
     const { data: secret } = await supabase.rpc("vault_decrypt_secret", {
       secret_id: agent.telegram_bot_token_vault_id,
     });
-    telegramToken = secret?.[0]?.decrypted_secret ?? "";
+    telegramBotToken = secret?.[0]?.decrypted_secret ?? "";
   }
 
-  if (!telegramToken) {
+  if (!telegramBotToken) {
     await failJob(supabase, agent, job.id, "telegram_bot_token ausente no Vault — usuário precisa concluir onboarding antes");
     return jsonResponse(412, { error: "telegram token missing" });
   }
 
   // 5) Apagar webhook Telegram (Hermes vai usar polling)
   try {
-    await deleteTelegramWebhook(telegramToken);
+    await deleteTelegramWebhook(telegramBotToken);
   } catch (e) {
     console.warn("deleteTelegramWebhook failed (continuing):", String(e));
   }
 
-  // 6) Criar serviço no Railway
+  // 6) Montar variáveis de ambiente do container
+  const hasChatId = !!agent.telegram_user_chat_id;
+  const soulContent = `Você se chama ${agentName}. Você é um assistente pessoal de IA criado pela DOMCO para ${fullName}. Você é proativo, direto e fala sempre em português brasileiro. Você ajuda ${firstName} a ser mais produtivo — gerenciando emails, agenda, tarefas e automatizando o que puder. Seja conciso nas respostas via Telegram. Nunca se identifique como Hermes ou como produto da Nous Research — você é Mika.`;
+
+  const envVars: Record<string, string> = {
+    TELEGRAM_BOT_TOKEN: telegramBotToken,
+    TELEGRAM_ALLOWED_USERS: hasChatId ? String(agent.telegram_user_chat_id) : "",
+    TELEGRAM_HOME_CHANNEL: hasChatId ? String(agent.telegram_user_chat_id) : "",
+    GATEWAY_ALLOW_ALL_USERS: hasChatId ? "false" : "true",
+    HERMES_SOUL_MD: soulContent,
+    HERMES_TTS_PROVIDER: "disabled",
+    HERMES_STT_PROVIDER: "local",
+    OPENROUTER_API_KEY,
+    HERMES_MODEL: isPro
+      ? "openrouter/google/gemma-4-31b-it"
+      : "openrouter/google/gemma-4-27b-a4b-it",
+    HERMES_FALLBACK_MODEL: "openrouter/google/gemma-4-31b-it",
+    API_SERVER_ENABLED: "false",
+    HERMES_HOME: "/opt/data",
+  };
+
+  // 7) Criar serviço no Railway
   const serviceName = `mika-${agent.uuid_tenant.replace(/-/g, "").slice(0, 8)}`;
   let railwayServiceId: string;
 
@@ -137,16 +191,8 @@ Deno.serve(async (req) => {
       serviceId: railwayServiceId,
       environmentId: pool.railway_environment_id,
       image: "nousresearch/hermes-agent:latest",
-      variables: {
-        TELEGRAM_BOT_TOKEN: telegramToken,
-        TELEGRAM_ALLOWED_USERS: "",
-        API_SERVER_ENABLED: "false",
-        HERMES_HOME: "/root/.hermes",
-        MAIN_MODEL_PROVIDER: "opencode-zen",
-        OPENCODE_ZEN_API_KEY,
-        OPENCODE_GO_API_KEY,
-        HERMES_GATEWAY_CMD: "true",
-      },
+      startCommand: "/opt/hermes/docker/entrypoint.sh gateway run",
+      variables: envVars,
     });
 
     await deployRailwayService({
@@ -161,7 +207,7 @@ Deno.serve(async (req) => {
     return jsonResponse(500, { error: "railway provisioning failed", detail: msg });
   }
 
-  // 7) Persistir railway_service_id no agent_instance e no job
+  // 8) Persistir railway_service_id no agent_instance e no job (status='running')
   await supabase
     .from("agent_instances")
     .update({ railway_service_id: railwayServiceId, vps_pool_id: pool.id })
@@ -169,15 +215,17 @@ Deno.serve(async (req) => {
 
   await supabase
     .from("provisioning_jobs")
-    .update({ railway_service_id: railwayServiceId })
+    .update({ railway_service_id: railwayServiceId, status: "running" })
     .eq("id", job.id);
 
-  // status permanece 'provisioning' — o railway-webhook atualiza para 'active' quando o deploy subir
+  // status do agent permanece 'provisioning' — railway-webhook atualiza para 'active' quando deploy subir
   return jsonResponse(200, {
     success: true,
     agent_instance_id: agent.id,
     railway_service_id: railwayServiceId,
     job_id: job.id,
+    plan_slug: planSlug,
+    agent_name: agentName,
   });
 });
 
@@ -209,7 +257,6 @@ async function scheduleRetry(
   jobId: string,
   message: string,
 ) {
-  // Lê a tentativa atual
   const { data: job } = await supabase
     .from("provisioning_jobs")
     .select("attempt, max_attempts")
@@ -224,7 +271,7 @@ async function scheduleRetry(
     return;
   }
 
-  const nextDelayMs = Math.pow(attempt, 2) * 60_000; // attempt^2 minutos
+  const nextDelayMs = Math.pow(attempt, 2) * 60_000;
   const nextRetryAt = new Date(Date.now() + nextDelayMs).toISOString();
 
   await supabase
