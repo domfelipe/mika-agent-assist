@@ -31,6 +31,7 @@ import { Route as PainelSkillsIdRouteImport } from './routes/painel.skills.$id'
 import { Route as PainelIntegracoesSlugRouteImport } from './routes/painel.integracoes.$slug'
 import { Route as PainelCronjobsNovaRouteImport } from './routes/painel.cronjobs.nova'
 import { Route as PainelCronjobsIdRouteImport } from './routes/painel.cronjobs.$id'
+import { Route as AdminAgenteIdRouteImport } from './routes/admin.agente.$id'
 
 const SignupRoute = SignupRouteImport.update({
   id: '/signup',
@@ -142,10 +143,15 @@ const PainelCronjobsIdRoute = PainelCronjobsIdRouteImport.update({
   path: '/cronjobs/$id',
   getParentRoute: () => PainelRoute,
 } as any)
+const AdminAgenteIdRoute = AdminAgenteIdRouteImport.update({
+  id: '/agente/$id',
+  path: '/agente/$id',
+  getParentRoute: () => AdminRoute,
+} as any)
 
 export interface FileRoutesByFullPath {
   '/': typeof IndexRoute
-  '/admin': typeof AdminRoute
+  '/admin': typeof AdminRouteWithChildren
   '/login': typeof LoginRoute
   '/painel': typeof PainelRouteWithChildren
   '/recuperar-senha': typeof RecuperarSenhaRoute
@@ -157,6 +163,7 @@ export interface FileRoutesByFullPath {
   '/painel/faturamento': typeof PainelFaturamentoRoute
   '/painel/skills': typeof PainelSkillsRouteWithChildren
   '/painel/': typeof PainelIndexRoute
+  '/admin/agente/$id': typeof AdminAgenteIdRoute
   '/painel/cronjobs/$id': typeof PainelCronjobsIdRoute
   '/painel/cronjobs/nova': typeof PainelCronjobsNovaRoute
   '/painel/integracoes/$slug': typeof PainelIntegracoesSlugRoute
@@ -169,7 +176,7 @@ export interface FileRoutesByFullPath {
 }
 export interface FileRoutesByTo {
   '/': typeof IndexRoute
-  '/admin': typeof AdminRoute
+  '/admin': typeof AdminRouteWithChildren
   '/login': typeof LoginRoute
   '/recuperar-senha': typeof RecuperarSenhaRoute
   '/redefinir-senha': typeof RedefinirSenhaRoute
@@ -179,6 +186,7 @@ export interface FileRoutesByTo {
   '/painel/configuracoes': typeof PainelConfiguracoesRoute
   '/painel/faturamento': typeof PainelFaturamentoRoute
   '/painel': typeof PainelIndexRoute
+  '/admin/agente/$id': typeof AdminAgenteIdRoute
   '/painel/cronjobs/$id': typeof PainelCronjobsIdRoute
   '/painel/cronjobs/nova': typeof PainelCronjobsNovaRoute
   '/painel/integracoes/$slug': typeof PainelIntegracoesSlugRoute
@@ -192,7 +200,7 @@ export interface FileRoutesByTo {
 export interface FileRoutesById {
   __root__: typeof rootRouteImport
   '/': typeof IndexRoute
-  '/admin': typeof AdminRoute
+  '/admin': typeof AdminRouteWithChildren
   '/login': typeof LoginRoute
   '/painel': typeof PainelRouteWithChildren
   '/recuperar-senha': typeof RecuperarSenhaRoute
@@ -204,6 +212,7 @@ export interface FileRoutesById {
   '/painel/faturamento': typeof PainelFaturamentoRoute
   '/painel/skills': typeof PainelSkillsRouteWithChildren
   '/painel/': typeof PainelIndexRoute
+  '/admin/agente/$id': typeof AdminAgenteIdRoute
   '/painel/cronjobs/$id': typeof PainelCronjobsIdRoute
   '/painel/cronjobs/nova': typeof PainelCronjobsNovaRoute
   '/painel/integracoes/$slug': typeof PainelIntegracoesSlugRoute
@@ -230,6 +239,7 @@ export interface FileRouteTypes {
     | '/painel/faturamento'
     | '/painel/skills'
     | '/painel/'
+    | '/admin/agente/$id'
     | '/painel/cronjobs/$id'
     | '/painel/cronjobs/nova'
     | '/painel/integracoes/$slug'
@@ -252,6 +262,7 @@ export interface FileRouteTypes {
     | '/painel/configuracoes'
     | '/painel/faturamento'
     | '/painel'
+    | '/admin/agente/$id'
     | '/painel/cronjobs/$id'
     | '/painel/cronjobs/nova'
     | '/painel/integracoes/$slug'
@@ -276,6 +287,7 @@ export interface FileRouteTypes {
     | '/painel/faturamento'
     | '/painel/skills'
     | '/painel/'
+    | '/admin/agente/$id'
     | '/painel/cronjobs/$id'
     | '/painel/cronjobs/nova'
     | '/painel/integracoes/$slug'
@@ -289,7 +301,7 @@ export interface FileRouteTypes {
 }
 export interface RootRouteChildren {
   IndexRoute: typeof IndexRoute
-  AdminRoute: typeof AdminRoute
+  AdminRoute: typeof AdminRouteWithChildren
   LoginRoute: typeof LoginRoute
   PainelRoute: typeof PainelRouteWithChildren
   RecuperarSenhaRoute: typeof RecuperarSenhaRoute
@@ -454,8 +466,25 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof PainelCronjobsIdRouteImport
       parentRoute: typeof PainelRoute
     }
+    '/admin/agente/$id': {
+      id: '/admin/agente/$id'
+      path: '/agente/$id'
+      fullPath: '/admin/agente/$id'
+      preLoaderRoute: typeof AdminAgenteIdRouteImport
+      parentRoute: typeof AdminRoute
+    }
   }
 }
+
+interface AdminRouteChildren {
+  AdminAgenteIdRoute: typeof AdminAgenteIdRoute
+}
+
+const AdminRouteChildren: AdminRouteChildren = {
+  AdminAgenteIdRoute: AdminAgenteIdRoute,
+}
+
+const AdminRouteWithChildren = AdminRoute._addFileChildren(AdminRouteChildren)
 
 interface PainelSkillsRouteChildren {
   PainelSkillsIdRoute: typeof PainelSkillsIdRoute
@@ -506,7 +535,7 @@ const PainelRouteWithChildren =
 
 const rootRouteChildren: RootRouteChildren = {
   IndexRoute: IndexRoute,
-  AdminRoute: AdminRoute,
+  AdminRoute: AdminRouteWithChildren,
   LoginRoute: LoginRoute,
   PainelRoute: PainelRouteWithChildren,
   RecuperarSenhaRoute: RecuperarSenhaRoute,
