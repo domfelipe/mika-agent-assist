@@ -29,6 +29,7 @@ export type Database = {
           telegram_first_message_received_at: string | null
           telegram_onboarding_completed: boolean
           telegram_token_invalid: boolean
+          telegram_user_chat_id: number | null
           telegram_webhook_configured: boolean
           telegram_webhook_secret: string | null
           updated_at: string
@@ -51,6 +52,7 @@ export type Database = {
           telegram_first_message_received_at?: string | null
           telegram_onboarding_completed?: boolean
           telegram_token_invalid?: boolean
+          telegram_user_chat_id?: number | null
           telegram_webhook_configured?: boolean
           telegram_webhook_secret?: string | null
           updated_at?: string
@@ -73,6 +75,7 @@ export type Database = {
           telegram_first_message_received_at?: string | null
           telegram_onboarding_completed?: boolean
           telegram_token_invalid?: boolean
+          telegram_user_chat_id?: number | null
           telegram_webhook_configured?: boolean
           telegram_webhook_secret?: string | null
           updated_at?: string
