@@ -5,7 +5,7 @@
 
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2.45.4";
 import { corsHeaders } from "../_shared/cors.ts";
-import { setRailwayReplicas } from "../_shared/railway.ts";
+import { setRailwayReplicas, getServiceEnvironmentId } from "../_shared/railway.ts";
 
 const SUPABASE_URL = Deno.env.get("SUPABASE_URL")!;
 const SUPABASE_SERVICE_ROLE_KEY = Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!;
@@ -47,7 +47,7 @@ Deno.serve(async (req) => {
   if (agent.status === "suspended") {
     return jsonResponse(200, { ok: true, already_suspended: true });
   }
-  if (!agent.railway_service_id || !agent.vps_pool_id) {
+  if (!agent.railway_service_id) {
     // Sem container provisionado ainda — só marca o status
     await supabase
       .from("agent_instances")
@@ -56,21 +56,31 @@ Deno.serve(async (req) => {
     return jsonResponse(200, { ok: true, no_container: true });
   }
 
-  const { data: pool } = await supabase
-    .from("vps_pool")
-    .select("railway_environment_id")
-    .eq("id", agent.vps_pool_id)
-    .maybeSingle();
-
-  if (!pool?.railway_environment_id) {
-    return jsonResponse(500, { error: "pool environment not configured" });
+  // Resolve o environmentId: prioriza vps_pool, fallback para query no Railway
+  let environmentId: string | null = null;
+  if (agent.vps_pool_id) {
+    const { data: pool } = await supabase
+      .from("vps_pool")
+      .select("railway_environment_id")
+      .eq("id", agent.vps_pool_id)
+      .maybeSingle();
+    environmentId = pool?.railway_environment_id ?? null;
+  }
+  if (!environmentId) {
+    environmentId = await getServiceEnvironmentId({
+      token: RAILWAY_API_TOKEN,
+      serviceId: agent.railway_service_id,
+    });
+  }
+  if (!environmentId) {
+    return jsonResponse(500, { error: "could not resolve railway environmentId" });
   }
 
   try {
     await setRailwayReplicas({
       token: RAILWAY_API_TOKEN,
       serviceId: agent.railway_service_id,
-      environmentId: pool.railway_environment_id,
+      environmentId,
       replicas: 0,
     });
   } catch (e) {

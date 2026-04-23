@@ -137,12 +137,19 @@ export async function deployRailwayService(opts: {
   }
 }
 
+/**
+ * Suspende ou retoma um serviço Railway usando `sleepApplication`.
+ * Railway não aceita `numReplicas: 0` via serviceInstanceUpdate — o caminho
+ * suportado para pausar é `sleepApplication: true` (e `false` para acordar).
+ * `replicas <= 0` => sleep, `>= 1` => wake.
+ */
 export async function setRailwayReplicas(opts: {
   token: string;
   serviceId: string;
   environmentId: string;
   replicas: number;
 }): Promise<void> {
+  const sleep = opts.replicas <= 0;
   const mutation = `
     mutation ServiceInstanceUpdate($serviceId: String!, $environmentId: String!, $input: ServiceInstanceUpdateInput!) {
       serviceInstanceUpdate(serviceId: $serviceId, environmentId: $environmentId, input: $input)
@@ -153,13 +160,49 @@ export async function setRailwayReplicas(opts: {
     {
       serviceId: opts.serviceId,
       environmentId: opts.environmentId,
-      input: { numReplicas: opts.replicas },
+      input: { sleepApplication: sleep },
     },
     opts.token,
   );
   if (res.errors?.length) {
-    throw new Error(`setRailwayReplicas failed: ${JSON.stringify(res.errors)}`);
+    throw new Error(`setRailwayReplicas (sleepApplication=${sleep}) failed: ${JSON.stringify(res.errors)}`);
   }
+
+  // Força redeploy para aplicar imediatamente o novo estado de sleep
+  try {
+    await deployRailwayService({
+      token: opts.token,
+      serviceId: opts.serviceId,
+      environmentId: opts.environmentId,
+    });
+  } catch (e) {
+    console.warn("setRailwayReplicas: redeploy after sleep change failed (non-fatal):", e);
+  }
+}
+
+/** Busca o environmentId do primeiro deployment de um serviço. Útil quando vps_pool_id está null. */
+export async function getServiceEnvironmentId(opts: {
+  token: string;
+  serviceId: string;
+}): Promise<string | null> {
+  const query = `
+    query Service($id: String!) {
+      service(id: $id) {
+        projectId
+        deployments(first: 1) {
+          edges { node { environmentId } }
+        }
+      }
+    }
+  `;
+  const res = await railwayQuery<{
+    service: { projectId: string; deployments: { edges: { node: { environmentId: string } }[] } };
+  }>(query, { id: opts.serviceId }, opts.token);
+  if (res.errors?.length) {
+    console.error("getServiceEnvironmentId errors:", JSON.stringify(res.errors));
+    return null;
+  }
+  return res.data?.service?.deployments?.edges?.[0]?.node?.environmentId ?? null;
 }
 
 /** Apaga o webhook do Telegram para que o Hermes assuma via polling. */
