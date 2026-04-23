@@ -15,6 +15,11 @@ import {
 
 interface RequestBody {
   agent_instance_id: string;
+  agent_name?: string;
+  soul_content?: string;
+  model?: string;
+  stt_provider?: string;
+  tts_provider?: string;
 }
 
 const SUPABASE_URL = Deno.env.get("SUPABASE_URL")!;
