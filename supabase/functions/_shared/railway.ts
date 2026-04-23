@@ -136,6 +136,36 @@ export async function deployRailwayService(opts: {
 }
 
 /**
+ * Upsert de várias variáveis de uma vez no serviço Railway.
+ * Mais eficiente que múltiplos variableUpsert sequenciais.
+ */
+export async function upsertRailwayVariableCollection(opts: {
+  token: string;
+  serviceId: string;
+  environmentId: string;
+  projectId: string;
+  variables: Record<string, string>;
+  replace?: boolean;
+}): Promise<void> {
+  const mutation = `
+    mutation VariableCollectionUpsert($input: VariableCollectionUpsertInput!) {
+      variableCollectionUpsert(input: $input)
+    }
+  `;
+  const input = {
+    projectId: opts.projectId,
+    environmentId: opts.environmentId,
+    serviceId: opts.serviceId,
+    variables: opts.variables,
+    replace: opts.replace ?? false,
+  };
+  const res = await railwayQuery(mutation, { input }, opts.token);
+  if (res.errors?.length) {
+    throw new Error(`variableCollectionUpsert failed: ${JSON.stringify(res.errors)}`);
+  }
+}
+
+/**
  * Upsert de uma única variável de ambiente no serviço Railway.
  * Para "remover" o efeito de uma variável boolean, passe value="" (string vazia).
  */

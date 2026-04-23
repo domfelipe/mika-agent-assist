@@ -20,6 +20,7 @@ export type Database = {
           created_at: string
           id: string
           last_health_check_at: string | null
+          model_config: Json
           provisioned_at: string | null
           railway_service_id: string | null
           status: string
@@ -43,6 +44,7 @@ export type Database = {
           created_at?: string
           id?: string
           last_health_check_at?: string | null
+          model_config?: Json
           provisioned_at?: string | null
           railway_service_id?: string | null
           status?: string
@@ -66,6 +68,7 @@ export type Database = {
           created_at?: string
           id?: string
           last_health_check_at?: string | null
+          model_config?: Json
           provisioned_at?: string | null
           railway_service_id?: string | null
           status?: string
