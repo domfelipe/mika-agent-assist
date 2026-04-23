@@ -117,14 +117,8 @@ function AgentDetailPage() {
         ? d.subscription.find((s: { plans: unknown }) => s.plans) ?? d.subscription[0] ?? null
         : d.subscription;
 
-      // Buscar email via auth (admin)
-      let userEmail: string | null = null;
-      try {
-        const { data: u } = await supabase.auth.admin.getUserById(d.user_id);
-        userEmail = u?.user?.email ?? null;
-      } catch {
-        // Sem permissão admin no client — ignorar
-      }
+      // Email não é acessível via client (RLS) — admin pode ver no Railway/Telegram
+      const userEmail: string | null = null;
 
       return { ...d, profile, subscription, user_email: userEmail } as AgentDetail;
     },
@@ -487,8 +481,7 @@ function Field({ label, value }: { label: string; value: string }) {
 
 function StatusBadge({ status }: { status: string }) {
   if (status === "active") return <Badge variant="success">Ativo</Badge>;
-  if (status === "provisioning")
-    return <Badge className="bg-amber-500/15 text-amber-700 dark:text-amber-400 border-amber-500/30">Provisionando</Badge>;
+  if (status === "provisioning") return <Badge variant="secondary">Provisionando</Badge>;
   if (status === "suspended") return <Badge variant="destructive">Suspenso</Badge>;
   if (status === "error") return <Badge variant="destructive">Erro</Badge>;
   return <Badge variant="secondary">{status}</Badge>;
