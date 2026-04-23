@@ -74,10 +74,9 @@ function AdminPage() {
       const { data, error } = await supabase
         .from("agent_instances")
         .select(
-          `id, user_id, status, uuid_tenant, telegram_bot_username, telegram_bot_token_vault_id,
-           railway_service_id, vps_pool_id, created_at, provisioned_at,
-           profile:profiles!agent_instances_user_id_fkey(full_name),
-           subscription:subscriptions!subscriptions_user_id_fkey(plans(slug, name))`,
+          `*,
+           profile:profiles!agent_instances_user_id_fkey(full_name, phone),
+           subscription:subscriptions!subscriptions_user_id_fkey(status, plans(slug, name))`,
         )
         .order("created_at", { ascending: false })
         .limit(100);
