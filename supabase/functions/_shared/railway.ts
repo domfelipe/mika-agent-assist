@@ -197,11 +197,11 @@ export async function setHermesSuspended(opts: {
   });
 }
 
-/** Busca o environmentId do primeiro deployment de um serviço. Útil quando vps_pool_id está null. */
-export async function getServiceEnvironmentId(opts: {
+/** Busca env+project IDs do primeiro deployment de um serviço. Útil quando vps_pool_id está null. */
+export async function getServiceContext(opts: {
   token: string;
   serviceId: string;
-}): Promise<string | null> {
+}): Promise<{ environmentId: string | null; projectId: string | null }> {
   const query = `
     query Service($id: String!) {
       service(id: $id) {
@@ -216,10 +216,21 @@ export async function getServiceEnvironmentId(opts: {
     service: { projectId: string; deployments: { edges: { node: { environmentId: string } }[] } };
   }>(query, { id: opts.serviceId }, opts.token);
   if (res.errors?.length) {
-    console.error("getServiceEnvironmentId errors:", JSON.stringify(res.errors));
-    return null;
+    console.error("getServiceContext errors:", JSON.stringify(res.errors));
+    return { environmentId: null, projectId: null };
   }
-  return res.data?.service?.deployments?.edges?.[0]?.node?.environmentId ?? null;
+  return {
+    environmentId: res.data?.service?.deployments?.edges?.[0]?.node?.environmentId ?? null,
+    projectId: res.data?.service?.projectId ?? null,
+  };
+}
+
+/** @deprecated use getServiceContext */
+export async function getServiceEnvironmentId(opts: {
+  token: string;
+  serviceId: string;
+}): Promise<string | null> {
+  return (await getServiceContext(opts)).environmentId;
 }
 
 /** Apaga o webhook do Telegram para que o Hermes assuma via polling. */
