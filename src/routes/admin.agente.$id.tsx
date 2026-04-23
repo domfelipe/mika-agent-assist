@@ -80,7 +80,7 @@ function AgentDetailPage() {
 
   const { data: isAdmin, isLoading: roleLoading } = useQuery({
     queryKey: ["is-admin", user?.id],
-    enabled: !!user,
+    enabled: !authLoading && !!user,
     queryFn: async () => {
       const { data, error } = await supabase.rpc("has_role", {
         _user_id: user!.id,
@@ -93,7 +93,7 @@ function AgentDetailPage() {
 
   const { data: agent, isLoading: agentLoading, error: agentError } = useQuery({
     queryKey: ["agent-detail", id],
-    enabled: !!isAdmin,
+    enabled: !authLoading && !!user && isAdmin === true,
     refetchInterval: 10_000,
     queryFn: async () => {
       console.log("[admin.agente] fetching agent detail", { id });
@@ -259,7 +259,7 @@ function AgentDetailPage() {
     isAdmin, hasUser: !!user, hasAgent: !!agent, agentError,
   });
 
-  if (authLoading || roleLoading) {
+  if (authLoading || (user && roleLoading) || (isAdmin === true && agentLoading)) {
     return (
       <div className="min-h-screen flex items-center justify-center bg-background">
         <Loader2 className="h-6 w-6 animate-spin text-primary" />
@@ -267,7 +267,11 @@ function AgentDetailPage() {
     );
   }
 
-  if (!isAdmin) {
+  if (!user) {
+    return null;
+  }
+
+  if (isAdmin === false) {
     return (
       <div className="min-h-screen flex items-center justify-center bg-background px-4">
         <div className="max-w-md text-center space-y-4">
@@ -278,6 +282,22 @@ function AgentDetailPage() {
           <Button asChild variant="outline">
             <Link to="/painel">
               <ArrowLeft className="h-4 w-4 mr-2" /> Voltar ao painel
+            </Link>
+          </Button>
+        </div>
+      </div>
+    );
+  }
+
+  if (agentError) {
+    return (
+      <div className="min-h-screen flex items-center justify-center bg-background px-4">
+        <div className="max-w-md text-center space-y-4">
+          <h1 className="text-2xl font-bold">Erro ao carregar agente</h1>
+          <p className="text-sm text-muted-foreground">{agentError.message}</p>
+          <Button asChild variant="outline">
+            <Link to="/admin">
+              <ArrowLeft className="h-4 w-4 mr-2" /> Voltar ao admin
             </Link>
           </Button>
         </div>
