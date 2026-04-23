@@ -140,6 +140,35 @@ function AgentDetailPage() {
     },
   });
 
+  // Backfill: se o agente não tem telegram_user_chat_id mas já recebeu mensagens,
+  // pega a primeira mensagem incoming e popula automaticamente.
+  useEffect(() => {
+    if (!agent || !isAdmin) return;
+    if (agent.telegram_user_chat_id) return;
+    let cancelled = false;
+    (async () => {
+      const { data: msg } = await supabase
+        .from("telegram_messages_log")
+        .select("telegram_chat_id")
+        .eq("agent_instance_id", id)
+        .eq("direction", "incoming")
+        .order("created_at", { ascending: true })
+        .limit(1)
+        .maybeSingle();
+      if (cancelled || !msg?.telegram_chat_id) return;
+      const { error: updErr } = await supabase
+        .from("agent_instances")
+        .update({ telegram_user_chat_id: msg.telegram_chat_id })
+        .eq("id", id);
+      if (!updErr) {
+        queryClient.invalidateQueries({ queryKey: ["agent-detail", id] });
+      }
+    })();
+    return () => {
+      cancelled = true;
+    };
+  }, [agent, isAdmin, id, queryClient]);
+
   // ===== Estado do formulário =====
   const fullName = agent?.profile?.full_name?.trim() || "Usuário";
   const firstName = fullName.split(" ")[0] || "Usuário";
