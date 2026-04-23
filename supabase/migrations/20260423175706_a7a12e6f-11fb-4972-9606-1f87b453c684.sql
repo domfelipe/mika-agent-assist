@@ -1,0 +1,2 @@
+ALTER TABLE public.agent_instances ADD COLUMN IF NOT EXISTS telegram_user_chat_id bigint;
+COMMENT ON COLUMN public.agent_instances.telegram_user_chat_id IS 'Chat ID do Telegram do dono do agente — populado pelo telegram-webhook na primeira mensagem. Usado em TELEGRAM_ALLOWED_USERS / TELEGRAM_HOME_CHANNEL no container Hermes.';
