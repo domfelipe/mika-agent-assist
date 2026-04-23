@@ -65,20 +65,25 @@ export async function configureRailwayService(opts: {
   environmentId: string;
   image: string;
   variables: Record<string, string>;
+  startCommand?: string;
 }): Promise<void> {
   // O Railway expõe variáveis via variableUpsert (uma por vez) e fonte/imagem via serviceInstanceUpdate.
-  // Setamos a imagem primeiro.
+  // Setamos a imagem (e startCommand opcional) primeiro.
   const updateSource = `
     mutation ServiceInstanceUpdate($serviceId: String!, $environmentId: String!, $input: ServiceInstanceUpdateInput!) {
       serviceInstanceUpdate(serviceId: $serviceId, environmentId: $environmentId, input: $input)
     }
   `;
+  const sourceInput: Record<string, unknown> = { source: { image: opts.image } };
+  if (opts.startCommand) {
+    sourceInput.startCommand = opts.startCommand;
+  }
   const sourceRes = await railwayQuery(
     updateSource,
     {
       serviceId: opts.serviceId,
       environmentId: opts.environmentId,
-      input: { source: { image: opts.image } },
+      input: sourceInput,
     },
     opts.token,
   );

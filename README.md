@@ -23,6 +23,8 @@ Já configuradas via `.env` (gerado automaticamente pelo Lovable Cloud):
 
 - `PADDLE_API_KEY` / `PADDLE_WEBHOOK_SECRET`
 - `SUPABASE_SERVICE_ROLE_KEY`
+- `RAILWAY_API_TOKEN` — token da Railway Public API, usado por `provision-agent`/`suspend-agent`/`resume-agent` para criar e gerenciar containers Hermes.
+- `OPENROUTER_API_KEY` — **obrigatório**. Injetado em cada container Hermes provisionado para que o agente possa chamar os modelos `openrouter/google/gemma-4-*-it`. Sem isso o `provision-agent` retorna 500.
 - (opcional, Fase 5) credenciais SSH para Hermes
 
 ---
