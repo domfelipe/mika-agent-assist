@@ -9,8 +9,8 @@ import {
   Loader2,
   PlayCircle,
   PauseCircle,
-  RotateCw,
   Server,
+  Settings,
   ShieldAlert,
 } from "lucide-react";
 import { supabase } from "@/integrations/supabase/client";
@@ -43,6 +43,8 @@ interface AgentRow {
   vps_pool_id: string | null;
   created_at: string;
   provisioned_at: string | null;
+  profile: { full_name: string | null } | null;
+  subscription: { plans: { slug: string; name: string } | null } | null;
 }
 
 function AdminPage() {
@@ -65,18 +67,30 @@ function AdminPage() {
   });
 
   const { data: agents, isLoading: agentsLoading } = useQuery({
-    queryKey: ["admin-agents"],
+    queryKey: ["agents-admin"],
     enabled: !!isAdmin,
+    refetchInterval: 15000,
     queryFn: async () => {
       const { data, error } = await supabase
         .from("agent_instances")
         .select(
-          "id, user_id, status, uuid_tenant, telegram_bot_username, telegram_bot_token_vault_id, railway_service_id, vps_pool_id, created_at, provisioned_at",
+          `id, user_id, status, uuid_tenant, telegram_bot_username, telegram_bot_token_vault_id,
+           railway_service_id, vps_pool_id, created_at, provisioned_at,
+           profile:profiles!agent_instances_user_id_fkey(full_name),
+           subscription:subscriptions!subscriptions_user_id_fkey(plans(slug, name))`,
         )
         .order("created_at", { ascending: false })
         .limit(100);
       if (error) throw error;
-      return data as AgentRow[];
+      // Pegar apenas a subscription ativa (primeira) — o relacionamento retorna array
+      // deno-lint-ignore no-explicit-any
+      return (data as any[]).map((a) => ({
+        ...a,
+        profile: Array.isArray(a.profile) ? a.profile[0] ?? null : a.profile,
+        subscription: Array.isArray(a.subscription)
+          ? a.subscription.find((s: { plans: unknown }) => s.plans) ?? a.subscription[0] ?? null
+          : a.subscription,
+      })) as AgentRow[];
     },
   });
 
@@ -115,10 +129,7 @@ function AdminPage() {
     );
   }
 
-  async function action(
-    fn: "provision-agent" | "suspend-agent" | "resume-agent",
-    agentId: string,
-  ) {
+  async function action(fn: "suspend-agent" | "resume-agent", agentId: string) {
     setBusy(agentId + fn);
     const { data, error } = await invokeFunction<{ ok?: boolean; error?: string }>(fn, {
       agent_instance_id: agentId,
@@ -130,20 +141,20 @@ function AdminPage() {
       toast.error(`${fn}: ${data.error}`);
     } else {
       toast.success(`${fn} executado com sucesso`);
-      queryClient.invalidateQueries({ queryKey: ["admin-agents"] });
+      queryClient.invalidateQueries({ queryKey: ["agents-admin"] });
     }
   }
 
   return (
     <div className="min-h-screen bg-background px-4 sm:px-8 py-8">
-      <div className="mx-auto max-w-6xl space-y-6">
+      <div className="mx-auto max-w-7xl space-y-6">
         <header className="flex items-start justify-between gap-4 flex-wrap">
           <div>
             <h1 className="text-3xl font-bold tracking-tight flex items-center gap-2">
               <Server className="h-7 w-7 text-primary" /> Admin · Mika
             </h1>
             <p className="mt-1 text-sm text-muted-foreground">
-              Gerencie agentes provisionados, suspenda e reative containers Railway.
+              Configure e gerencie agentes provisionados.
             </p>
           </div>
           <Button asChild variant="outline" size="sm">
@@ -167,7 +178,9 @@ function AdminPage() {
                 <TableHeader>
                   <TableRow>
                     <TableHead>Tenant</TableHead>
+                    <TableHead>Cliente</TableHead>
                     <TableHead>Bot</TableHead>
+                    <TableHead>Plano</TableHead>
                     <TableHead>Status</TableHead>
                     <TableHead>Railway</TableHead>
                     <TableHead className="text-right">Ações</TableHead>
@@ -179,8 +192,14 @@ function AdminPage() {
                       <TableCell className="font-mono text-xs">
                         {a.uuid_tenant.slice(0, 8)}
                       </TableCell>
+                      <TableCell className="text-sm max-w-[180px] truncate">
+                        {a.profile?.full_name || "—"}
+                      </TableCell>
                       <TableCell className="text-sm">
                         {a.telegram_bot_username ? `@${a.telegram_bot_username}` : "—"}
+                      </TableCell>
+                      <TableCell>
+                        <PlanBadge slug={a.subscription?.plans?.slug ?? null} />
                       </TableCell>
                       <TableCell>
                         <StatusBadge status={a.status} />
@@ -189,34 +208,12 @@ function AdminPage() {
                         {a.railway_service_id?.slice(0, 8) ?? "—"}
                       </TableCell>
                       <TableCell className="text-right space-x-1 whitespace-nowrap">
-                        {(a.status === "provisioning" || a.status === "error") &&
-                          !a.railway_service_id && (
-                            <Button
-                              size="sm"
-                              variant="outline"
-                              disabled={
-                                busy === a.id + "provision-agent" ||
-                                !a.telegram_bot_token_vault_id
-                              }
-                              title={
-                                !a.telegram_bot_token_vault_id
-                                  ? "Usuário precisa concluir onboarding do Telegram primeiro"
-                                  : "Provisionar container Railway"
-                              }
-                              onClick={() => action("provision-agent", a.id)}
-                            >
-                              {busy === a.id + "provision-agent" ? (
-                                <Loader2 className="h-3.5 w-3.5 animate-spin" />
-                              ) : (
-                                <RotateCw className="h-3.5 w-3.5" />
-                              )}
-                              <span className="ml-1.5">
-                                {a.telegram_bot_token_vault_id
-                                  ? "Provisionar"
-                                  : "Aguardando token"}
-                              </span>
-                            </Button>
-                          )}
+                        <Button asChild size="sm" variant="outline">
+                          <Link to="/admin/agente/$id" params={{ id: a.id }}>
+                            <Settings className="h-3.5 w-3.5" />
+                            <span className="ml-1.5 hidden sm:inline">Configurar</span>
+                          </Link>
+                        </Button>
                         {a.status === "active" && (
                           <Button
                             size="sm"
@@ -229,7 +226,7 @@ function AdminPage() {
                             ) : (
                               <PauseCircle className="h-3.5 w-3.5" />
                             )}
-                            <span className="ml-1.5">Suspender</span>
+                            <span className="ml-1.5 hidden sm:inline">Suspender</span>
                           </Button>
                         )}
                         {a.status === "suspended" && (
@@ -244,7 +241,7 @@ function AdminPage() {
                             ) : (
                               <PlayCircle className="h-3.5 w-3.5" />
                             )}
-                            <span className="ml-1.5">Reativar</span>
+                            <span className="ml-1.5 hidden sm:inline">Reativar</span>
                           </Button>
                         )}
                       </TableCell>
@@ -267,3 +264,12 @@ function StatusBadge({ status }: { status: string }) {
   if (status === "error") return <Badge variant="destructive">Erro</Badge>;
   return <Badge variant="secondary">{status}</Badge>;
 }
+
+function PlanBadge({ slug }: { slug: string | null }) {
+  if (!slug) return <Badge variant="outline" className="text-xs">Sem plano</Badge>;
+  if (slug === "professional" || slug === "enterprise")
+    return <Badge variant="success" className="text-xs capitalize">{slug}</Badge>;
+  if (slug === "starter") return <Badge variant="secondary" className="text-xs capitalize">{slug}</Badge>;
+  return <Badge variant="outline" className="text-xs capitalize">{slug}</Badge>;
+}
+
