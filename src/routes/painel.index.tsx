@@ -77,11 +77,11 @@ function DashboardPage() {
 
       {!subscription && <NoSubscriptionCard />}
 
-      {subscription && (subscription.status === "incomplete" || subscription.status === "active") && (
-        <ProvisioningCard />
-      )}
+      {subscription &&
+        (subscription.status === "incomplete" || subscription.status === "active") &&
+        agent?.status === "provisioning" && <ProvisioningCard />}
 
-      {subscription && subscription.status === "active" && (
+      {subscription && subscription.status === "active" && agent?.status === "active" && (
         <>
           <AutoPausedBanner />
           <div className="grid gap-6 lg:grid-cols-2">
