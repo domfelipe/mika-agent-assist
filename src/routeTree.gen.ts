@@ -17,6 +17,7 @@ import { Route as LoginRouteImport } from './routes/login'
 import { Route as AdminRouteImport } from './routes/admin'
 import { Route as IndexRouteImport } from './routes/index'
 import { Route as PainelIndexRouteImport } from './routes/painel.index'
+import { Route as AdminIndexRouteImport } from './routes/admin.index'
 import { Route as PainelSkillsRouteImport } from './routes/painel.skills'
 import { Route as PainelFaturamentoRouteImport } from './routes/painel.faturamento'
 import { Route as PainelConfiguracoesRouteImport } from './routes/painel.configuracoes'
@@ -72,6 +73,11 @@ const PainelIndexRoute = PainelIndexRouteImport.update({
   id: '/',
   path: '/',
   getParentRoute: () => PainelRoute,
+} as any)
+const AdminIndexRoute = AdminIndexRouteImport.update({
+  id: '/',
+  path: '/',
+  getParentRoute: () => AdminRoute,
 } as any)
 const PainelSkillsRoute = PainelSkillsRouteImport.update({
   id: '/skills',
@@ -162,6 +168,7 @@ export interface FileRoutesByFullPath {
   '/painel/configuracoes': typeof PainelConfiguracoesRoute
   '/painel/faturamento': typeof PainelFaturamentoRoute
   '/painel/skills': typeof PainelSkillsRouteWithChildren
+  '/admin/': typeof AdminIndexRoute
   '/painel/': typeof PainelIndexRoute
   '/admin/agente/$id': typeof AdminAgenteIdRoute
   '/painel/cronjobs/$id': typeof PainelCronjobsIdRoute
@@ -176,7 +183,6 @@ export interface FileRoutesByFullPath {
 }
 export interface FileRoutesByTo {
   '/': typeof IndexRoute
-  '/admin': typeof AdminRouteWithChildren
   '/login': typeof LoginRoute
   '/recuperar-senha': typeof RecuperarSenhaRoute
   '/redefinir-senha': typeof RedefinirSenhaRoute
@@ -185,6 +191,7 @@ export interface FileRoutesByTo {
   '/painel/agente': typeof PainelAgenteRoute
   '/painel/configuracoes': typeof PainelConfiguracoesRoute
   '/painel/faturamento': typeof PainelFaturamentoRoute
+  '/admin': typeof AdminIndexRoute
   '/painel': typeof PainelIndexRoute
   '/admin/agente/$id': typeof AdminAgenteIdRoute
   '/painel/cronjobs/$id': typeof PainelCronjobsIdRoute
@@ -211,6 +218,7 @@ export interface FileRoutesById {
   '/painel/configuracoes': typeof PainelConfiguracoesRoute
   '/painel/faturamento': typeof PainelFaturamentoRoute
   '/painel/skills': typeof PainelSkillsRouteWithChildren
+  '/admin/': typeof AdminIndexRoute
   '/painel/': typeof PainelIndexRoute
   '/admin/agente/$id': typeof AdminAgenteIdRoute
   '/painel/cronjobs/$id': typeof PainelCronjobsIdRoute
@@ -238,6 +246,7 @@ export interface FileRouteTypes {
     | '/painel/configuracoes'
     | '/painel/faturamento'
     | '/painel/skills'
+    | '/admin/'
     | '/painel/'
     | '/admin/agente/$id'
     | '/painel/cronjobs/$id'
@@ -252,7 +261,6 @@ export interface FileRouteTypes {
   fileRoutesByTo: FileRoutesByTo
   to:
     | '/'
-    | '/admin'
     | '/login'
     | '/recuperar-senha'
     | '/redefinir-senha'
@@ -261,6 +269,7 @@ export interface FileRouteTypes {
     | '/painel/agente'
     | '/painel/configuracoes'
     | '/painel/faturamento'
+    | '/admin'
     | '/painel'
     | '/admin/agente/$id'
     | '/painel/cronjobs/$id'
@@ -286,6 +295,7 @@ export interface FileRouteTypes {
     | '/painel/configuracoes'
     | '/painel/faturamento'
     | '/painel/skills'
+    | '/admin/'
     | '/painel/'
     | '/admin/agente/$id'
     | '/painel/cronjobs/$id'
@@ -367,6 +377,13 @@ declare module '@tanstack/react-router' {
       fullPath: '/painel/'
       preLoaderRoute: typeof PainelIndexRouteImport
       parentRoute: typeof PainelRoute
+    }
+    '/admin/': {
+      id: '/admin/'
+      path: '/'
+      fullPath: '/admin/'
+      preLoaderRoute: typeof AdminIndexRouteImport
+      parentRoute: typeof AdminRoute
     }
     '/painel/skills': {
       id: '/painel/skills'
@@ -477,10 +494,12 @@ declare module '@tanstack/react-router' {
 }
 
 interface AdminRouteChildren {
+  AdminIndexRoute: typeof AdminIndexRoute
   AdminAgenteIdRoute: typeof AdminAgenteIdRoute
 }
 
 const AdminRouteChildren: AdminRouteChildren = {
+  AdminIndexRoute: AdminIndexRoute,
   AdminAgenteIdRoute: AdminAgenteIdRoute,
 }
 
