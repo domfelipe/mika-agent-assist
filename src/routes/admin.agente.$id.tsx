@@ -91,11 +91,12 @@ function AgentDetailPage() {
     },
   });
 
-  const { data: agent, isLoading: agentLoading } = useQuery({
+  const { data: agent, isLoading: agentLoading, error: agentError } = useQuery({
     queryKey: ["agent-detail", id],
     enabled: !!isAdmin,
     refetchInterval: 10_000,
     queryFn: async () => {
+      console.log("[admin.agente] fetching agent detail", { id });
       const { data, error } = await supabase
         .from("agent_instances")
         .select(
@@ -231,7 +232,12 @@ function AgentDetailPage() {
     }
   }, [roleLoading, isAdmin, navigate]);
 
-  if (authLoading || roleLoading || agentLoading) {
+  console.log("[admin.agente] render", {
+    id, authLoading, roleLoading, agentLoading,
+    isAdmin, hasUser: !!user, hasAgent: !!agent, agentError,
+  });
+
+  if (authLoading || roleLoading) {
     return (
       <div className="min-h-screen flex items-center justify-center bg-background">
         <Loader2 className="h-6 w-6 animate-spin text-primary" />
