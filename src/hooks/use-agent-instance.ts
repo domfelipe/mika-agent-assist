@@ -23,6 +23,9 @@ export function useAgentInstance() {
   return useQuery({
     queryKey: ["agent-instance", user?.id],
     enabled: !!user,
+    refetchInterval: 10000,
+    staleTime: 0,
+    refetchOnWindowFocus: true,
     queryFn: async (): Promise<AgentInstance | null> => {
       const { data, error } = await supabase
         .from("agent_instances")
