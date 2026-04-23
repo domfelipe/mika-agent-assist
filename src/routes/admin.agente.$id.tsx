@@ -100,15 +100,36 @@ function AgentDetailPage() {
       const { data, error } = await supabase
         .from("agent_instances")
         .select(
-          `id, user_id, uuid_tenant, status, telegram_bot_username, telegram_user_chat_id,
-           railway_service_id, vps_pool_id, provisioned_at, created_at, model_config,
-           vps_pool:vps_pool_id(railway_project_id, railway_environment_id),
-           profile:profiles!agent_instances_user_id_fkey(full_name, phone, onboarding_completed)`,
+          "id, user_id, uuid_tenant, status, telegram_bot_username, telegram_user_chat_id, railway_service_id, vps_pool_id, provisioned_at, created_at, model_config",
         )
         .eq("id", id)
         .maybeSingle();
-      if (error) throw error;
-      if (!data) return null;
+      if (error) {
+        console.error("[admin.agente] agent query error", error);
+        throw error;
+      }
+      if (!data) {
+        console.warn("[admin.agente] agent not found", { id });
+        return null;
+      }
+
+      // Buscar profile separadamente (evita join com possíveis problemas de FK)
+      const { data: profileData } = await supabase
+        .from("profiles")
+        .select("full_name, phone, onboarding_completed")
+        .eq("id", data.user_id)
+        .maybeSingle();
+
+      // Buscar vps_pool separadamente se houver
+      let vpsPool: { railway_project_id: string | null; railway_environment_id: string | null } | null = null;
+      if (data.vps_pool_id) {
+        const { data: poolData } = await supabase
+          .from("vps_pool")
+          .select("railway_project_id, railway_environment_id")
+          .eq("id", data.vps_pool_id)
+          .maybeSingle();
+        vpsPool = poolData ?? null;
+      }
 
       const { data: subscriptionData, error: subscriptionError } = await supabase
         .from("subscriptions")
