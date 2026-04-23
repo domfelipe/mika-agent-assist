@@ -2,6 +2,18 @@
 // Docs: https://docs.railway.com/reference/public-api
 const RAILWAY_GRAPHQL = "https://backboard.railway.app/graphql/v2";
 
+/**
+ * Start command padrão dos containers Hermes.
+ * - Verifica HERMES_SUSPENDED no início: se true, dorme infinitamente (agente "pausado")
+ * - Aplica HERMES_SOUL_OVERRIDE em /opt/data/SOUL.md se presente
+ * - Inicia o gateway Hermes
+ *
+ * IMPORTANTE: este comando deve ser idêntico ao configurado nos serviços Railway
+ * existentes. Para serviços antigos, atualize manualmente via UI/Agent do Railway.
+ */
+export const HERMES_START_COMMAND =
+  `/bin/bash -c 'if [ "$HERMES_SUSPENDED" = "true" ]; then echo "Agent suspended" && sleep infinity; fi && if [ -n "$HERMES_SOUL_OVERRIDE" ]; then echo "$HERMES_SOUL_OVERRIDE" > /opt/data/SOUL.md; fi && /opt/hermes/docker/entrypoint.sh gateway run'`;
+
 export interface RailwayError {
   message: string;
   path?: string[];
@@ -92,28 +104,14 @@ export async function configureRailwayService(opts: {
   }
 
   // Agora as variáveis. Railway recomenda variableUpsert por chave.
-  const variableUpsert = `
-    mutation VariableUpsert($input: VariableUpsertInput!) {
-      variableUpsert(input: $input)
-    }
-  `;
   for (const [name, value] of Object.entries(opts.variables)) {
-    const r = await railwayQuery(
-      variableUpsert,
-      {
-        input: {
-          projectId: undefined, // será inferido pelo serviceId+environmentId
-          environmentId: opts.environmentId,
-          serviceId: opts.serviceId,
-          name,
-          value,
-        },
-      },
-      opts.token,
-    );
-    if (r.errors?.length) {
-      throw new Error(`variableUpsert(${name}) failed: ${JSON.stringify(r.errors)}`);
-    }
+    await upsertRailwayVariable({
+      token: opts.token,
+      serviceId: opts.serviceId,
+      environmentId: opts.environmentId,
+      name,
+      value,
+    });
   }
 }
 
@@ -138,46 +136,65 @@ export async function deployRailwayService(opts: {
 }
 
 /**
- * Suspende ou retoma um serviço Railway usando `sleepApplication`.
- * Railway não aceita `numReplicas: 0` via serviceInstanceUpdate — o caminho
- * suportado para pausar é `sleepApplication: true` (e `false` para acordar).
- * `replicas <= 0` => sleep, `>= 1` => wake.
+ * Upsert de uma única variável de ambiente no serviço Railway.
+ * Para "remover" o efeito de uma variável boolean, passe value="" (string vazia).
  */
-export async function setRailwayReplicas(opts: {
+export async function upsertRailwayVariable(opts: {
   token: string;
   serviceId: string;
   environmentId: string;
-  replicas: number;
+  projectId?: string;
+  name: string;
+  value: string;
 }): Promise<void> {
-  const sleep = opts.replicas <= 0;
   const mutation = `
-    mutation ServiceInstanceUpdate($serviceId: String!, $environmentId: String!, $input: ServiceInstanceUpdateInput!) {
-      serviceInstanceUpdate(serviceId: $serviceId, environmentId: $environmentId, input: $input)
+    mutation VariableUpsert($input: VariableUpsertInput!) {
+      variableUpsert(input: $input)
     }
   `;
-  const res = await railwayQuery(
-    mutation,
-    {
-      serviceId: opts.serviceId,
-      environmentId: opts.environmentId,
-      input: { sleepApplication: sleep },
-    },
-    opts.token,
-  );
-  if (res.errors?.length) {
-    throw new Error(`setRailwayReplicas (sleepApplication=${sleep}) failed: ${JSON.stringify(res.errors)}`);
-  }
+  const input: Record<string, unknown> = {
+    environmentId: opts.environmentId,
+    serviceId: opts.serviceId,
+    name: opts.name,
+    value: opts.value,
+  };
+  if (opts.projectId) input.projectId = opts.projectId;
 
-  // Força redeploy para aplicar imediatamente o novo estado de sleep
-  try {
-    await deployRailwayService({
-      token: opts.token,
-      serviceId: opts.serviceId,
-      environmentId: opts.environmentId,
-    });
-  } catch (e) {
-    console.warn("setRailwayReplicas: redeploy after sleep change failed (non-fatal):", e);
+  const res = await railwayQuery(mutation, { input }, opts.token);
+  if (res.errors?.length) {
+    throw new Error(`variableUpsert(${opts.name}) failed: ${JSON.stringify(res.errors)}`);
   }
+}
+
+/**
+ * Suspende ou retoma um serviço Hermes via flag HERMES_SUSPENDED + redeploy.
+ * Railway não suporta stop sem redeploy — a abordagem oficial é controlar
+ * via env var consumida pelo start command (ver HERMES_START_COMMAND).
+ *
+ * suspend=true  → seta HERMES_SUSPENDED=true e redeploy (container fica em sleep infinity)
+ * suspend=false → seta HERMES_SUSPENDED="" e redeploy (container sobe normalmente)
+ */
+export async function setHermesSuspended(opts: {
+  token: string;
+  serviceId: string;
+  environmentId: string;
+  projectId?: string;
+  suspend: boolean;
+}): Promise<void> {
+  await upsertRailwayVariable({
+    token: opts.token,
+    serviceId: opts.serviceId,
+    environmentId: opts.environmentId,
+    projectId: opts.projectId,
+    name: "HERMES_SUSPENDED",
+    value: opts.suspend ? "true" : "",
+  });
+
+  await deployRailwayService({
+    token: opts.token,
+    serviceId: opts.serviceId,
+    environmentId: opts.environmentId,
+  });
 }
 
 /** Busca o environmentId do primeiro deployment de um serviço. Útil quando vps_pool_id está null. */

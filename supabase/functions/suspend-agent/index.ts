@@ -1,11 +1,12 @@
 // suspend-agent
-// Pausa o serviço Railway (numReplicas=0) e marca agent_instance.status='suspended'.
+// Pausa o serviço Hermes setando HERMES_SUSPENDED=true e disparando redeploy.
+// O start command verifica essa flag e entra em `sleep infinity` (agente pausado).
 // Disparado automaticamente quando subscription muda para canceled/past_due/unpaid/paused,
 // ou manualmente pelo painel admin.
 
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2.45.4";
 import { corsHeaders } from "../_shared/cors.ts";
-import { setRailwayReplicas, getServiceEnvironmentId } from "../_shared/railway.ts";
+import { setHermesSuspended, getServiceEnvironmentId } from "../_shared/railway.ts";
 
 const SUPABASE_URL = Deno.env.get("SUPABASE_URL")!;
 const SUPABASE_SERVICE_ROLE_KEY = Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!;
@@ -56,15 +57,17 @@ Deno.serve(async (req) => {
     return jsonResponse(200, { ok: true, no_container: true });
   }
 
-  // Resolve o environmentId: prioriza vps_pool, fallback para query no Railway
+  // Resolve o environmentId/projectId via vps_pool, fallback Railway query
   let environmentId: string | null = null;
+  let projectId: string | undefined;
   if (agent.vps_pool_id) {
     const { data: pool } = await supabase
       .from("vps_pool")
-      .select("railway_environment_id")
+      .select("railway_environment_id, railway_project_id")
       .eq("id", agent.vps_pool_id)
       .maybeSingle();
     environmentId = pool?.railway_environment_id ?? null;
+    projectId = pool?.railway_project_id ?? undefined;
   }
   if (!environmentId) {
     environmentId = await getServiceEnvironmentId({
@@ -77,16 +80,17 @@ Deno.serve(async (req) => {
   }
 
   try {
-    await setRailwayReplicas({
+    await setHermesSuspended({
       token: RAILWAY_API_TOKEN,
       serviceId: agent.railway_service_id,
       environmentId,
-      replicas: 0,
+      projectId,
+      suspend: true,
     });
   } catch (e) {
     const msg = e instanceof Error ? e.message : String(e);
-    console.error("suspend-agent: setRailwayReplicas failed:", msg);
-    return jsonResponse(500, { error: "railway scale-down failed", detail: msg });
+    console.error("suspend-agent: setHermesSuspended failed:", msg);
+    return jsonResponse(500, { error: "railway suspend failed", detail: msg });
   }
 
   await supabase

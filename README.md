@@ -24,6 +24,16 @@ Já configuradas via `.env` (gerado automaticamente pelo Lovable Cloud):
 - `PADDLE_API_KEY` / `PADDLE_WEBHOOK_SECRET`
 - `SUPABASE_SERVICE_ROLE_KEY`
 - `RAILWAY_API_TOKEN` — token da Railway Public API, usado por `provision-agent`/`suspend-agent`/`resume-agent` para criar e gerenciar containers Hermes.
+
+  > **Suspend/Resume via flag, não via stop.** Railway não permite parar containers sem redeploy. As Edge Functions `suspend-agent`/`resume-agent` usam a env var `HERMES_SUSPENDED` + `serviceInstanceRedeploy`:
+  > - `suspend` → upsert `HERMES_SUSPENDED=true` e redeploy → container entra em `sleep infinity`.
+  > - `resume` → upsert `HERMES_SUSPENDED=""` e redeploy → container sobe normal.
+  >
+  > Isso depende do start command verificar a flag. Novos serviços já são provisionados com o comando correto (`HERMES_START_COMMAND` em `_shared/railway.ts`):
+  > ```bash
+  > /bin/bash -c 'if [ "$HERMES_SUSPENDED" = "true" ]; then echo "Agent suspended" && sleep infinity; fi && if [ -n "$HERMES_SOUL_OVERRIDE" ]; then echo "$HERMES_SOUL_OVERRIDE" > /opt/data/SOUL.md; fi && /opt/hermes/docker/entrypoint.sh gateway run'
+  > ```
+  > **Para serviços Railway existentes (provisionados antes desta mudança):** atualize manualmente o Start Command via Railway UI/Agent para o comando acima — caso contrário `suspend-agent` apenas marcará `status='suspended'` no banco mas o container continuará rodando.
 - `OPENROUTER_API_KEY` — **obrigatório**. Injetado em cada container Hermes provisionado para que o agente possa chamar os modelos `openrouter/google/gemma-4-*-it`. Sem isso o `provision-agent` retorna 500.
 - `ADMIN_TELEGRAM_BOT_TOKEN` — token do bot de admin (ex: `@mika_test2_bot`) usado pelo `payments-webhook` para enviar notificações de novos clientes, falhas de pagamento e cancelamentos.
 - `ADMIN_TELEGRAM_CHAT_ID` — chat ID do admin que recebe as notificações (ex: `179720882`).

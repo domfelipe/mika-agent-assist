@@ -1,11 +1,11 @@
 // resume-agent
-// Retoma o serviço Railway (numReplicas=1) e marca agent_instance.status='active'.
+// Retoma o serviço Hermes removendo HERMES_SUSPENDED (string vazia) e disparando redeploy.
 // Disparado automaticamente quando subscription volta para active/trialing,
 // ou manualmente pelo painel admin.
 
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2.45.4";
 import { corsHeaders } from "../_shared/cors.ts";
-import { setRailwayReplicas, getServiceEnvironmentId } from "../_shared/railway.ts";
+import { setHermesSuspended, getServiceEnvironmentId } from "../_shared/railway.ts";
 
 const SUPABASE_URL = Deno.env.get("SUPABASE_URL")!;
 const SUPABASE_SERVICE_ROLE_KEY = Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!;
@@ -55,15 +55,17 @@ Deno.serve(async (req) => {
     return jsonResponse(200, { ok: true, already_active: true });
   }
 
-  // Resolve environmentId: prioriza vps_pool, fallback para query no Railway
+  // Resolve environmentId/projectId
   let environmentId: string | null = null;
+  let projectId: string | undefined;
   if (agent.vps_pool_id) {
     const { data: pool } = await supabase
       .from("vps_pool")
-      .select("railway_environment_id")
+      .select("railway_environment_id, railway_project_id")
       .eq("id", agent.vps_pool_id)
       .maybeSingle();
     environmentId = pool?.railway_environment_id ?? null;
+    projectId = pool?.railway_project_id ?? undefined;
   }
   if (!environmentId) {
     environmentId = await getServiceEnvironmentId({
@@ -76,16 +78,17 @@ Deno.serve(async (req) => {
   }
 
   try {
-    await setRailwayReplicas({
+    await setHermesSuspended({
       token: RAILWAY_API_TOKEN,
       serviceId: agent.railway_service_id,
       environmentId,
-      replicas: 1,
+      projectId,
+      suspend: false,
     });
   } catch (e) {
     const msg = e instanceof Error ? e.message : String(e);
-    console.error("resume-agent: setRailwayReplicas failed:", msg);
-    return jsonResponse(500, { error: "railway scale-up failed", detail: msg });
+    console.error("resume-agent: setHermesSuspended failed:", msg);
+    return jsonResponse(500, { error: "railway resume failed", detail: msg });
   }
 
   await supabase

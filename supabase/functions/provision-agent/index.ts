@@ -10,6 +10,7 @@ import {
   configureRailwayService,
   deployRailwayService,
   deleteTelegramWebhook,
+  HERMES_START_COMMAND,
 } from "../_shared/railway.ts";
 
 interface RequestBody {
@@ -191,7 +192,7 @@ Deno.serve(async (req) => {
       serviceId: railwayServiceId,
       environmentId: pool.railway_environment_id,
       image: "nousresearch/hermes-agent:latest",
-      startCommand: "/opt/hermes/docker/entrypoint.sh gateway run",
+      startCommand: HERMES_START_COMMAND,
       variables: envVars,
     });
 
