@@ -3,9 +3,7 @@
 // valida com cron-parser, gera human_readable em pt-BR via cronstrue.
 import { corsHeaders } from "../_shared/cors.ts";
 import { createClient } from "npm:@supabase/supabase-js@2";
-// @ts-expect-error remote esm
 import cronParser from "https://esm.sh/cron-parser@4.9.0";
-// @ts-expect-error remote esm
 import cronstrue from "https://esm.sh/cronstrue@2.50.0/i18n";
 
 const LOVABLE_API_KEY = Deno.env.get("LOVABLE_API_KEY")!;
