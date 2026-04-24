@@ -98,9 +98,10 @@ Deno.serve(async (req) => {
     return jsonResponse(409, { error: "agent_instance is not in provisioning status", status: agent.status });
   }
 
+  // Se já existe railway_service_id → fluxo de UPDATE (não tenta criar novo serviço)
   if (agent.railway_service_id) {
-    console.log(`[provision-agent] já tem railway_service_id=${agent.railway_service_id}, abortando`);
-    return jsonResponse(409, { error: "agent_instance already has a railway_service_id", railway_service_id: agent.railway_service_id });
+    console.log(`[provision-agent] railway_service_id já existe (${agent.railway_service_id}) → modo update`);
+    return await handleUpdateExistingService(supabase, agent, body);
   }
 
   // 1b) Carregar profile (full_name → nome do agente)
