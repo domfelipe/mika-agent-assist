@@ -26,6 +26,28 @@ const SUPABASE_URL = Deno.env.get("SUPABASE_URL")!;
 const SUPABASE_SERVICE_ROLE_KEY = Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!;
 const RAILWAY_API_TOKEN = Deno.env.get("RAILWAY_API_TOKEN");
 const OPENROUTER_API_KEY = Deno.env.get("OPENROUTER_API_KEY") ?? "";
+const ADMIN_TELEGRAM_BOT_TOKEN = Deno.env.get("ADMIN_TELEGRAM_BOT_TOKEN");
+const ADMIN_TELEGRAM_CHAT_ID = Deno.env.get("ADMIN_TELEGRAM_CHAT_ID");
+
+async function notifyAdmin(message: string): Promise<void> {
+  if (!ADMIN_TELEGRAM_BOT_TOKEN || !ADMIN_TELEGRAM_CHAT_ID) return;
+  try {
+    await fetch(
+      `https://api.telegram.org/bot${ADMIN_TELEGRAM_BOT_TOKEN}/sendMessage`,
+      {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          chat_id: ADMIN_TELEGRAM_CHAT_ID,
+          text: message,
+          parse_mode: "HTML",
+        }),
+      },
+    );
+  } catch (e) {
+    console.error("notifyAdmin failed:", e);
+  }
+}
 
 Deno.serve(async (req) => {
   if (req.method === "OPTIONS") return new Response(null, { headers: corsHeaders });
@@ -53,6 +75,8 @@ Deno.serve(async (req) => {
     auth: { persistSession: false, autoRefreshToken: false },
   });
 
+  console.log(`[provision-agent] início para agent_instance_id=${body.agent_instance_id}`);
+
   // 1) Carregar agent_instance
   const { data: agent, error: agentErr } = await supabase
     .from("agent_instances")
@@ -63,14 +87,17 @@ Deno.serve(async (req) => {
     .maybeSingle();
 
   if (agentErr || !agent) {
+    console.error(`[provision-agent] agent_instance não encontrado: ${agentErr?.message}`);
     return jsonResponse(404, { error: "agent_instance not found", detail: agentErr?.message });
   }
 
   if (agent.status !== "provisioning") {
+    console.log(`[provision-agent] status atual=${agent.status}, abortando`);
     return jsonResponse(409, { error: "agent_instance is not in provisioning status", status: agent.status });
   }
 
   if (agent.railway_service_id) {
+    console.log(`[provision-agent] já tem railway_service_id=${agent.railway_service_id}, abortando`);
     return jsonResponse(409, { error: "agent_instance already has a railway_service_id", railway_service_id: agent.railway_service_id });
   }
 
@@ -84,6 +111,7 @@ Deno.serve(async (req) => {
   const fullName = (profile?.full_name?.trim() || "Usuário").toString();
   const firstName = fullName.split(" ")[0] || "Usuário";
   const agentName = body.agent_name?.trim() || `Mika de ${firstName}`;
+  console.log(`[provision-agent] profile carregado: ${fullName} → agent_name=${agentName}`);
 
   // 1c) Carregar subscription ativa (para definir modelo Pro vs Basic)
   const { data: subscription } = await supabase
@@ -98,6 +126,7 @@ Deno.serve(async (req) => {
   // deno-lint-ignore no-explicit-any
   const planSlug = ((subscription as any)?.plans?.slug as string | undefined) ?? "basic";
   const isPro = ["professional", "enterprise"].includes(planSlug);
+  console.log(`[provision-agent] plano=${planSlug} isPro=${isPro}`);
 
   // 2) Buscar pool disponível (com IDs Railway preenchidos e capacidade)
   const { data: pool, error: poolErr } = await supabase
@@ -111,9 +140,17 @@ Deno.serve(async (req) => {
     .maybeSingle();
 
   if (poolErr || !pool || !pool.railway_project_id || !pool.railway_environment_id) {
+    console.error(`[provision-agent] sem vps_pool disponível: ${poolErr?.message}`);
     await failJob(supabase, agent, null, "Nenhum vps_pool com Railway IDs configurados disponível");
+    await notifyAdmin(
+      `❌ <b>Falha no auto-provisionamento</b>\n\n` +
+        `👤 <b>Cliente:</b> ${fullName}\n` +
+        `❗ <b>Erro:</b> Nenhum vps_pool disponível\n\n` +
+        `➡️ <a href="https://mika.domco.ai/admin">Resolver manualmente</a>`,
+    );
     return jsonResponse(503, { error: "no railway pool available" });
   }
+  console.log(`[provision-agent] pool selecionado: ${pool.id} (railway_project=${pool.railway_project_id})`);
 
   // 3) Criar provisioning_job em status running
   const { data: job, error: jobErr } = await supabase
@@ -136,12 +173,15 @@ Deno.serve(async (req) => {
     .single();
 
   if (jobErr || !job) {
+    console.error(`[provision-agent] falha ao criar job: ${jobErr?.message}`);
     return jsonResponse(500, { error: "failed to create provisioning_job", detail: jobErr?.message });
   }
+  console.log(`[provision-agent] provisioning_job criado: ${job.id}`);
 
   // 4) Decrypt do telegram_bot_token (se existir)
   let telegramBotToken = "";
   if (agent.telegram_bot_token_vault_id) {
+    console.log(`[provision-agent] decifrando token do Vault: ${agent.telegram_bot_token_vault_id}`);
     const { data: secret } = await supabase.rpc("vault_decrypt_secret", {
       secret_id: agent.telegram_bot_token_vault_id,
     });
@@ -149,15 +189,18 @@ Deno.serve(async (req) => {
   }
 
   if (!telegramBotToken) {
+    console.error(`[provision-agent] telegram_bot_token ausente — usuário ainda não conectou bot`);
     await failJob(supabase, agent, job.id, "telegram_bot_token ausente no Vault — usuário precisa concluir onboarding antes");
     return jsonResponse(412, { error: "telegram token missing" });
   }
+  console.log(`[provision-agent] token Telegram OK (len=${telegramBotToken.length})`);
 
   // 5) Apagar webhook Telegram (Hermes vai usar polling)
   try {
     await deleteTelegramWebhook(telegramBotToken);
+    console.log(`[provision-agent] deleteTelegramWebhook OK`);
   } catch (e) {
-    console.warn("deleteTelegramWebhook failed (continuing):", String(e));
+    console.warn("[provision-agent] deleteTelegramWebhook failed (continuing):", String(e));
   }
 
   // 6) Montar variáveis de ambiente do container
@@ -190,6 +233,7 @@ Deno.serve(async (req) => {
 
   // 7) Criar serviço no Railway
   const serviceName = `mika-${agent.uuid_tenant.replace(/-/g, "").slice(0, 8)}`;
+  console.log(`[provision-agent] criando serviço Railway: ${serviceName}`);
   let railwayServiceId: string;
 
   try {
@@ -198,6 +242,7 @@ Deno.serve(async (req) => {
       projectId: pool.railway_project_id,
       name: serviceName,
     });
+    console.log(`[provision-agent] serviço criado: ${railwayServiceId}`);
 
     await configureRailwayService({
       token: RAILWAY_API_TOKEN,
@@ -207,16 +252,26 @@ Deno.serve(async (req) => {
       startCommand: HERMES_START_COMMAND,
       variables: envVars,
     });
+    console.log(`[provision-agent] serviço configurado com ${Object.keys(envVars).length} env vars`);
 
     await deployRailwayService({
       token: RAILWAY_API_TOKEN,
       serviceId: railwayServiceId,
       environmentId: pool.railway_environment_id,
     });
+    console.log(`[provision-agent] deploy disparado em Railway`);
   } catch (e) {
     const msg = e instanceof Error ? e.message : String(e);
-    console.error("Railway provisioning failed:", msg);
-    await scheduleRetry(supabase, agent, job.id, msg);
+    console.error("[provision-agent] Railway provisioning failed:", msg);
+    const reachedMax = await scheduleRetry(supabase, agent, job.id, msg);
+    if (reachedMax) {
+      await notifyAdmin(
+        `❌ <b>Falha no auto-provisionamento</b>\n\n` +
+          `👤 <b>Cliente:</b> ${fullName}\n` +
+          `❗ <b>Erro:</b> ${msg}\n\n` +
+          `➡️ <a href="https://mika.domco.ai/admin">Provisionar manualmente</a>`,
+      );
+    }
     return jsonResponse(500, { error: "railway provisioning failed", detail: msg });
   }
 
@@ -239,6 +294,8 @@ Deno.serve(async (req) => {
     .from("provisioning_jobs")
     .update({ railway_service_id: railwayServiceId, status: "running" })
     .eq("id", job.id);
+
+  console.log(`[provision-agent] sucesso: agent=${agent.id} railway=${railwayServiceId} (aguardando deploy)`);
 
   // status do agent permanece 'provisioning' — railway-webhook atualiza para 'active' quando deploy subir
   return jsonResponse(200, {
@@ -278,7 +335,7 @@ async function scheduleRetry(
   agent: { id: string },
   jobId: string,
   message: string,
-) {
+): Promise<boolean> {
   const { data: job } = await supabase
     .from("provisioning_jobs")
     .select("attempt, max_attempts")
@@ -290,7 +347,7 @@ async function scheduleRetry(
 
   if (attempt >= max) {
     await failJob(supabase, agent, jobId, `Max attempts reached. Last error: ${message}`);
-    return;
+    return true;
   }
 
   const nextDelayMs = Math.pow(attempt, 2) * 60_000;
@@ -305,4 +362,5 @@ async function scheduleRetry(
       next_retry_at: nextRetryAt,
     })
     .eq("id", jobId);
+  return false;
 }

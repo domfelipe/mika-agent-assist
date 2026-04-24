@@ -13,6 +13,28 @@ import { corsHeaders } from "../_shared/cors.ts";
 
 const SUPABASE_URL = Deno.env.get("SUPABASE_URL")!;
 const SUPABASE_SERVICE_ROLE_KEY = Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!;
+const ADMIN_TELEGRAM_BOT_TOKEN = Deno.env.get("ADMIN_TELEGRAM_BOT_TOKEN");
+const ADMIN_TELEGRAM_CHAT_ID = Deno.env.get("ADMIN_TELEGRAM_CHAT_ID");
+
+async function notifyAdmin(message: string): Promise<void> {
+  if (!ADMIN_TELEGRAM_BOT_TOKEN || !ADMIN_TELEGRAM_CHAT_ID) return;
+  try {
+    await fetch(
+      `https://api.telegram.org/bot${ADMIN_TELEGRAM_BOT_TOKEN}/sendMessage`,
+      {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          chat_id: ADMIN_TELEGRAM_CHAT_ID,
+          text: message,
+          parse_mode: "HTML",
+        }),
+      },
+    );
+  } catch (e) {
+    console.error("notifyAdmin failed:", e);
+  }
+}
 
 Deno.serve(async (req) => {
   if (req.method === "OPTIONS") return new Response(null, { headers: corsHeaders });
@@ -59,7 +81,7 @@ Deno.serve(async (req) => {
 
   const { data: agent } = await supabase
     .from("agent_instances")
-    .select("id, status")
+    .select("id, status, user_id, telegram_bot_username, railway_service_id")
     .eq("railway_service_id", serviceId)
     .maybeSingle();
 
@@ -70,6 +92,17 @@ Deno.serve(async (req) => {
 
   const now = new Date().toISOString();
   const upper = status.toUpperCase();
+  const wasProvisioning = agent.status === "provisioning";
+
+  // Carrega nome do cliente para a notificação (best-effort)
+  async function loadFullName(): Promise<string> {
+    const { data } = await supabase
+      .from("profiles")
+      .select("full_name")
+      .eq("id", agent.user_id)
+      .maybeSingle();
+    return (data?.full_name as string | undefined) || "—";
+  }
 
   if (upper === "SUCCESS" || upper === "ACTIVE" || upper === "DEPLOYED") {
     await supabase
@@ -88,6 +121,19 @@ Deno.serve(async (req) => {
       .in("status", ["running", "retrying", "pending"]);
 
     console.log(`railway-webhook: agent ${agent.id} marcado como active (status=${upper})`);
+
+    // Notifica admin somente se era um auto-provisionamento (status anterior=provisioning)
+    if (wasProvisioning) {
+      const fullName = await loadFullName();
+      await notifyAdmin(
+        `✅ <b>Agente provisionado automaticamente!</b>\n\n` +
+          `👤 <b>Cliente:</b> ${fullName}\n` +
+          `🤖 <b>Bot:</b> @${agent.telegram_bot_username || "—"}\n` +
+          `🚀 <b>Railway:</b> <code>${agent.railway_service_id}</code>\n\n` +
+          `O cliente já pode conversar com a Mika no Telegram.`,
+      );
+    }
+
     return jsonResponse(200, { ok: true, agent_id: agent.id, new_status: "active" });
   }
 
@@ -108,6 +154,18 @@ Deno.serve(async (req) => {
       .in("status", ["running", "retrying", "pending"]);
 
     console.log(`railway-webhook: agent ${agent.id} marcado como error (status=${upper})`);
+
+    if (wasProvisioning) {
+      const fullName = await loadFullName();
+      await notifyAdmin(
+        `❌ <b>Falha no deploy do agente</b>\n\n` +
+          `👤 <b>Cliente:</b> ${fullName}\n` +
+          `🚀 <b>Railway:</b> <code>${agent.railway_service_id}</code>\n` +
+          `❗ <b>Status:</b> ${upper}\n\n` +
+          `➡️ <a href="https://mika.domco.ai/admin">Investigar</a>`,
+      );
+    }
+
     return jsonResponse(200, { ok: true, agent_id: agent.id, new_status: "error" });
   }
 
