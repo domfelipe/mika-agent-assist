@@ -10,6 +10,8 @@ import {
   configureRailwayService,
   deployRailwayService,
   deleteTelegramWebhook,
+  getServiceContext,
+  upsertRailwayVariableCollection,
   HERMES_START_COMMAND,
 } from "../_shared/railway.ts";
 
