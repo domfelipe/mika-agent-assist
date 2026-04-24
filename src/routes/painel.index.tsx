@@ -140,13 +140,34 @@ function NoSubscriptionCard() {
   );
 }
 
-function ProvisioningCard() {
-  const steps = [
-    { label: "Provisionar container na VPS", state: "active" as const },
-    { label: "Configurar modelo de IA", state: "pending" as const },
-    { label: "Conectar seu Telegram", state: "pending" as const },
-    { label: "Personalizar seu agente", state: "pending" as const },
+type StepState = "done" | "active" | "pending";
+
+function ProvisioningCard({
+  telegramConnected,
+  railwayServiceCreated: _railwayServiceCreated,
+}: {
+  telegramConnected: boolean;
+  railwayServiceCreated?: boolean;
+}) {
+  // Etapas dinâmicas — sabemos: pagamento confirmado (sempre done aqui),
+  // Telegram conectado (vem do agent.telegram_bot_username), e o resto
+  // está em andamento até o railway-webhook chegar como SUCCESS.
+  const steps: { label: string; state: StepState }[] = [
+    { label: "Pagamento confirmado", state: "done" },
+    {
+      label: telegramConnected ? "Telegram conectado" : "Conecte seu Telegram",
+      state: telegramConnected ? "done" : "active",
+    },
+    {
+      label: "Provisionando container",
+      state: telegramConnected ? "active" : "pending",
+    },
+    {
+      label: "Mika quase pronta!",
+      state: "pending",
+    },
   ];
+
   return (
     <div className="rounded-xl border border-border bg-card p-6 sm:p-8 shadow-soft">
       <div className="flex items-start gap-4">
@@ -154,9 +175,9 @@ function ProvisioningCard() {
           <Loader2 className="h-5 w-5 text-primary animate-spin" />
         </div>
         <div className="flex-1">
-          <h2 className="text-xl font-bold">Seu agente Mika está sendo provisionado</h2>
+          <h2 className="text-xl font-bold">Estamos preparando seu agente Mika</h2>
           <p className="mt-1 text-sm text-muted-foreground">
-            Você receberá um e-mail quando estiver pronto — geralmente em até 10 minutos.
+            Geralmente leva de 3 a 5 minutos. Esta página atualiza sozinha quando ficar pronta.
           </p>
         </div>
       </div>
@@ -168,23 +189,25 @@ function ProvisioningCard() {
               <div
                 className={cn(
                   "h-10 w-10 rounded-full flex items-center justify-center font-bold text-sm shrink-0",
-                  step.state === "active"
-                    ? "bg-primary text-primary-foreground shadow-glow"
-                    : "bg-muted text-muted-foreground",
+                  step.state === "done"
+                    ? "bg-success/15 text-success"
+                    : step.state === "active"
+                      ? "bg-primary text-primary-foreground shadow-glow"
+                      : "bg-muted text-muted-foreground",
                 )}
               >
-                {step.state === "active" ? (
-                  <Loader2 className="h-4 w-4 animate-spin" />
-                ) : step.state === "pending" ? (
-                  i + 1
-                ) : (
+                {step.state === "done" ? (
                   <CheckCircle2 className="h-5 w-5" />
+                ) : step.state === "active" ? (
+                  <Loader2 className="h-4 w-4 animate-spin" />
+                ) : (
+                  i + 1
                 )}
               </div>
               <p
                 className={cn(
                   "text-sm font-medium",
-                  step.state === "active" ? "text-foreground" : "text-muted-foreground",
+                  step.state === "pending" ? "text-muted-foreground" : "text-foreground",
                 )}
               >
                 {step.label}
@@ -193,6 +216,40 @@ function ProvisioningCard() {
           </li>
         ))}
       </ol>
+    </div>
+  );
+}
+
+function ActiveSuccessCard({ botUsername }: { botUsername: string }) {
+  return (
+    <div className="rounded-xl border border-success/30 bg-success/5 p-6 shadow-soft">
+      <div className="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
+        <div className="flex items-start gap-4">
+          <div className="h-10 w-10 rounded-full bg-success/15 flex items-center justify-center shrink-0">
+            <CheckCircle2 className="h-5 w-5 text-success" />
+          </div>
+          <div>
+            <h2 className="text-lg font-bold">Sua Mika está no ar 🎉</h2>
+            <p className="mt-1 text-sm text-muted-foreground">
+              Abra o Telegram e converse com{" "}
+              <span className="font-mono text-foreground">@{botUsername}</span> para começar.
+            </p>
+          </div>
+        </div>
+        <Button
+          asChild
+          className="rounded-lg bg-primary hover:bg-primary-dark text-primary-foreground"
+        >
+          <a
+            href={`https://t.me/${botUsername}`}
+            target="_blank"
+            rel="noopener noreferrer"
+          >
+            <MessageCircle className="mr-2 h-4 w-4" />
+            Falar com a Mika agora
+          </a>
+        </Button>
+      </div>
     </div>
   );
 }
