@@ -33,6 +33,7 @@ function DashboardPage() {
   const search = Route.useSearch();
   const navigate = Route.useNavigate();
   const [wizardOpen, setWizardOpen] = useState(false);
+  const previousStatusRef = useRef<string | null>(null);
 
   // Auto-open do wizard ao voltar com ?status=success
   useEffect(() => {
@@ -50,6 +51,18 @@ function DashboardPage() {
       toast.info("Seu agente ainda não está pronto. Aguarde o provisionamento.");
     }
   }, [search.status, agent, isLoading]);
+
+  // Toast quando agente sair de provisioning → active (uma única vez)
+  useEffect(() => {
+    if (!agent) return;
+    const prev = previousStatusRef.current;
+    if (prev === "provisioning" && agent.status === "active") {
+      toast.success("Sua Mika está pronta! 🎉", {
+        description: "Abra o Telegram e mande uma mensagem para começar.",
+      });
+    }
+    previousStatusRef.current = agent.status;
+  }, [agent]);
 
   if (isLoading) {
     return (
@@ -79,10 +92,16 @@ function DashboardPage() {
 
       {subscription &&
         (subscription.status === "incomplete" || subscription.status === "active") &&
-        agent?.status === "provisioning" && <ProvisioningCard />}
+        agent?.status === "provisioning" && (
+          <ProvisioningCard
+            telegramConnected={!!agent.telegram_bot_username}
+            railwayServiceCreated={false /* não temos campo direto; mostramos como "em andamento" */}
+          />
+        )}
 
       {subscription && subscription.status === "active" && agent?.status === "active" && (
         <>
+          {agent.telegram_bot_username && <ActiveSuccessCard botUsername={agent.telegram_bot_username} />}
           <AutoPausedBanner />
           <div className="grid gap-6 lg:grid-cols-2">
             <SkillsDashboardWidget />
