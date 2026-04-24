@@ -1,8 +1,8 @@
 "use client";
 
 import { createFileRoute, Link } from "@tanstack/react-router";
-import { useEffect, useState } from "react";
-import { ArrowRight, CheckCircle2, Loader2, Sparkles } from "lucide-react";
+import { useEffect, useRef, useState } from "react";
+import { ArrowRight, CheckCircle2, Loader2, MessageCircle, Sparkles } from "lucide-react";
 import { useSubscription } from "@/hooks/use-profile";
 import { useProfile } from "@/hooks/use-profile";
 import { useAgentInstance } from "@/hooks/use-agent-instance";
