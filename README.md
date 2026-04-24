@@ -24,6 +24,10 @@ Já configuradas via `.env` (gerado automaticamente pelo Lovable Cloud):
 - `PADDLE_API_KEY` / `PADDLE_WEBHOOK_SECRET`
 - `SUPABASE_SERVICE_ROLE_KEY`
 - `RAILWAY_API_TOKEN` — token da Railway Public API, usado por `provision-agent`/`suspend-agent`/`resume-agent` para criar e gerenciar containers Hermes.
+- `OLLAMA_API_KEY` — chave do Ollama Cloud, injetada como env var no container Hermes (imagem custom `ghcr.io/domfelipe/hermes-agent-custom:latest`).
+- `HERMES_API_SERVER_KEY` — token usado pelo API server interno do Hermes (`API_SERVER_KEY`). Valor atual: `HermesRailwayKey2026SecureToken123456`.
+
+> **Imagem Docker custom**: o container roda `ghcr.io/domfelipe/hermes-agent-custom:latest`, que já contém o `SOUL.md` embutido. Por isso não passamos mais `HERMES_SOUL_OVERRIDE` via env var, e o Dockerfile define o `CMD` (sem `startCommand` no Railway). Secrets removidos do projeto: `OPENROUTER_API_KEY`, `OPENAI_API_KEY`, `OPENAI_BASE_URL`, `HERMES_SOUL_OVERRIDE`.
 
   > **Suspend/Resume via flag, não via stop.** Railway não permite parar containers sem redeploy. As Edge Functions `suspend-agent`/`resume-agent` usam a env var `HERMES_SUSPENDED` + `serviceInstanceRedeploy`:
   > - `suspend` → upsert `HERMES_SUSPENDED=true` e redeploy → container entra em `sleep infinity`.
