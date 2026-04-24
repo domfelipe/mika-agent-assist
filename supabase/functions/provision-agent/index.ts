@@ -57,10 +57,6 @@ Deno.serve(async (req) => {
     return jsonResponse(500, { error: "RAILWAY_API_TOKEN not configured" });
   }
 
-  if (!OPENROUTER_API_KEY) {
-    return jsonResponse(500, { error: "OPENROUTER_API_KEY not configured" });
-  }
-
   let body: RequestBody;
   try {
     body = await req.json();
