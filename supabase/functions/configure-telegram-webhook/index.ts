@@ -113,6 +113,34 @@ Deno.serve(async (req) => {
       return jsonResponse({ error: "Webhook configurado, mas falha ao salvar." }, 500);
     }
 
+    // Auto-provisionamento: agora que temos token + webhook, disparamos provision-agent
+    // de forma assíncrona. Não bloqueamos a resposta — falhas são tratadas via retry/admin.
+    if (agent.status === "provisioning") {
+      try {
+        const provisionUrl = `${supabaseUrl}/functions/v1/provision-agent`;
+        console.log(
+          `auto-provision: disparando para agent ${agent.id} (user ${userId})`,
+        );
+        // Fire-and-forget: não fazemos await para não bloquear o cliente
+        fetch(provisionUrl, {
+          method: "POST",
+          headers: {
+            "Content-Type": "application/json",
+            Authorization: `Bearer ${serviceKey}`,
+          },
+          body: JSON.stringify({
+            agent_instance_id: agent.id,
+            user_id: userId,
+          }),
+        }).catch((err) =>
+          console.error("auto-provision fetch error:", err)
+        );
+      } catch (err) {
+        console.error("auto-provision trigger error:", err);
+        // Não re-throw — wizard do Telegram deve retornar sucesso mesmo se provision falhar
+      }
+    }
+
     return jsonResponse({ success: true });
   } catch (err) {
     console.error("configure-telegram-webhook fatal", err);
