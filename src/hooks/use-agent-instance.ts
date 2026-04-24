@@ -10,6 +10,7 @@ export interface AgentInstance {
   uuid_tenant: string;
   status: string;
   telegram_bot_username: string | null;
+  telegram_bot_token_vault_id: string | null;
   telegram_webhook_configured: boolean;
   telegram_token_invalid: boolean;
   telegram_first_message_received_at: string | null;
