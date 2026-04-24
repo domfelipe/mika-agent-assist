@@ -12,7 +12,6 @@ import {
   deleteTelegramWebhook,
   getServiceContext,
   upsertRailwayVariableCollection,
-  HERMES_START_COMMAND,
 } from "../_shared/railway.ts";
 
 interface RequestBody {
@@ -27,7 +26,7 @@ interface RequestBody {
 const SUPABASE_URL = Deno.env.get("SUPABASE_URL")!;
 const SUPABASE_SERVICE_ROLE_KEY = Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!;
 const RAILWAY_API_TOKEN = Deno.env.get("RAILWAY_API_TOKEN");
-const OPENROUTER_API_KEY = Deno.env.get("OPENROUTER_API_KEY") ?? "";
+
 const ADMIN_TELEGRAM_BOT_TOKEN = Deno.env.get("ADMIN_TELEGRAM_BOT_TOKEN");
 const ADMIN_TELEGRAM_CHAT_ID = Deno.env.get("ADMIN_TELEGRAM_CHAT_ID");
 
@@ -56,10 +55,6 @@ Deno.serve(async (req) => {
 
   if (!RAILWAY_API_TOKEN) {
     return jsonResponse(500, { error: "RAILWAY_API_TOKEN not configured" });
-  }
-
-  if (!OPENROUTER_API_KEY) {
-    return jsonResponse(500, { error: "OPENROUTER_API_KEY not configured" });
   }
 
   let body: RequestBody;
@@ -206,33 +201,31 @@ Deno.serve(async (req) => {
     console.warn("[provision-agent] deleteTelegramWebhook failed (continuing):", String(e));
   }
 
-  // 6) Montar variáveis de ambiente do container
-  const hasChatId = !!agent.telegram_user_chat_id;
-  const defaultSoul = `Você se chama ${agentName}. Você é um assistente pessoal de IA criado pela DOMCO para ${fullName}. Você é proativo, direto e fala sempre em português brasileiro. Você ajuda ${firstName} a ser mais produtivo — gerenciando emails, agenda, tarefas e automatizando o que puder. Seja conciso nas respostas via Telegram. Nunca se identifique como Hermes ou como produto da Nous Research — você é Mika.`;
-  const soulContent = body.soul_content?.trim() || defaultSoul;
-
-  const defaultModel = isPro
-    ? "openrouter/google/gemma-4-31b-it"
-    : "openrouter/google/gemma-4-27b-a4b-it";
-  const model = body.model || defaultModel;
+  // 6) Montar variáveis de ambiente do container (imagem custom já contém SOUL.md)
   const sttProvider = body.stt_provider || "local";
   const ttsProvider = body.tts_provider || "disabled";
+  const hasChatId = !!agent.telegram_user_chat_id;
+  const chatIdStr = hasChatId ? String(agent.telegram_user_chat_id) : "";
 
   const envVars: Record<string, string> = {
-    TELEGRAM_BOT_TOKEN: telegramBotToken,
-    TELEGRAM_ALLOWED_USERS: hasChatId ? String(agent.telegram_user_chat_id) : "",
-    TELEGRAM_HOME_CHANNEL: hasChatId ? String(agent.telegram_user_chat_id) : "",
-    GATEWAY_ALLOW_ALL_USERS: hasChatId ? "false" : "true",
-    HERMES_SOUL_MD: soulContent,
-    HERMES_SOUL_OVERRIDE: soulContent,
-    HERMES_TTS_PROVIDER: ttsProvider,
+    HERMES_HOME: "/opt/data/.hermes",
+    API_SERVER_ENABLED: "true",
+    API_SERVER_KEY: Deno.env.get("HERMES_API_SERVER_KEY") ?? "",
+    GATEWAY_ALLOW_ALL_USERS: "false",
     HERMES_STT_PROVIDER: sttProvider,
-    OPENROUTER_API_KEY,
-    HERMES_MODEL: model,
-    HERMES_FALLBACK_MODEL: "openrouter/google/gemma-4-31b-it",
-    API_SERVER_ENABLED: "false",
-    HERMES_HOME: "/opt/data",
+    HERMES_TTS_PROVIDER: ttsProvider,
+    OLLAMA_API_KEY: Deno.env.get("OLLAMA_API_KEY") ?? "",
+    PORT: "8642",
+    TELEGRAM_ALLOWED_USERS: chatIdStr,
+    TELEGRAM_BOT_TOKEN: telegramBotToken,
+    TELEGRAM_HOME_CHANNEL: chatIdStr,
   };
+
+  // Manter campos derivados para persistir em model_config
+  const agentNameFinal = agentName;
+  const modelFinal = isPro
+    ? "openrouter/google/gemma-4-31b-it"
+    : "openrouter/google/gemma-4-27b-a4b-it";
 
   // 7) Criar serviço no Railway
   const serviceName = `mika-${agent.uuid_tenant.replace(/-/g, "").slice(0, 8)}`;
@@ -251,8 +244,7 @@ Deno.serve(async (req) => {
       token: RAILWAY_API_TOKEN,
       serviceId: railwayServiceId,
       environmentId: pool.railway_environment_id,
-      image: "nousresearch/hermes-agent:latest",
-      startCommand: HERMES_START_COMMAND,
+      image: "ghcr.io/domfelipe/hermes-agent-custom:latest",
       variables: envVars,
     });
     console.log(`[provision-agent] serviço configurado com ${Object.keys(envVars).length} env vars`);
@@ -285,10 +277,10 @@ Deno.serve(async (req) => {
       railway_service_id: railwayServiceId,
       vps_pool_id: pool.id,
       model_config: {
-        provider: model,
+        provider: modelFinal,
         stt: sttProvider,
         tts: ttsProvider,
-        agent_name: agentName,
+        agent_name: agentNameFinal,
       },
     })
     .eq("id", agent.id);
