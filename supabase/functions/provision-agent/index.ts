@@ -367,3 +367,132 @@ async function scheduleRetry(
     .eq("id", jobId);
   return false;
 }
+
+/**
+ * Fluxo de re-provisionamento: agent_instance já tem railway_service_id.
+ * Em vez de criar novo serviço (que dá erro "service already exists"),
+ * faz upsert das variáveis de ambiente com defaults automáticos e dispara redeploy.
+ */
+async function handleUpdateExistingService(
+  // deno-lint-ignore no-explicit-any
+  supabase: any,
+  // deno-lint-ignore no-explicit-any
+  agent: any,
+  body: RequestBody,
+): Promise<Response> {
+  const railwayServiceId: string = agent.railway_service_id;
+
+  // Carregar profile + plano para gerar defaults coerentes
+  const { data: profile } = await supabase
+    .from("profiles")
+    .select("full_name")
+    .eq("id", agent.user_id)
+    .maybeSingle();
+
+  const fullName = (profile?.full_name?.trim() || "Usuário").toString();
+  const firstName = fullName.split(" ")[0] || "Usuário";
+  const agentName = body.agent_name?.trim() || `Mika de ${firstName}`;
+
+  const { data: subscription } = await supabase
+    .from("subscriptions")
+    .select("plan_id, status, plans(slug)")
+    .eq("user_id", agent.user_id)
+    .in("status", ["active", "trialing"])
+    .order("created_at", { ascending: false })
+    .limit(1)
+    .maybeSingle();
+
+  // deno-lint-ignore no-explicit-any
+  const planSlug = ((subscription as any)?.plans?.slug as string | undefined) ?? "basic";
+  const isPro = ["professional", "enterprise"].includes(planSlug);
+
+  const defaultSoul = `Você se chama ${agentName}. Você é um assistente pessoal de IA criado pela DOMCO para ${fullName}. Você é proativo, direto e fala sempre em português brasileiro. Você ajuda ${firstName} a ser mais produtivo — gerenciando emails, agenda, tarefas e automatizando o que puder. Seja conciso nas respostas via Telegram. Nunca se identifique como Hermes ou como produto da Nous Research — você é Mika.`;
+  const soulContent = body.soul_content?.trim() || defaultSoul;
+
+  const defaultModel = isPro
+    ? "openrouter/google/gemma-4-31b-it"
+    : "openrouter/google/gemma-4-27b-a4b-it";
+  const model = body.model || defaultModel;
+  const sttProvider = body.stt_provider || "local";
+  const ttsProvider = body.tts_provider || "disabled";
+
+  console.log(`[provision-agent:update] agent=${agent.id} service=${railwayServiceId} plano=${planSlug}`);
+
+  // Resolver project/environment Railway
+  let projectId: string | null = null;
+  let environmentId: string | null = null;
+
+  if (agent.vps_pool_id) {
+    const { data: pool } = await supabase
+      .from("vps_pool")
+      .select("railway_project_id, railway_environment_id")
+      .eq("id", agent.vps_pool_id)
+      .maybeSingle();
+    projectId = pool?.railway_project_id ?? null;
+    environmentId = pool?.railway_environment_id ?? null;
+  }
+
+  if (!projectId || !environmentId) {
+    const ctx = await getServiceContext({ token: RAILWAY_API_TOKEN!, serviceId: railwayServiceId });
+    projectId = projectId ?? ctx.projectId;
+    environmentId = environmentId ?? ctx.environmentId;
+  }
+
+  if (!projectId || !environmentId) {
+    console.error(`[provision-agent:update] não foi possível resolver railway project/environment`);
+    return jsonResponse(500, { error: "failed to resolve railway project/environment" });
+  }
+
+  // Upsert das vars principais (não mexemos em token Telegram aqui — preservado)
+  const variables: Record<string, string> = {
+    HERMES_SOUL_OVERRIDE: soulContent,
+    HERMES_MODEL: model,
+    HERMES_FALLBACK_MODEL: "openrouter/google/gemma-4-31b-it",
+    HERMES_STT_PROVIDER: sttProvider,
+    HERMES_TTS_PROVIDER: ttsProvider,
+  };
+
+  try {
+    await upsertRailwayVariableCollection({
+      token: RAILWAY_API_TOKEN!,
+      serviceId: railwayServiceId,
+      environmentId,
+      projectId,
+      variables,
+    });
+    console.log(`[provision-agent:update] variáveis atualizadas (${Object.keys(variables).length})`);
+
+    await deployRailwayService({
+      token: RAILWAY_API_TOKEN!,
+      serviceId: railwayServiceId,
+      environmentId,
+    });
+    console.log(`[provision-agent:update] redeploy disparado`);
+  } catch (e) {
+    const msg = e instanceof Error ? e.message : String(e);
+    console.error(`[provision-agent:update] falha:`, msg);
+    return jsonResponse(500, { error: "railway update failed", detail: msg });
+  }
+
+  await supabase
+    .from("agent_instances")
+    .update({
+      model_config: {
+        provider: model,
+        stt: sttProvider,
+        tts: ttsProvider,
+        agent_name: agentName,
+      },
+      updated_at: new Date().toISOString(),
+    })
+    .eq("id", agent.id);
+
+  return jsonResponse(200, {
+    success: true,
+    mode: "update",
+    agent_instance_id: agent.id,
+    railway_service_id: railwayServiceId,
+    plan_slug: planSlug,
+    agent_name: agentName,
+  });
+}
