@@ -281,10 +281,10 @@ Deno.serve(async (req) => {
       railway_service_id: railwayServiceId,
       vps_pool_id: pool.id,
       model_config: {
-        provider: model,
+        provider: modelFinal,
         stt: sttProvider,
         tts: ttsProvider,
-        agent_name: agentName,
+        agent_name: agentNameFinal,
       },
     })
     .eq("id", agent.id);
