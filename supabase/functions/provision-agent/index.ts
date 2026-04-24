@@ -335,7 +335,7 @@ async function scheduleRetry(
   agent: { id: string },
   jobId: string,
   message: string,
-) {
+): Promise<boolean> {
   const { data: job } = await supabase
     .from("provisioning_jobs")
     .select("attempt, max_attempts")
@@ -347,7 +347,7 @@ async function scheduleRetry(
 
   if (attempt >= max) {
     await failJob(supabase, agent, jobId, `Max attempts reached. Last error: ${message}`);
-    return;
+    return true;
   }
 
   const nextDelayMs = Math.pow(attempt, 2) * 60_000;
