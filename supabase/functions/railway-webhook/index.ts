@@ -96,6 +96,7 @@ Deno.serve(async (req) => {
 
   // Carrega nome do cliente para a notificação (best-effort)
   async function loadFullName(): Promise<string> {
+    if (!agent) return "—";
     const { data } = await supabase
       .from("profiles")
       .select("full_name")

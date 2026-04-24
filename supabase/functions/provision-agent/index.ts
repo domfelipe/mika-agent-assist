@@ -315,7 +315,8 @@ function jsonResponse(status: number, body: unknown) {
 }
 
 async function failJob(
-  supabase: ReturnType<typeof createClient>,
+  // deno-lint-ignore no-explicit-any
+  supabase: any,
   agent: { id: string },
   jobId: string | null,
   message: string,
@@ -330,7 +331,8 @@ async function failJob(
 }
 
 async function scheduleRetry(
-  supabase: ReturnType<typeof createClient>,
+  // deno-lint-ignore no-explicit-any
+  supabase: any,
   agent: { id: string },
   jobId: string,
   message: string,
@@ -341,8 +343,8 @@ async function scheduleRetry(
     .eq("id", jobId)
     .single();
 
-  const attempt = job?.attempt ?? 1;
-  const max = job?.max_attempts ?? 5;
+  const attempt: number = (job?.attempt as number | undefined) ?? 1;
+  const max: number = (job?.max_attempts as number | undefined) ?? 5;
 
   if (attempt >= max) {
     await failJob(supabase, agent, jobId, `Max attempts reached. Last error: ${message}`);

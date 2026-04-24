@@ -125,7 +125,7 @@ Deno.serve(async (req) => {
 
     // 5) Se já houver um vault_id antigo, remove (reconexão)
     if (agent.telegram_bot_token_vault_id) {
-      await admin.rpc("exec_sql_void", {}).catch(() => {});
+      try { await admin.rpc("exec_sql_void", {} as never); } catch { /* ignore */ }
       // tenta remover diretamente; ignora falha
       const { error: delErr } = await admin
         .from("vault.secrets" as unknown as never)

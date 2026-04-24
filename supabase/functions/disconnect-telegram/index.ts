@@ -13,8 +13,9 @@ function jsonResponse(body: unknown, status = 200): Response {
   });
 }
 
+// deno-lint-ignore no-explicit-any
 async function getDecryptedSecret(
-  admin: ReturnType<typeof createClient>,
+  admin: any,
   secretId: string,
 ): Promise<string | null> {
   const { data, error } = await admin

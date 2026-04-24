@@ -1,3 +1,4 @@
+// @ts-ignore deno npm specifier resolved at runtime
 import { Environment, Paddle, EventName } from 'npm:@paddle/paddle-node-sdk';
 
 export { EventName };
