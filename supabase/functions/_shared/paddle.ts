@@ -1,4 +1,5 @@
-import { Environment, Paddle, EventName } from 'https://esm.sh/@paddle/paddle-node-sdk@2.6.1';
+// @ts-ignore deno npm specifier resolved at runtime
+import { Environment, Paddle, EventName } from 'npm:@paddle/paddle-node-sdk';
 
 export { EventName };
 
