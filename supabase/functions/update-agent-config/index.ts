@@ -101,11 +101,12 @@ Deno.serve(async (req) => {
     return jsonResponse(500, { error: "failed to resolve railway project/environment" });
   }
 
-  // 4) Upsert variáveis
+  // 4) Upsert variáveis (SOUL.md agora vive na imagem Docker — não sobrescrever via env)
   const variables: Record<string, string> = {
-    HERMES_SOUL_OVERRIDE: body.soul_content,
-    HERMES_MODEL: body.model,
-    HERMES_FALLBACK_MODEL: "openrouter/google/gemma-4-31b-it",
+    OLLAMA_API_KEY: Deno.env.get("OLLAMA_API_KEY") ?? "",
+    TELEGRAM_BOT_TOKEN: Deno.env.get("TELEGRAM_BOT_TOKEN") ?? "",
+    TELEGRAM_ALLOWED_USERS: Deno.env.get("TELEGRAM_ALLOWED_USERS") ?? "",
+    TELEGRAM_HOME_CHANNEL: Deno.env.get("TELEGRAM_HOME_CHANNEL") ?? "",
     HERMES_STT_PROVIDER: body.stt_provider || "local",
     HERMES_TTS_PROVIDER: body.tts_provider || "disabled",
   };
