@@ -362,4 +362,5 @@ async function scheduleRetry(
       next_retry_at: nextRetryAt,
     })
     .eq("id", jobId);
+  return false;
 }
