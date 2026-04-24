@@ -34,6 +34,23 @@ export function TelegramOnboardingWizard({ open, onOpenChange, initialStep }: Pr
   const [step, setStep] = useState(1);
   const [validated, setValidated] = useState<ValidatedBot | null>(null);
 
+  // Deriva o passo inicial do estado real do agente.
+  // Só pula para passos avançados se houver evidência concreta no banco.
+  function deriveStepFromAgent(): number {
+    if (!agent) return 1;
+    const hasToken = !!agent.telegram_bot_token_vault_id;
+    const hasUsername = !!agent.telegram_bot_username;
+    const webhookOk = !!agent.telegram_webhook_configured;
+    const firstMsg = !!agent.telegram_first_message_received_at;
+
+    // Token validado + webhook configurado → aguardando 1ª mensagem (ou já recebida)
+    if (hasToken && hasUsername && (webhookOk || firstMsg)) return 4;
+    // Token validado mas webhook ainda não → ainda no passo do token (3)
+    if (hasToken && hasUsername) return 3;
+    // Sem token: sempre começa do início
+    return 1;
+  }
+
   // Inicializa step ao abrir
   useEffect(() => {
     if (!open) return;
@@ -41,16 +58,26 @@ export function TelegramOnboardingWizard({ open, onOpenChange, initialStep }: Pr
       setStep(Math.min(Math.max(initialStep, 1), TOTAL_STEPS));
       return;
     }
+    const derived = deriveStepFromAgent();
+    // Se o agente ainda não tem token, ignora qualquer valor antigo do localStorage
+    if (derived === 1 && typeof window !== "undefined") {
+      window.localStorage.removeItem(STORAGE_KEY);
+      setStep(1);
+      return;
+    }
     if (typeof window !== "undefined") {
       const stored = window.localStorage.getItem(STORAGE_KEY);
       const parsed = stored ? Number(stored) : NaN;
-      if (Number.isFinite(parsed) && parsed >= 1 && parsed <= TOTAL_STEPS) {
+      // Usa o maior entre o derivado e o salvo, limitado ao derivado
+      // (nunca avança além do que o estado real permite)
+      if (Number.isFinite(parsed) && parsed >= 1 && parsed <= derived) {
         setStep(parsed);
         return;
       }
     }
-    setStep(1);
-  }, [open, initialStep]);
+    setStep(derived);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [open, initialStep, agent?.telegram_bot_token_vault_id, agent?.telegram_webhook_configured, agent?.telegram_first_message_received_at]);
 
   // Persiste step ao mudar
   useEffect(() => {

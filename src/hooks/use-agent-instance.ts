@@ -10,6 +10,7 @@ export interface AgentInstance {
   uuid_tenant: string;
   status: string;
   telegram_bot_username: string | null;
+  telegram_bot_token_vault_id: string | null;
   telegram_webhook_configured: boolean;
   telegram_token_invalid: boolean;
   telegram_first_message_received_at: string | null;
@@ -30,7 +31,7 @@ export function useAgentInstance() {
       const { data, error } = await supabase
         .from("agent_instances")
         .select(
-          "id, user_id, uuid_tenant, status, telegram_bot_username, telegram_webhook_configured, telegram_token_invalid, telegram_first_message_received_at, telegram_connected_at, telegram_onboarding_completed, created_at",
+          "id, user_id, uuid_tenant, status, telegram_bot_username, telegram_bot_token_vault_id, telegram_webhook_configured, telegram_token_invalid, telegram_first_message_received_at, telegram_connected_at, telegram_onboarding_completed, created_at",
         )
         .eq("user_id", user!.id)
         .maybeSingle();
