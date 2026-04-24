@@ -207,11 +207,15 @@ Deno.serve(async (req) => {
   const hasChatId = !!agent.telegram_user_chat_id;
   const chatIdStr = hasChatId ? String(agent.telegram_user_chat_id) : "";
 
+  const defaultSoul = `Você se chama ${agentName}. Você é um assistente pessoal de IA criado pela DomCo. exclusivamente para ${fullName}. Seu estilo: Direto e objetivo, sempre em português brasileiro, respostas curtas no Telegram, use emojis com moderação, trate ${firstName} pelo primeiro nome. Suas prioridades: produtividade, automação proativa. Identidade: você é ${agentName} da DomCo., nunca se identifique como Hermes ou qualquer outro modelo.`;
+  const soulContent = body.soul_content?.trim() || defaultSoul;
+
   const envVars: Record<string, string> = {
     HERMES_HOME: "/opt/data/.hermes",
     API_SERVER_ENABLED: "true",
     API_SERVER_KEY: Deno.env.get("HERMES_API_SERVER_KEY") ?? "",
     GATEWAY_ALLOW_ALL_USERS: "false",
+    HERMES_SOUL_OVERRIDE: soulContent,
     HERMES_STT_PROVIDER: sttProvider,
     HERMES_TTS_PROVIDER: ttsProvider,
     OLLAMA_API_KEY: Deno.env.get("OLLAMA_API_KEY") ?? "",
