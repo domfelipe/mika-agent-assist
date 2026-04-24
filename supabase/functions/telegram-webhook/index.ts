@@ -16,8 +16,9 @@ function firstName(fullName: string | null | undefined): string {
   return parts[0] || "Mika";
 }
 
+// deno-lint-ignore no-explicit-any
 async function getDecryptedSecret(
-  admin: ReturnType<typeof createClient>,
+  admin: any,
   secretId: string,
 ): Promise<string | null> {
   const { data, error } = await admin
