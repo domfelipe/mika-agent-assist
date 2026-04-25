@@ -34,19 +34,11 @@ export function TelegramOnboardingWizard({ open, onOpenChange, initialStep }: Pr
   const [validated, setValidated] = useState<ValidatedBot | null>(null);
 
   // Deriva o passo inicial do estado real do agente.
-  // Só pula para passos avançados se houver evidência concreta no banco.
   function deriveStepFromAgent(): number {
     if (!agent) return 1;
     const hasToken = !!agent.telegram_bot_token_vault_id;
     const hasUsername = !!agent.telegram_bot_username;
-    const webhookOk = !!agent.telegram_webhook_configured;
-    const firstMsg = !!agent.telegram_first_message_received_at;
-
-    // Token validado + webhook configurado → aguardando 1ª mensagem (ou já recebida)
-    if (hasToken && hasUsername && (webhookOk || firstMsg)) return 4;
-    // Token validado mas webhook ainda não → ainda no passo do token (3)
     if (hasToken && hasUsername) return 3;
-    // Sem token: sempre começa do início
     return 1;
   }
 
@@ -58,7 +50,6 @@ export function TelegramOnboardingWizard({ open, onOpenChange, initialStep }: Pr
       return;
     }
     const derived = deriveStepFromAgent();
-    // Se o agente ainda não tem token, ignora qualquer valor antigo do localStorage
     if (derived === 1 && typeof window !== "undefined") {
       window.localStorage.removeItem(STORAGE_KEY);
       setStep(1);
