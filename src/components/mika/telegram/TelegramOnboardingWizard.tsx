@@ -14,10 +14,9 @@ import { toast } from "sonner";
 import { StepWelcome } from "./StepWelcome";
 import { StepCreateBot } from "./StepCreateBot";
 import { StepToken, type ValidatedBot } from "./StepToken";
-import { StepWaiting } from "./StepWaiting";
 
 const STORAGE_KEY = "mika-onboarding-last-step";
-const TOTAL_STEPS = 4;
+const TOTAL_STEPS = 3;
 
 interface Props {
   open: boolean;
@@ -35,19 +34,11 @@ export function TelegramOnboardingWizard({ open, onOpenChange, initialStep }: Pr
   const [validated, setValidated] = useState<ValidatedBot | null>(null);
 
   // Deriva o passo inicial do estado real do agente.
-  // Só pula para passos avançados se houver evidência concreta no banco.
   function deriveStepFromAgent(): number {
     if (!agent) return 1;
     const hasToken = !!agent.telegram_bot_token_vault_id;
     const hasUsername = !!agent.telegram_bot_username;
-    const webhookOk = !!agent.telegram_webhook_configured;
-    const firstMsg = !!agent.telegram_first_message_received_at;
-
-    // Token validado + webhook configurado → aguardando 1ª mensagem (ou já recebida)
-    if (hasToken && hasUsername && (webhookOk || firstMsg)) return 4;
-    // Token validado mas webhook ainda não → ainda no passo do token (3)
     if (hasToken && hasUsername) return 3;
-    // Sem token: sempre começa do início
     return 1;
   }
 
@@ -59,7 +50,6 @@ export function TelegramOnboardingWizard({ open, onOpenChange, initialStep }: Pr
       return;
     }
     const derived = deriveStepFromAgent();
-    // Se o agente ainda não tem token, ignora qualquer valor antigo do localStorage
     if (derived === 1 && typeof window !== "undefined") {
       window.localStorage.removeItem(STORAGE_KEY);
       setStep(1);
@@ -91,34 +81,29 @@ export function TelegramOnboardingWizard({ open, onOpenChange, initialStep }: Pr
     onOpenChange(false);
   }
 
-  async function handleFinish() {
-    if (!agent || !user) return handleClose();
-    const { error } = await supabase
-      .from("agent_instances")
-      .update({ telegram_onboarding_completed: true })
-      .eq("id", agent.id);
-    if (error) {
-      toast.error("Não foi possível salvar o status do onboarding.");
-      return;
+
+  // Após validar token, recarrega agent_instance, marca onboarding como completo,
+  // mostra toast de sucesso e fecha o wizard automaticamente.
+  async function handleValidated(bot: ValidatedBot) {
+    setValidated(bot);
+    if (user) {
+      await queryClient.invalidateQueries({ queryKey: ["agent-instance", user.id] });
+    }
+    if (agent) {
+      await supabase
+        .from("agent_instances")
+        .update({ telegram_onboarding_completed: true })
+        .eq("id", agent.id);
+      if (user) {
+        await queryClient.invalidateQueries({ queryKey: ["agent-instance", user.id] });
+      }
     }
     if (typeof window !== "undefined") {
       window.localStorage.removeItem(STORAGE_KEY);
     }
-    await queryClient.invalidateQueries({ queryKey: ["agent-instance", user.id] });
-    toast.success("Onboarding concluído!");
+    toast.success("Token salvo! Seu agente será ativado em alguns minutos.");
     onOpenChange(false);
   }
-
-  // Após validar token, recarrega agent_instance (já tem bot_username persistido)
-  function handleValidated(bot: ValidatedBot) {
-    setValidated(bot);
-    if (user) {
-      queryClient.invalidateQueries({ queryKey: ["agent-instance", user.id] });
-    }
-  }
-
-  const botUsername = validated?.bot_username ?? agent?.telegram_bot_username ?? "";
-  const connectedAt = agent?.telegram_connected_at ?? null;
 
   return (
     <DialogPrimitive.Root open={open} onOpenChange={onOpenChange}>
@@ -137,7 +122,7 @@ export function TelegramOnboardingWizard({ open, onOpenChange, initialStep }: Pr
             Conectar Telegram ao Mika
           </DialogPrimitive.Title>
           <DialogPrimitive.Description className="sr-only">
-            Wizard guiado para conectar seu agente Mika ao Telegram em 4 passos.
+            Wizard guiado para conectar seu agente Mika ao Telegram em 3 passos.
           </DialogPrimitive.Description>
 
           <div className="sticky top-0 z-10 bg-background/95 backdrop-blur-sm border-b border-border">
@@ -178,21 +163,8 @@ export function TelegramOnboardingWizard({ open, onOpenChange, initialStep }: Pr
                   <StepToken
                     validated={validated}
                     onValidated={handleValidated}
-                    onNext={() => setStep(4)}
+                    onNext={() => { /* fechamento é feito em handleValidated */ }}
                   />
-                )}
-                {step === 4 && agent && botUsername && (
-                  <StepWaiting
-                    agentInstanceId={agent.id}
-                    botUsername={botUsername}
-                    connectedAt={connectedAt}
-                    onFinish={handleFinish}
-                  />
-                )}
-                {step === 4 && (!agent || !botUsername) && (
-                  <div className="px-6 py-12 text-center text-sm text-muted-foreground">
-                    Conecte o bot primeiro para receber a primeira mensagem.
-                  </div>
                 )}
               </motion.div>
             </AnimatePresence>
