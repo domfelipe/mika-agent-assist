@@ -358,8 +358,13 @@ function WelcomePage() {
         open={wizardOpen}
         onOpenChange={(open) => {
           setWizardOpen(open);
-          // Quando fechar o wizard, leva ao painel
           if (!open) {
+            // Se o token foi salvo (vault_id presente), considera sucesso
+            if (agent?.telegram_bot_token_vault_id) {
+              toast.success(
+                "Perfeito! Seu agente está sendo ativado. Você receberá uma mensagem no Telegram quando estiver pronto! 🎉",
+              );
+            }
             navigate({ to: "/painel", search: {} });
           }
         }}
