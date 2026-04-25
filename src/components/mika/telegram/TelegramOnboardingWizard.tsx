@@ -122,7 +122,7 @@ export function TelegramOnboardingWizard({ open, onOpenChange, initialStep }: Pr
             Conectar Telegram ao Mika
           </DialogPrimitive.Title>
           <DialogPrimitive.Description className="sr-only">
-            Wizard guiado para conectar seu agente Mika ao Telegram em 4 passos.
+            Wizard guiado para conectar seu agente Mika ao Telegram em 3 passos.
           </DialogPrimitive.Description>
 
           <div className="sticky top-0 z-10 bg-background/95 backdrop-blur-sm border-b border-border">
