@@ -35,11 +35,15 @@ function DashboardPage() {
   const [wizardOpen, setWizardOpen] = useState(false);
   const previousStatusRef = useRef<string | null>(null);
 
-  // Auto-open do wizard ao voltar com ?status=success
+  // Redireciona para /bem-vindo se cliente acabou de pagar e ainda não completou onboarding
   useEffect(() => {
     if (search.status !== "success" || !agent) return;
     if (agent.status === "suspended" || agent.status === "error") {
       navigate({ search: { status: undefined }, replace: true });
+      return;
+    }
+    if (!agent.onboarding_completed) {
+      navigate({ to: "/bem-vindo", replace: true });
       return;
     }
     if (!agent.telegram_bot_username) setWizardOpen(true);
@@ -74,6 +78,17 @@ function DashboardPage() {
   }
 
   const firstName = (profile?.full_name || "").split(" ")[0] || "por aqui";
+  const agentName = agent?.agent_name?.trim() || "Mika";
+  const statusLabel =
+    agent?.status === "active"
+      ? "ativo"
+      : agent?.status === "provisioning"
+        ? "sendo preparado"
+        : agent?.status === "suspended"
+          ? "pausado"
+          : agent?.status === "error"
+            ? "com erro"
+            : "aguardando configuração";
 
   return (
     <div className="space-y-6">
@@ -83,7 +98,9 @@ function DashboardPage() {
         <h1 className="text-3xl font-bold tracking-tight">Olá, {firstName} 👋</h1>
         <p className="mt-1 text-muted-foreground">
           {subscription
-            ? "Acompanhe abaixo o status do seu agente Mika."
+            ? agent
+              ? <>Seu agente <span className="font-semibold text-foreground">{agentName}</span> está {statusLabel}.</>
+              : "Acompanhe abaixo o status do seu agente."
             : "Vamos colocar seu agente Mika no ar."}
         </p>
       </header>
