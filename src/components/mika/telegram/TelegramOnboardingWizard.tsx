@@ -163,21 +163,8 @@ export function TelegramOnboardingWizard({ open, onOpenChange, initialStep }: Pr
                   <StepToken
                     validated={validated}
                     onValidated={handleValidated}
-                    onNext={() => setStep(4)}
+                    onNext={() => { /* fechamento é feito em handleValidated */ }}
                   />
-                )}
-                {step === 4 && agent && botUsername && (
-                  <StepWaiting
-                    agentInstanceId={agent.id}
-                    botUsername={botUsername}
-                    connectedAt={connectedAt}
-                    onFinish={handleFinish}
-                  />
-                )}
-                {step === 4 && (!agent || !botUsername) && (
-                  <div className="px-6 py-12 text-center text-sm text-muted-foreground">
-                    Conecte o bot primeiro para receber a primeira mensagem.
-                  </div>
                 )}
               </motion.div>
             </AnimatePresence>
