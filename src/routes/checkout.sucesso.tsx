@@ -15,11 +15,10 @@ function CheckoutSuccessPage() {
   const queryClient = useQueryClient();
 
   useEffect(() => {
-    // Invalida queries de assinatura para refletir o novo estado quando o webhook chegar
     queryClient.invalidateQueries({ queryKey: ["subscription"] });
     const t = setTimeout(() => {
-      navigate({ to: "/painel", search: {} });
-    }, 6000);
+      navigate({ to: "/bem-vindo" });
+    }, 4000);
     return () => clearTimeout(t);
   }, [navigate, queryClient]);
 
@@ -32,15 +31,12 @@ function CheckoutSuccessPage() {
         <div className="space-y-2">
           <h1 className="text-3xl font-bold tracking-tight">Assinatura confirmada!</h1>
           <p className="text-muted-foreground">
-            Estamos provisionando seu acesso. Em alguns segundos seu plano estará ativo.
+            Em instantes vamos preparar seu agente Mika.
           </p>
         </div>
         <div className="flex flex-col sm:flex-row gap-3 justify-center">
           <Button asChild className="rounded-lg bg-primary hover:bg-primary-dark text-primary-foreground">
-            <Link to="/painel" search={{}}>Ir para o painel</Link>
-          </Button>
-          <Button asChild variant="outline" className="rounded-lg">
-            <Link to="/painel/faturamento">Ver faturamento</Link>
+            <Link to="/bem-vindo">Continuar</Link>
           </Button>
         </div>
         <p className="text-xs text-muted-foreground">Você será redirecionado em instantes…</p>
