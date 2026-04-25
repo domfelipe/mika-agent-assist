@@ -59,6 +59,7 @@ interface AgentDetail {
   provisioned_at: string | null;
   created_at: string;
   model_config: Record<string, unknown> | null;
+  agent_name: string | null;
   vps_pool: {
     railway_project_id: string | null;
     railway_environment_id: string | null;
@@ -100,7 +101,7 @@ function AgentDetailPage() {
       const { data, error } = await supabase
         .from("agent_instances")
         .select(
-          "id, user_id, uuid_tenant, status, telegram_bot_username, telegram_user_chat_id, railway_service_id, vps_pool_id, provisioned_at, created_at, model_config",
+          "id, user_id, uuid_tenant, status, telegram_bot_username, telegram_user_chat_id, railway_service_id, vps_pool_id, provisioned_at, created_at, model_config, agent_name",
         )
         .eq("id", id)
         .maybeSingle();
@@ -216,7 +217,7 @@ function AgentDetailPage() {
     : "openrouter/google/gemma-4-27b-a4b-it";
 
   const cfg = (agent?.model_config ?? {}) as Record<string, string | undefined>;
-  const defaultAgentName = cfg.agent_name || `Mika de ${firstName}`;
+  const defaultAgentName = agent?.agent_name?.trim() || cfg.agent_name || `Mika de ${firstName}`;
   const defaultSoul = useMemo(
     () =>
       `Você se chama ${defaultAgentName}. Você é um assistente pessoal de IA criado pela DOMCO para ${fullName}. Você é proativo, direto e fala sempre em português brasileiro. Você ajuda ${firstName} a ser mais produtivo — gerenciando emails, agenda, tarefas e automatizando o que puder. Seja conciso nas respostas via Telegram. Nunca se identifique como Hermes ou como produto da Nous Research — você é Mika.`,
@@ -404,6 +405,10 @@ function AgentDetailPage() {
               <h2 className="font-semibold text-lg">Informações do cliente</h2>
               <dl className="grid grid-cols-1 sm:grid-cols-2 gap-3 text-sm">
                 <Field label="Nome" value={agent.profile?.full_name || "—"} />
+                <Field
+                  label="Nome do agente (escolhido pelo cliente)"
+                  value={agent.agent_name || "—"}
+                />
                 <Field label="Email" value={agent.user_email || "—"} />
                 <Field label="Telefone" value={agent.profile?.phone || "—"} />
                 <div>
