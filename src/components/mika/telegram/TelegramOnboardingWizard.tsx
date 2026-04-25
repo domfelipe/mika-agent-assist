@@ -99,16 +99,28 @@ export function TelegramOnboardingWizard({ open, onOpenChange, initialStep }: Pr
     onOpenChange(false);
   }
 
-  // Após validar token, recarrega agent_instance (já tem bot_username persistido)
-  function handleValidated(bot: ValidatedBot) {
+  // Após validar token, recarrega agent_instance, marca onboarding como completo,
+  // mostra toast de sucesso e fecha o wizard automaticamente.
+  async function handleValidated(bot: ValidatedBot) {
     setValidated(bot);
     if (user) {
-      queryClient.invalidateQueries({ queryKey: ["agent-instance", user.id] });
+      await queryClient.invalidateQueries({ queryKey: ["agent-instance", user.id] });
     }
+    if (agent) {
+      await supabase
+        .from("agent_instances")
+        .update({ telegram_onboarding_completed: true })
+        .eq("id", agent.id);
+      if (user) {
+        await queryClient.invalidateQueries({ queryKey: ["agent-instance", user.id] });
+      }
+    }
+    if (typeof window !== "undefined") {
+      window.localStorage.removeItem(STORAGE_KEY);
+    }
+    toast.success("Token salvo! Seu agente será ativado em alguns minutos.");
+    onOpenChange(false);
   }
-
-  const botUsername = validated?.bot_username ?? agent?.telegram_bot_username ?? "";
-  const connectedAt = agent?.telegram_connected_at ?? null;
 
   return (
     <DialogPrimitive.Root open={open} onOpenChange={onOpenChange}>
