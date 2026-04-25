@@ -81,23 +81,6 @@ export function TelegramOnboardingWizard({ open, onOpenChange, initialStep }: Pr
     onOpenChange(false);
   }
 
-  async function handleFinish() {
-    if (!agent || !user) return handleClose();
-    const { error } = await supabase
-      .from("agent_instances")
-      .update({ telegram_onboarding_completed: true })
-      .eq("id", agent.id);
-    if (error) {
-      toast.error("Não foi possível salvar o status do onboarding.");
-      return;
-    }
-    if (typeof window !== "undefined") {
-      window.localStorage.removeItem(STORAGE_KEY);
-    }
-    await queryClient.invalidateQueries({ queryKey: ["agent-instance", user.id] });
-    toast.success("Onboarding concluído!");
-    onOpenChange(false);
-  }
 
   // Após validar token, recarrega agent_instance, marca onboarding como completo,
   // mostra toast de sucesso e fecha o wizard automaticamente.
