@@ -196,3 +196,60 @@ function jsonResponse(status: number, body: unknown) {
     headers: { ...corsHeaders, "Content-Type": "application/json" },
   });
 }
+
+// deno-lint-ignore no-explicit-any
+async function sendWelcomeMessage(supabase: any, agent: any): Promise<void> {
+  // Decifra o token do bot
+  const { data: secret } = await supabase.rpc("vault_decrypt_secret", {
+    secret_id: agent.telegram_bot_token_vault_id,
+  });
+  const token: string = secret?.[0]?.decrypted_secret ?? "";
+  if (!token) {
+    console.warn("sendWelcomeMessage: token vazio, abortando");
+    return;
+  }
+
+  // Carrega first name
+  const { data: profile } = await supabase
+    .from("profiles")
+    .select("full_name")
+    .eq("id", agent.user_id)
+    .maybeSingle();
+
+  const fullName = (profile?.full_name as string | undefined)?.trim() || "";
+  const firstName = fullName.split(" ")[0] || "você";
+  const agentName = (agent.agent_name as string | undefined)?.trim() || "Mika";
+
+  const text =
+    `Olá, ${firstName}! 👋\n\n` +
+    `Sou ${agentName}, sua assistente pessoal de IA criada pela DomCo.\n\n` +
+    `Estou pronta para começar! Aqui estão algumas coisas que posso fazer por você:\n\n` +
+    `📧 Resumir seus e-mails importantes\n` +
+    `📅 Gerenciar sua agenda\n` +
+    `✅ Organizar suas tarefas\n` +
+    `🔍 Pesquisar qualquer coisa\n` +
+    `⚡ Criar automações personalizadas\n\n` +
+    `Pode me mandar uma mensagem quando quiser. Estou aqui! 🚀`;
+
+  const res = await fetch(`https://api.telegram.org/bot${token}/sendMessage`, {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({
+      chat_id: agent.telegram_user_chat_id,
+      text,
+    }),
+  });
+
+  if (!res.ok) {
+    const err = await res.text().catch(() => "");
+    console.error(`sendWelcomeMessage: Telegram API ${res.status}: ${err}`);
+    return;
+  }
+
+  await supabase
+    .from("agent_instances")
+    .update({ welcome_message_sent_at: new Date().toISOString() })
+    .eq("id", agent.id);
+
+  console.log(`sendWelcomeMessage: enviada para agent ${agent.id}`);
+}
