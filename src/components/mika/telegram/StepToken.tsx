@@ -101,11 +101,13 @@ export function StepToken({ onValidated, onNext, validated }: Props) {
         )}
       </div>
 
-      <div className="mt-6 flex justify-end">
-        <Button onClick={onNext} disabled={state !== "success"}>
-          Próximo
-        </Button>
-      </div>
+      {state !== "success" && (
+        <div className="mt-6 flex justify-end">
+          <Button onClick={onNext} disabled>
+            Próximo
+          </Button>
+        </div>
+      )}
     </div>
   );
 }
