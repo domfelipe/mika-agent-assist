@@ -16,11 +16,13 @@ export type Database = {
     Tables: {
       agent_instances: {
         Row: {
+          agent_name: string | null
           container_name: string | null
           created_at: string
           id: string
           last_health_check_at: string | null
           model_config: Json
+          onboarding_completed: boolean
           provisioned_at: string | null
           railway_service_id: string | null
           status: string
@@ -38,13 +40,16 @@ export type Database = {
           uuid_tenant: string
           vps_host: string | null
           vps_pool_id: string | null
+          welcome_message_sent_at: string | null
         }
         Insert: {
+          agent_name?: string | null
           container_name?: string | null
           created_at?: string
           id?: string
           last_health_check_at?: string | null
           model_config?: Json
+          onboarding_completed?: boolean
           provisioned_at?: string | null
           railway_service_id?: string | null
           status?: string
@@ -62,13 +67,16 @@ export type Database = {
           uuid_tenant?: string
           vps_host?: string | null
           vps_pool_id?: string | null
+          welcome_message_sent_at?: string | null
         }
         Update: {
+          agent_name?: string | null
           container_name?: string | null
           created_at?: string
           id?: string
           last_health_check_at?: string | null
           model_config?: Json
+          onboarding_completed?: boolean
           provisioned_at?: string | null
           railway_service_id?: string | null
           status?: string
@@ -86,6 +94,7 @@ export type Database = {
           uuid_tenant?: string
           vps_host?: string | null
           vps_pool_id?: string | null
+          welcome_message_sent_at?: string | null
         }
         Relationships: [
           {
