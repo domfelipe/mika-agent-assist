@@ -284,6 +284,7 @@ Deno.serve(async (req) => {
     .update({
       railway_service_id: railwayServiceId,
       vps_pool_id: pool.id,
+      agent_name: agentNameFinal,
       model_config: {
         provider: modelFinal,
         stt: sttProvider,
