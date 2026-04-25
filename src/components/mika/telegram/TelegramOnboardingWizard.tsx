@@ -14,10 +14,9 @@ import { toast } from "sonner";
 import { StepWelcome } from "./StepWelcome";
 import { StepCreateBot } from "./StepCreateBot";
 import { StepToken, type ValidatedBot } from "./StepToken";
-import { StepWaiting } from "./StepWaiting";
 
 const STORAGE_KEY = "mika-onboarding-last-step";
-const TOTAL_STEPS = 4;
+const TOTAL_STEPS = 3;
 
 interface Props {
   open: boolean;
