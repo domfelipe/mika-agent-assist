@@ -81,7 +81,9 @@ Deno.serve(async (req) => {
 
   const { data: agent } = await supabase
     .from("agent_instances")
-    .select("id, status, user_id, telegram_bot_username, railway_service_id")
+    .select(
+      "id, status, user_id, telegram_bot_username, railway_service_id, telegram_user_chat_id, telegram_bot_token_vault_id, agent_name, welcome_message_sent_at",
+    )
     .eq("railway_service_id", serviceId)
     .maybeSingle();
 
@@ -122,6 +124,19 @@ Deno.serve(async (req) => {
       .in("status", ["running", "retrying", "pending"]);
 
     console.log(`railway-webhook: agent ${agent.id} marcado como active (status=${upper})`);
+
+    // Envia mensagem de boas-vindas via Telegram (apenas na primeira ativação)
+    if (
+      !agent.welcome_message_sent_at &&
+      agent.telegram_user_chat_id &&
+      agent.telegram_bot_token_vault_id
+    ) {
+      try {
+        await sendWelcomeMessage(supabase, agent);
+      } catch (e) {
+        console.error("railway-webhook: falha ao enviar welcome message:", e);
+      }
+    }
 
     // Notifica admin somente se era um auto-provisionamento (status anterior=provisioning)
     if (wasProvisioning) {
