@@ -78,7 +78,7 @@ Deno.serve(async (req) => {
   const { data: agent, error: agentErr } = await supabase
     .from("agent_instances")
     .select(
-      "id, user_id, uuid_tenant, status, telegram_bot_token_vault_id, telegram_bot_username, telegram_user_chat_id, railway_service_id",
+      "id, user_id, uuid_tenant, status, telegram_bot_token_vault_id, telegram_bot_username, telegram_user_chat_id, railway_service_id, agent_name",
     )
     .eq("id", body.agent_instance_id)
     .maybeSingle();
@@ -108,7 +108,11 @@ Deno.serve(async (req) => {
 
   const fullName = (profile?.full_name?.trim() || "Usuário").toString();
   const firstName = fullName.split(" ")[0] || "Usuário";
-  const agentName = body.agent_name?.trim() || `Mika de ${firstName}`;
+  // Prioridade: body > coluna agent_name no DB > default "Mika de {firstName}"
+  const agentName =
+    body.agent_name?.trim() ||
+    (agent.agent_name?.trim() ?? "") ||
+    `Mika de ${firstName}`;
   console.log(`[provision-agent] profile carregado: ${fullName} → agent_name=${agentName}`);
 
   // 1c) Carregar subscription ativa (para definir modelo Pro vs Basic)
@@ -280,6 +284,7 @@ Deno.serve(async (req) => {
     .update({
       railway_service_id: railwayServiceId,
       vps_pool_id: pool.id,
+      agent_name: agentNameFinal,
       model_config: {
         provider: modelFinal,
         stt: sttProvider,
@@ -389,7 +394,10 @@ async function handleUpdateExistingService(
 
   const fullName = (profile?.full_name?.trim() || "Usuário").toString();
   const firstName = fullName.split(" ")[0] || "Usuário";
-  const agentName = body.agent_name?.trim() || `Mika de ${firstName}`;
+  const agentName =
+    body.agent_name?.trim() ||
+    (agent.agent_name?.trim() ?? "") ||
+    `Mika de ${firstName}`;
 
   const { data: subscription } = await supabase
     .from("subscriptions")
