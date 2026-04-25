@@ -394,7 +394,10 @@ async function handleUpdateExistingService(
 
   const fullName = (profile?.full_name?.trim() || "Usuário").toString();
   const firstName = fullName.split(" ")[0] || "Usuário";
-  const agentName = body.agent_name?.trim() || `Mika de ${firstName}`;
+  const agentName =
+    body.agent_name?.trim() ||
+    (agent.agent_name?.trim() ?? "") ||
+    `Mika de ${firstName}`;
 
   const { data: subscription } = await supabase
     .from("subscriptions")
