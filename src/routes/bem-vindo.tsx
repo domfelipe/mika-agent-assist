@@ -81,11 +81,22 @@ function WelcomePage() {
   }, [step]);
 
   // Se já completou o onboarding E já conectou o Telegram, vai direto para /painel.
-  // Se ainda não conectou o Telegram, mantém o usuário aqui na etapa 3 (managed bot).
+  // Se ainda não conectou o Telegram mas já tem nome do agente, pula direto para a etapa 3.
+  const jumpedToStep3 = useRef(false);
   useEffect(() => {
     if (!agent) return;
     if (agent.onboarding_completed && agent.telegram_bot_token_vault_id) {
       navigate({ to: "/painel", search: {} });
+      return;
+    }
+    if (
+      !jumpedToStep3.current &&
+      agent.onboarding_completed &&
+      !agent.telegram_bot_token_vault_id &&
+      agent.agent_name
+    ) {
+      jumpedToStep3.current = true;
+      setStep(3);
     }
   }, [agent, navigate]);
 
