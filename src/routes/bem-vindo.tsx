@@ -369,68 +369,103 @@ function WelcomePage() {
                 className="text-center"
               >
                 <h2 className="text-3xl font-bold text-white">
-                  Quase lá! Conecte seu Telegram.
+                  Crie seu bot em 1 toque 🚀
                 </h2>
                 <p className="mt-3 text-white/70 max-w-lg mx-auto">
-                  Para conversar com{" "}
-                  <span className="font-semibold text-white">
-                    {agentName || "seu agente"}
-                  </span>
-                  , você precisa conectar seu Telegram. Leva menos de 2 minutos.
+                  Preparamos tudo para você. Basta confirmar no Telegram.
                 </p>
 
-                <motion.div
-                  animate={{ scale: [1, 1.06, 1] }}
-                  transition={{ duration: 2.4, repeat: Infinity, ease: "easeInOut" }}
-                  className="mx-auto mt-8 mb-8 h-24 w-24 rounded-full bg-primary/20 flex items-center justify-center"
-                >
-                  <TelegramIcon className="h-12 w-12 text-primary" />
-                </motion.div>
+                {/* Card de preview do bot */}
+                <div className="mx-auto mt-8 max-w-md rounded-2xl border border-white/10 bg-white/5 p-5 text-left">
+                  <div className="flex items-center gap-4">
+                    <div className="h-14 w-14 rounded-full bg-primary/20 flex items-center justify-center shrink-0">
+                      <TelegramIcon className="h-7 w-7 text-primary" />
+                    </div>
+                    <div className="min-w-0 flex-1">
+                      <p className="text-base font-semibold text-white truncate">
+                        {agentName || "Seu agente"}
+                      </p>
+                      <p className="text-sm text-white/60 truncate">
+                        @{previewUsername || "carregando…"}
+                      </p>
+                    </div>
+                  </div>
+                </div>
 
-                <ol className="space-y-3 max-w-md mx-auto text-left">
-                  <StepRow
-                    number={1}
-                    title="Abra o BotFather no Telegram"
-                    extra={
-                      <Button
-                        asChild
-                        size="sm"
-                        variant="outline"
-                        className="mt-2 border-white/20 bg-white/5 text-white hover:bg-white/10 hover:text-white"
-                      >
-                        <a
-                          href="https://t.me/BotFather?start"
-                          target="_blank"
-                          rel="noopener noreferrer"
-                        >
-                          Abrir BotFather <ExternalLink className="ml-2 h-3.5 w-3.5" />
-                        </a>
-                      </Button>
-                    }
-                  />
-                  <StepRow
-                    number={2}
-                    title="Digite /newbot e siga as instruções"
-                    hint={`Use "${agentName || "Mika"}Bot" como username sugerido`}
-                  />
-                  <StepRow
-                    number={3}
-                    title="Cole o token aqui na próxima tela"
-                  />
-                </ol>
+                {/* Estado: aguardando confirmação */}
+                {waitingConfirm && (
+                  <div className="mt-8 max-w-md mx-auto">
+                    <div className="flex items-center justify-center gap-3 text-white">
+                      <Loader2 className="h-5 w-5 animate-spin text-primary" />
+                      <span className="text-sm font-medium">
+                        Aguardando confirmação no Telegram…
+                      </span>
+                    </div>
+                    <p className="mt-2 text-xs text-white/50">
+                      Confirme as informações na conversa com @mika_managerbot.
+                    </p>
+                  </div>
+                )}
 
+                {/* Estado: timeout */}
+                {waitTimedOut && (
+                  <div className="mt-8 max-w-md mx-auto rounded-lg border border-amber-500/30 bg-amber-500/10 p-4 text-left">
+                    <p className="text-sm text-amber-100">
+                      Não recebemos a confirmação ainda. Tente novamente ou faça
+                      o processo manualmente.
+                    </p>
+                  </div>
+                )}
+
+                {/* Ícones explicativos — só antes de iniciar */}
+                {!waitingConfirm && !waitTimedOut && (
+                  <div className="mt-8 grid grid-cols-3 gap-3 max-w-md mx-auto">
+                    <ExplainIcon emoji="📱" label="Abre no Telegram" />
+                    <ExplainIcon emoji="✅" label="Confirma as informações" />
+                    <ExplainIcon emoji="🎉" label="Bot criado automaticamente" />
+                  </div>
+                )}
+
+                {/* Ações */}
                 <div className="mt-10 flex flex-col items-center gap-3">
-                  <Button
-                    size="lg"
-                    className="min-w-64"
-                    onClick={handleConnectTelegram}
+                  {!waitingConfirm && !waitTimedOut && (
+                    <Button
+                      size="lg"
+                      className="min-w-64"
+                      onClick={handleCreateManagedBot}
+                      disabled={creatingBot || !agent}
+                    >
+                      {creatingBot ? (
+                        <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                      ) : null}
+                      Criar meu bot no Telegram
+                      <ArrowRight className="ml-2 h-4 w-4" />
+                    </Button>
+                  )}
+
+                  {waitTimedOut && (
+                    <Button
+                      size="lg"
+                      className="min-w-64"
+                      onClick={handleCreateManagedBot}
+                      disabled={creatingBot}
+                    >
+                      <RefreshCcw className="mr-2 h-4 w-4" />
+                      Tentar novamente
+                    </Button>
+                  )}
+
+                  <button
+                    type="button"
+                    onClick={handleOpenManualWizard}
+                    className="text-sm text-white/70 hover:text-white underline-offset-4 hover:underline"
                   >
-                    Conectar meu Telegram <ArrowRight className="ml-2 h-4 w-4" />
-                  </Button>
+                    Prefiro configurar manualmente
+                  </button>
                   <button
                     type="button"
                     onClick={handleSkip}
-                    className="text-sm text-white/60 hover:text-white underline-offset-4 hover:underline"
+                    className="text-xs text-white/40 hover:text-white/70 underline-offset-4 hover:underline"
                   >
                     Fazer isso depois
                   </button>
