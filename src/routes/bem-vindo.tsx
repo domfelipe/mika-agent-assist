@@ -1,13 +1,14 @@
 "use client";
 
 import { createFileRoute, useNavigate } from "@tanstack/react-router";
-import { useEffect, useMemo, useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 import { motion, AnimatePresence } from "framer-motion";
 import {
   ArrowRight,
   CheckCircle2,
   ExternalLink,
   Loader2,
+  RefreshCcw,
   Sparkles,
 } from "lucide-react";
 import { useQueryClient } from "@tanstack/react-query";
