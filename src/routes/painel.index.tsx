@@ -36,17 +36,17 @@ function DashboardPage() {
   const previousStatusRef = useRef<string | null>(null);
 
   // Redireciona para /bem-vindo se cliente acabou de pagar e ainda não completou onboarding
+  // OU se ainda não conectou o Telegram (para usar o novo fluxo de Managed Bot)
   useEffect(() => {
     if (search.status !== "success" || !agent) return;
     if (agent.status === "suspended" || agent.status === "error") {
       navigate({ search: { status: undefined }, replace: true });
       return;
     }
-    if (!agent.onboarding_completed) {
+    if (!agent.onboarding_completed || !agent.telegram_bot_token_vault_id) {
       navigate({ to: "/bem-vindo", replace: true });
       return;
     }
-    if (!agent.telegram_bot_username) setWizardOpen(true);
     navigate({ search: { status: undefined }, replace: true });
   }, [search.status, agent, navigate]);
 
