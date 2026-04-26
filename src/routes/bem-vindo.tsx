@@ -80,10 +80,11 @@ function WelcomePage() {
     return () => clearTimeout(t);
   }, [step]);
 
-  // Se já completou o onboarding, vai direto para /painel
+  // Se já completou o onboarding E já conectou o Telegram, vai direto para /painel.
+  // Se ainda não conectou o Telegram, mantém o usuário aqui na etapa 3 (managed bot).
   useEffect(() => {
     if (!agent) return;
-    if (agent.onboarding_completed) {
+    if (agent.onboarding_completed && agent.telegram_bot_token_vault_id) {
       navigate({ to: "/painel", search: {} });
     }
   }, [agent, navigate]);
