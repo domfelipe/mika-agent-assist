@@ -520,6 +520,15 @@ function StepRow({
   );
 }
 
+function ExplainIcon({ emoji, label }: { emoji: string; label: string }) {
+  return (
+    <div className="rounded-lg border border-white/10 bg-white/5 p-3 text-center">
+      <div className="text-2xl">{emoji}</div>
+      <p className="mt-1 text-[11px] leading-tight text-white/70">{label}</p>
+    </div>
+  );
+}
+
 // Marker no componente para cumprir contrato de "marcar como visitada"
 // (também usado pelo redirect do /painel)
 export function isWelcomeDone(): boolean {
