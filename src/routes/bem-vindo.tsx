@@ -43,6 +43,13 @@ function WelcomePage() {
   const [saving, setSaving] = useState(false);
   const [wizardOpen, setWizardOpen] = useState(false);
 
+  // Managed bot state
+  const [creatingBot, setCreatingBot] = useState(false);
+  const [waitingConfirm, setWaitingConfirm] = useState(false);
+  const [waitTimedOut, setWaitTimedOut] = useState(false);
+  const [previewUsername, setPreviewUsername] = useState<string | null>(null);
+  const waitStartedAt = useRef<number | null>(null);
+
   const fullName = (profile?.full_name || "").trim();
   const firstName = useMemo(
     () => (fullName.split(" ")[0] || "você").trim(),
