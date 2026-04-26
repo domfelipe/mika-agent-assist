@@ -26,6 +26,21 @@ Já configuradas via `.env` (gerado automaticamente pelo Lovable Cloud):
 - `RAILWAY_API_TOKEN` — token da Railway Public API, usado por `provision-agent`/`suspend-agent`/`resume-agent` para criar e gerenciar containers Hermes.
 - `OLLAMA_API_KEY` — chave do Ollama Cloud, injetada como env var no container Hermes (imagem custom `ghcr.io/domfelipe/hermes-agent-custom:latest`).
 - `HERMES_API_SERVER_KEY` — token usado pelo API server interno do Hermes (`API_SERVER_KEY`). Valor atual: `HermesRailwayKey2026SecureToken123456`.
+- `TELEGRAM_MANAGER_BOT_TOKEN` — token do bot manager (`@mika_managerbot`) usado para criar bots dos clientes em 1 toque via Bot Management Mode do BotFather.
+- `TELEGRAM_MANAGER_BOT_USERNAME` — username do bot manager, padrão `mika_managerbot` (sem `@`).
+
+### Setup do Managed Bot (one-tap onboarding)
+
+> ⚠️ **Experimental**: o "Bot Management Mode" do BotFather (endpoint `getManagedBotToken` e deep-link `t.me/newbot/<manager>/<username>`) **não faz parte da Bot API pública oficial do Telegram**. Funcionalidade pode mudar/quebrar sem aviso. Mantemos o fluxo manual via `/newbot` no BotFather como fallback na página `/bem-vindo`.
+
+1. **Criar o bot manager** no [@BotFather](https://t.me/BotFather): `/newbot` → nome: `Mika Manager` → username: `mika_managerbot`.
+2. **Habilitar Bot Management Mode**: abrir [https://t.me/Botfather?startapp](https://t.me/Botfather?startapp) → selecionar o bot `Mika Manager` → **Bot Settings → Bot Management Mode → Enable**.
+3. **Adicionar secrets** no Lovable Cloud: `TELEGRAM_MANAGER_BOT_TOKEN` (token recebido do BotFather) e `TELEGRAM_MANAGER_BOT_USERNAME=mika_managerbot`.
+4. **Configurar webhook** uma vez após o deploy:
+   ```
+   GET https://<SUPABASE_URL>/functions/v1/managed-bot-webhook?setup=true
+   ```
+   Resposta esperada: `{ "webhook_set": "...", "telegram_response": { "ok": true } }`.
 
 > **Imagem Docker custom**: o container roda `ghcr.io/domfelipe/hermes-agent-custom:latest`, que já contém o `SOUL.md` embutido. Por isso não passamos mais `HERMES_SOUL_OVERRIDE` via env var, e o Dockerfile define o `CMD` (sem `startCommand` no Railway). Secrets removidos do projeto: `OPENROUTER_API_KEY`, `OPENAI_API_KEY`, `OPENAI_BASE_URL`, `HERMES_SOUL_OVERRIDE`.
 
