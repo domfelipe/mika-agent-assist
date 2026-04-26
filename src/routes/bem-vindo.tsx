@@ -129,8 +129,9 @@ function WelcomePage() {
     }
   }
 
-  async function handleConnectTelegram() {
+  async function handleOpenManualWizard() {
     await markWelcomeDone();
+    setWaitingConfirm(false);
     setWizardOpen(true);
   }
 
@@ -138,6 +139,84 @@ function WelcomePage() {
     await markWelcomeDone();
     navigate({ to: "/painel", search: {} });
   }
+
+  // Sugere username localmente (apenas preview visual antes do clique)
+  useEffect(() => {
+    if (step !== 3) return;
+    if (agent?.managed_bot_suggested_username) {
+      setPreviewUsername(agent.managed_bot_suggested_username);
+      return;
+    }
+    const base = (agentName || "mika")
+      .toLowerCase()
+      .normalize("NFD")
+      .replace(/[\u0300-\u036f]/g, "")
+      .replace(/[^a-z0-9]/g, "")
+      .substring(0, 28);
+    const safe = base.length >= 3 ? base : `mika${base}`;
+    setPreviewUsername(`${safe}bot`);
+  }, [step, agentName, agent?.managed_bot_suggested_username]);
+
+  async function handleCreateManagedBot() {
+    if (!agent) {
+      toast.error("Aguarde, ainda estamos preparando seu agente…");
+      return;
+    }
+    setCreatingBot(true);
+    setWaitTimedOut(false);
+    try {
+      const { data, error } = await supabase.functions.invoke<{
+        url: string;
+        suggested_username: string;
+        manager_username: string;
+      }>("create-managed-bot", {
+        body: {
+          agent_instance_id: agent.id,
+          agent_name: agentName.trim(),
+        },
+      });
+      if (error || !data?.url) {
+        throw error ?? new Error("Resposta inválida");
+      }
+      setPreviewUsername(data.suggested_username);
+      window.open(data.url, "_blank", "noopener,noreferrer");
+      await markWelcomeDone();
+      waitStartedAt.current = Date.now();
+      setWaitingConfirm(true);
+    } catch (err) {
+      console.error(err);
+      toast.error(
+        "Não foi possível iniciar a criação do bot. Tente novamente ou use o modo manual.",
+      );
+    } finally {
+      setCreatingBot(false);
+    }
+  }
+
+  // Polling: enquanto aguardamos confirmação, useAgentInstance já refetch a cada 10s.
+  // Aceleramos o refetch a cada 3s e detectamos sucesso.
+  useEffect(() => {
+    if (!waitingConfirm) return;
+    if (!user) return;
+    const interval = setInterval(() => {
+      queryClient.invalidateQueries({ queryKey: ["agent-instance", user.id] });
+      if (waitStartedAt.current && Date.now() - waitStartedAt.current > 5 * 60_000) {
+        setWaitingConfirm(false);
+        setWaitTimedOut(true);
+      }
+    }, 3000);
+    return () => clearInterval(interval);
+  }, [waitingConfirm, user, queryClient]);
+
+  // Detecta sucesso da confirmação via webhook
+  useEffect(() => {
+    if (!waitingConfirm) return;
+    if (agent?.telegram_onboarding_completed && !agent.managed_bot_pending) {
+      setWaitingConfirm(false);
+      toast.success("🎉 Bot criado! Seu agente está sendo ativado.");
+      navigate({ to: "/painel", search: {} });
+    }
+  }, [waitingConfirm, agent, navigate]);
 
   if (authLoading || !user) {
     return (
