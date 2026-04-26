@@ -21,6 +21,8 @@ export type Database = {
           created_at: string
           id: string
           last_health_check_at: string | null
+          managed_bot_pending: boolean
+          managed_bot_suggested_username: string | null
           model_config: Json
           onboarding_completed: boolean
           provisioned_at: string | null
@@ -48,6 +50,8 @@ export type Database = {
           created_at?: string
           id?: string
           last_health_check_at?: string | null
+          managed_bot_pending?: boolean
+          managed_bot_suggested_username?: string | null
           model_config?: Json
           onboarding_completed?: boolean
           provisioned_at?: string | null
@@ -75,6 +79,8 @@ export type Database = {
           created_at?: string
           id?: string
           last_health_check_at?: string | null
+          managed_bot_pending?: boolean
+          managed_bot_suggested_username?: string | null
           model_config?: Json
           onboarding_completed?: boolean
           provisioned_at?: string | null
