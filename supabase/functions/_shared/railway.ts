@@ -237,6 +237,7 @@ export async function setHermesSuspended(opts: {
     projectId: opts.projectId,
     name: "HERMES_SUSPENDED",
     value: opts.suspend ? "true" : "",
+    skipDeploys: true,
   });
 
   await deployRailwayService({
