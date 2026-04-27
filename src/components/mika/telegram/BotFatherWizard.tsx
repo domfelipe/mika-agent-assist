@@ -500,3 +500,95 @@ function ChatPreview({
     </div>
   );
 }
+
+function AwaitingStartPanel({
+  botUsername,
+  botName,
+  captured,
+  onOpenBot,
+}: {
+  botUsername: string;
+  botName: string;
+  captured: boolean;
+  onOpenBot: () => void;
+}) {
+  return (
+    <div className="mx-auto max-w-xl">
+      <motion.div
+        initial={{ opacity: 0, y: 10 }}
+        animate={{ opacity: 1, y: 0 }}
+        className="rounded-2xl border border-white/10 bg-white/5 p-6 sm:p-8 text-center"
+      >
+        <AnimatePresence mode="wait">
+          {captured ? (
+            <motion.div
+              key="captured"
+              initial={{ opacity: 0, scale: 0.9 }}
+              animate={{ opacity: 1, scale: 1 }}
+              exit={{ opacity: 0 }}
+              className="space-y-4"
+            >
+              <div className="mx-auto h-16 w-16 rounded-full bg-emerald-500/20 flex items-center justify-center">
+                <Check className="h-8 w-8 text-emerald-400" />
+              </div>
+              <h2 className="text-2xl font-bold text-white">
+                Conectado! 🎉
+              </h2>
+              <p className="text-sm text-white/70">
+                Identificamos você no Telegram. Estamos finalizando a ativação
+                do seu agente — em alguns instantes ele começa a responder.
+              </p>
+            </motion.div>
+          ) : (
+            <motion.div
+              key="awaiting"
+              initial={{ opacity: 0 }}
+              animate={{ opacity: 1 }}
+              exit={{ opacity: 0 }}
+              className="space-y-5"
+            >
+              <div className="mx-auto h-16 w-16 rounded-full bg-primary/20 flex items-center justify-center">
+                <MessageCircle className="h-8 w-8 text-primary" />
+              </div>
+              <div>
+                <h2 className="text-2xl font-bold text-white">
+                  Última etapa: diga "oi" pro {botName}
+                </h2>
+                <p className="mt-2 text-sm text-white/70">
+                  Abra seu bot no Telegram e envie qualquer mensagem (pode
+                  ser <span className="font-mono text-white">/start</span>).
+                  Assim a gente sabe que é você e libera o acesso exclusivo.
+                </p>
+              </div>
+
+              <Button
+                size="lg"
+                onClick={onOpenBot}
+                className="w-full sm:w-auto sm:min-w-64"
+              >
+                Abrir @{botUsername}
+                <ArrowRight className="ml-2 h-4 w-4" />
+              </Button>
+
+              <div className="flex items-center justify-center gap-2 text-xs text-white/50">
+                <Loader2 className="h-3.5 w-3.5 animate-spin" />
+                Aguardando sua primeira mensagem…
+              </div>
+
+              <div className="rounded-lg border border-white/10 bg-black/20 p-3 text-left">
+                <p className="text-[11px] uppercase tracking-wide text-white/40">
+                  Por que isso?
+                </p>
+                <p className="mt-1 text-xs text-white/70">
+                  Seu agente responde só pra você. Ao enviar a primeira
+                  mensagem, capturamos seu ID do Telegram e bloqueamos o bot
+                  para qualquer outra pessoa — segurança total.
+                </p>
+              </div>
+            </motion.div>
+          )}
+        </AnimatePresence>
+      </motion.div>
+    </div>
+  );
+}
