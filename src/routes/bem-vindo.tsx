@@ -3,14 +3,7 @@
 import { createFileRoute, useNavigate } from "@tanstack/react-router";
 import { useEffect, useMemo, useRef, useState } from "react";
 import { motion, AnimatePresence } from "framer-motion";
-import {
-  ArrowRight,
-  CheckCircle2,
-  ExternalLink,
-  Loader2,
-  RefreshCcw,
-  Sparkles,
-} from "lucide-react";
+import { ArrowRight, Loader2, Sparkles } from "lucide-react";
 import { useQueryClient } from "@tanstack/react-query";
 import { toast } from "sonner";
 
@@ -21,8 +14,7 @@ import { supabase } from "@/integrations/supabase/client";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Logo } from "@/components/mika/Logo";
-import { TelegramIcon } from "@/components/mika/telegram/TelegramIcon";
-import { TelegramOnboardingWizard } from "@/components/mika/telegram/TelegramOnboardingWizard";
+import { BotFatherWizard } from "@/components/mika/telegram/BotFatherWizard";
 import { cn } from "@/lib/utils";
 
 const WELCOME_DONE_KEY = "mika-welcome-done";
@@ -41,14 +33,6 @@ function WelcomePage() {
   const [step, setStep] = useState<1 | 2 | 3>(1);
   const [agentName, setAgentName] = useState("");
   const [saving, setSaving] = useState(false);
-  const [wizardOpen, setWizardOpen] = useState(false);
-
-  // Managed bot state
-  const [creatingBot, setCreatingBot] = useState(false);
-  const [waitingConfirm, setWaitingConfirm] = useState(false);
-  const [waitTimedOut, setWaitTimedOut] = useState(false);
-  const [previewUsername, setPreviewUsername] = useState<string | null>(null);
-  const waitStartedAt = useRef<number | null>(null);
 
   const fullName = (profile?.full_name || "").trim();
   const firstName = useMemo(
@@ -141,94 +125,27 @@ function WelcomePage() {
     }
   }
 
-  async function handleOpenManualWizard() {
-    await markWelcomeDone();
-    setWaitingConfirm(false);
-    setWizardOpen(true);
-  }
-
   async function handleSkip() {
     await markWelcomeDone();
     navigate({ to: "/painel", search: {} });
   }
 
-  // Sugere username localmente (apenas preview visual antes do clique)
-  useEffect(() => {
-    if (step !== 3) return;
-    if (agent?.managed_bot_suggested_username) {
-      setPreviewUsername(agent.managed_bot_suggested_username);
-      return;
+  async function handleActivated() {
+    await markWelcomeDone();
+    if (agent) {
+      await supabase
+        .from("agent_instances")
+        .update({ telegram_onboarding_completed: true })
+        .eq("id", agent.id);
     }
-    const base = (agentName || "mika")
-      .toLowerCase()
-      .normalize("NFD")
-      .replace(/[\u0300-\u036f]/g, "")
-      .replace(/[^a-z0-9]/g, "")
-      .substring(0, 28);
-    const safe = base.length >= 3 ? base : `mika${base}`;
-    setPreviewUsername(`${safe}bot`);
-  }, [step, agentName, agent?.managed_bot_suggested_username]);
-
-  async function handleCreateManagedBot() {
-    if (!agent) {
-      toast.error("Aguarde, ainda estamos preparando seu agente…");
-      return;
+    if (user) {
+      await queryClient.invalidateQueries({ queryKey: ["agent-instance", user.id] });
     }
-    setCreatingBot(true);
-    setWaitTimedOut(false);
-    try {
-      const { data, error } = await supabase.functions.invoke<{
-        url: string;
-        suggested_username: string;
-        manager_username: string;
-      }>("create-managed-bot", {
-        body: {
-          agent_instance_id: agent.id,
-          agent_name: agentName.trim(),
-        },
-      });
-      if (error || !data?.url) {
-        throw error ?? new Error("Resposta inválida");
-      }
-      setPreviewUsername(data.suggested_username);
-      window.open(data.url, "_blank", "noopener,noreferrer");
-      await markWelcomeDone();
-      waitStartedAt.current = Date.now();
-      setWaitingConfirm(true);
-    } catch (err) {
-      console.error(err);
-      toast.error(
-        "Não foi possível iniciar a criação do bot. Tente novamente ou use o modo manual.",
-      );
-    } finally {
-      setCreatingBot(false);
-    }
+    toast.success(
+      "🎉 Perfeito! Seu agente está sendo ativado. Em alguns minutos você receberá uma mensagem no Telegram!",
+    );
+    navigate({ to: "/painel", search: {} });
   }
-
-  // Polling: enquanto aguardamos confirmação, useAgentInstance já refetch a cada 10s.
-  // Aceleramos o refetch a cada 3s e detectamos sucesso.
-  useEffect(() => {
-    if (!waitingConfirm) return;
-    if (!user) return;
-    const interval = setInterval(() => {
-      queryClient.invalidateQueries({ queryKey: ["agent-instance", user.id] });
-      if (waitStartedAt.current && Date.now() - waitStartedAt.current > 5 * 60_000) {
-        setWaitingConfirm(false);
-        setWaitTimedOut(true);
-      }
-    }, 3000);
-    return () => clearInterval(interval);
-  }, [waitingConfirm, user, queryClient]);
-
-  // Detecta sucesso da confirmação via webhook
-  useEffect(() => {
-    if (!waitingConfirm) return;
-    if (agent?.telegram_onboarding_completed && !agent.managed_bot_pending) {
-      setWaitingConfirm(false);
-      toast.success("🎉 Bot criado! Seu agente está sendo ativado.");
-      navigate({ to: "/painel", search: {} });
-    }
-  }, [waitingConfirm, agent, navigate]);
 
   if (authLoading || !user) {
     return (
@@ -252,7 +169,7 @@ function WelcomePage() {
       </header>
 
       <main className="flex-1 flex items-center justify-center px-4 py-8">
-        <div className="w-full max-w-2xl">
+        <div className={cn("w-full", step === 3 ? "max-w-5xl" : "max-w-2xl")}>
           <AnimatePresence mode="wait" initial={false}>
             {step === 1 && (
               <motion.section
@@ -378,165 +295,27 @@ function WelcomePage() {
                 animate={{ opacity: 1, x: 0 }}
                 exit={{ opacity: 0, x: -60 }}
                 transition={{ duration: 0.3, ease: "easeOut" }}
-                className="text-center"
               >
-                <h2 className="text-3xl font-bold text-white">
-                  Crie seu bot em 1 toque 🚀
-                </h2>
-                <p className="mt-3 text-white/70 max-w-lg mx-auto">
-                  Preparamos tudo para você. Basta confirmar no Telegram.
-                </p>
-
-                {/* Card de preview do bot */}
-                <div className="mx-auto mt-8 max-w-md rounded-2xl border border-white/10 bg-white/5 p-5 text-left">
-                  <div className="flex items-center gap-4">
-                    <div className="h-14 w-14 rounded-full bg-primary/20 flex items-center justify-center shrink-0">
-                      <TelegramIcon className="h-7 w-7 text-primary" />
-                    </div>
-                    <div className="min-w-0 flex-1">
-                      <p className="text-base font-semibold text-white truncate">
-                        {agentName || "Seu agente"}
-                      </p>
-                      <p className="text-sm text-white/60 truncate">
-                        @{previewUsername || "carregando…"}
-                      </p>
-                    </div>
-                  </div>
+                <div className="text-center mb-8">
+                  <h1 className="text-3xl sm:text-4xl font-bold text-white">
+                    Conecte seu Telegram
+                  </h1>
+                  <p className="mt-2 text-white/70">
+                    Falta pouco! Vamos colocar a {agentName || "Mika"} para conversar com você.
+                  </p>
                 </div>
 
-                {/* Estado: aguardando confirmação */}
-                {waitingConfirm && (
-                  <div className="mt-8 max-w-md mx-auto">
-                    <div className="flex items-center justify-center gap-3 text-white">
-                      <Loader2 className="h-5 w-5 animate-spin text-primary" />
-                      <span className="text-sm font-medium">
-                        Aguardando confirmação no Telegram…
-                      </span>
-                    </div>
-                    <p className="mt-2 text-xs text-white/50">
-                      Confirme as informações na conversa com @mika_managerbot.
-                    </p>
-                  </div>
-                )}
-
-                {/* Estado: timeout */}
-                {waitTimedOut && (
-                  <div className="mt-8 max-w-md mx-auto rounded-lg border border-amber-500/30 bg-amber-500/10 p-4 text-left">
-                    <p className="text-sm text-amber-100">
-                      Não recebemos a confirmação ainda. Tente novamente ou faça
-                      o processo manualmente.
-                    </p>
-                  </div>
-                )}
-
-                {/* Ícones explicativos — só antes de iniciar */}
-                {!waitingConfirm && !waitTimedOut && (
-                  <div className="mt-8 grid grid-cols-3 gap-3 max-w-md mx-auto">
-                    <ExplainIcon emoji="📱" label="Abre no Telegram" />
-                    <ExplainIcon emoji="✅" label="Confirma as informações" />
-                    <ExplainIcon emoji="🎉" label="Bot criado automaticamente" />
-                  </div>
-                )}
-
-                {/* Ações */}
-                <div className="mt-10 flex flex-col items-center gap-3">
-                  {!waitingConfirm && !waitTimedOut && (
-                    <Button
-                      size="lg"
-                      className="min-w-64"
-                      onClick={handleCreateManagedBot}
-                      disabled={creatingBot || !agent}
-                    >
-                      {creatingBot ? (
-                        <Loader2 className="mr-2 h-4 w-4 animate-spin" />
-                      ) : null}
-                      Criar meu bot no Telegram
-                      <ArrowRight className="ml-2 h-4 w-4" />
-                    </Button>
-                  )}
-
-                  {waitTimedOut && (
-                    <Button
-                      size="lg"
-                      className="min-w-64"
-                      onClick={handleCreateManagedBot}
-                      disabled={creatingBot}
-                    >
-                      <RefreshCcw className="mr-2 h-4 w-4" />
-                      Tentar novamente
-                    </Button>
-                  )}
-
-                  <button
-                    type="button"
-                    onClick={handleOpenManualWizard}
-                    className="text-sm text-white/70 hover:text-white underline-offset-4 hover:underline"
-                  >
-                    Prefiro configurar manualmente
-                  </button>
-                  <button
-                    type="button"
-                    onClick={handleSkip}
-                    className="text-xs text-white/40 hover:text-white/70 underline-offset-4 hover:underline"
-                  >
-                    Fazer isso depois
-                  </button>
-                </div>
+                <BotFatherWizard
+                  agentName={agentName}
+                  fullName={fullName}
+                  onActivated={handleActivated}
+                  onSkip={handleSkip}
+                />
               </motion.section>
             )}
           </AnimatePresence>
         </div>
       </main>
-
-      <TelegramOnboardingWizard
-        open={wizardOpen}
-        onOpenChange={(open) => {
-          setWizardOpen(open);
-          if (!open) {
-            // Se o token foi salvo (vault_id presente), considera sucesso
-            if (agent?.telegram_bot_token_vault_id) {
-              toast.success(
-                "Perfeito! Seu agente está sendo ativado. Você receberá uma mensagem no Telegram quando estiver pronto! 🎉",
-              );
-            }
-            navigate({ to: "/painel", search: {} });
-          }
-        }}
-      />
-    </div>
-  );
-}
-
-function StepRow({
-  number,
-  title,
-  hint,
-  extra,
-}: {
-  number: number;
-  title: string;
-  hint?: string;
-  extra?: React.ReactNode;
-}) {
-  return (
-    <li className="flex items-start gap-3 rounded-lg border border-white/10 bg-white/5 p-4">
-      <span className="h-7 w-7 shrink-0 rounded-full bg-primary text-primary-foreground flex items-center justify-center font-bold text-sm">
-        {number}
-      </span>
-      <div className="flex-1">
-        <p className="text-sm font-medium text-white">{title}</p>
-        {hint && <p className="mt-1 text-xs text-white/60">{hint}</p>}
-        {extra}
-      </div>
-    </li>
-  );
-}
-
-function ExplainIcon({ emoji, label }: { emoji: string; label: string }) {
-  return (
-    <div className="rounded-lg border border-white/10 bg-white/5 p-3 text-center">
-      <div className="text-2xl">{emoji}</div>
-      <p className="mt-1 text-[11px] leading-tight text-white/70">{label}</p>
     </div>
   );
 }
