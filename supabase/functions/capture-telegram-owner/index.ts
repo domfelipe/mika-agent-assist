@@ -5,6 +5,8 @@
 //   1) grava telegram_user_chat_id em agent_instances
 //   2) envia mensagem de confirmação ao usuário
 //   3) limpa o offset (markAsRead) chamando getUpdates com offset alto
+//   4) se o agente já está provisionado no Railway, atualiza as env vars
+//      TELEGRAM_ALLOWED_USERS / TELEGRAM_HOME_CHANNEL e dispara redeploy
 //
 // É chamada repetidamente pelo frontend (poll a cada 2s) até retornar
 // { found: true } ou o usuário desistir.
@@ -12,6 +14,13 @@
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2.57.4";
 import { corsHeaders } from "../_shared/cors.ts";
 import { telegramApi } from "../_shared/telegram.ts";
+import {
+  deployRailwayService,
+  getServiceContext,
+  upsertRailwayVariableCollection,
+} from "../_shared/railway.ts";
+
+const RAILWAY_API_TOKEN = Deno.env.get("RAILWAY_API_TOKEN");
 
 interface TelegramUpdate {
   update_id: number;
