@@ -252,6 +252,7 @@ Deno.serve(async (req) => {
       token: RAILWAY_API_TOKEN,
       serviceId: railwayServiceId,
       environmentId: pool.railway_environment_id,
+      projectId: pool.railway_project_id,
       image: "ghcr.io/domfelipe/hermes-agent-custom:latest",
       variables: envVars,
     });
