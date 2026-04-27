@@ -487,6 +487,7 @@ async function handleUpdateExistingService(
       environmentId,
       projectId,
       variables,
+      skipDeploys: true,
     });
     console.log(`[provision-agent:update] variáveis atualizadas (${Object.keys(variables).length})`);
 
