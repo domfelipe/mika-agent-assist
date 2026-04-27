@@ -80,7 +80,6 @@ export async function configureRailwayService(opts: {
   variables: Record<string, string>;
   startCommand?: string;
 }): Promise<void> {
-  // O Railway expõe variáveis via variableUpsert (uma por vez) e fonte/imagem via serviceInstanceUpdate.
   // Setamos a imagem (e startCommand opcional) primeiro.
   const updateSource = `
     mutation ServiceInstanceUpdate($serviceId: String!, $environmentId: String!, $input: ServiceInstanceUpdateInput!) {
@@ -104,7 +103,20 @@ export async function configureRailwayService(opts: {
     throw new Error(`serviceInstanceUpdate (source) failed: ${JSON.stringify(sourceRes.errors)}`);
   }
 
-  // Agora as variáveis. Railway recomenda variableUpsert por chave.
+  // Agora as variáveis. Use batch + skipDeploys para evitar um deploy/rate-limit por env var.
+  if (opts.projectId) {
+    await upsertRailwayVariableCollection({
+      token: opts.token,
+      serviceId: opts.serviceId,
+      environmentId: opts.environmentId,
+      projectId: opts.projectId,
+      variables: opts.variables,
+      skipDeploys: true,
+    });
+    return;
+  }
+
+  // Fallback legado caso algum caller antigo não tenha projectId.
   for (const [name, value] of Object.entries(opts.variables)) {
     await upsertRailwayVariable({
       token: opts.token,
@@ -113,6 +125,7 @@ export async function configureRailwayService(opts: {
       projectId: opts.projectId,
       name,
       value,
+      skipDeploys: true,
     });
   }
 }
@@ -148,19 +161,21 @@ export async function upsertRailwayVariableCollection(opts: {
   projectId: string;
   variables: Record<string, string>;
   replace?: boolean;
+  skipDeploys?: boolean;
 }): Promise<void> {
   const mutation = `
     mutation VariableCollectionUpsert($input: VariableCollectionUpsertInput!) {
       variableCollectionUpsert(input: $input)
     }
   `;
-  const input = {
+  const input: Record<string, unknown> = {
     projectId: opts.projectId,
     environmentId: opts.environmentId,
     serviceId: opts.serviceId,
     variables: opts.variables,
     replace: opts.replace ?? false,
   };
+  if (opts.skipDeploys !== undefined) input.skipDeploys = opts.skipDeploys;
   const res = await railwayQuery(mutation, { input }, opts.token);
   if (res.errors?.length) {
     throw new Error(`variableCollectionUpsert failed: ${JSON.stringify(res.errors)}`);
@@ -178,6 +193,7 @@ export async function upsertRailwayVariable(opts: {
   projectId?: string;
   name: string;
   value: string;
+  skipDeploys?: boolean;
 }): Promise<void> {
   const mutation = `
     mutation VariableUpsert($input: VariableUpsertInput!) {
@@ -191,6 +207,7 @@ export async function upsertRailwayVariable(opts: {
     value: opts.value,
   };
   if (opts.projectId) input.projectId = opts.projectId;
+  if (opts.skipDeploys !== undefined) input.skipDeploys = opts.skipDeploys;
 
   const res = await railwayQuery(mutation, { input }, opts.token);
   if (res.errors?.length) {
@@ -220,6 +237,7 @@ export async function setHermesSuspended(opts: {
     projectId: opts.projectId,
     name: "HERMES_SUSPENDED",
     value: opts.suspend ? "true" : "",
+    skipDeploys: true,
   });
 
   await deployRailwayService({
