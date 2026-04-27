@@ -175,12 +175,67 @@ Deno.serve(async (req) => {
         `✅ Tudo certo${ownerFirstName ? `, ${ownerFirstName}` : ""}! Seu agente está sendo ativado e em alguns instantes começa a conversar com você por aqui. ✨`,
     });
 
+    // 8) Se já existe serviço Railway, atualiza TELEGRAM_ALLOWED_USERS / HOME_CHANNEL e redeploy
+    let redeployed = false;
+    if (agent.railway_service_id && RAILWAY_API_TOKEN) {
+      try {
+        let projectId: string | null = null;
+        let environmentId: string | null = null;
+        if (agent.vps_pool_id) {
+          const { data: pool } = await admin
+            .from("vps_pool")
+            .select("railway_project_id, railway_environment_id")
+            .eq("id", agent.vps_pool_id)
+            .maybeSingle();
+          projectId = pool?.railway_project_id ?? null;
+          environmentId = pool?.railway_environment_id ?? null;
+        }
+        if (!projectId || !environmentId) {
+          const ctx = await getServiceContext({
+            token: RAILWAY_API_TOKEN,
+            serviceId: agent.railway_service_id,
+          });
+          projectId = projectId ?? ctx.projectId;
+          environmentId = environmentId ?? ctx.environmentId;
+        }
+        if (projectId && environmentId) {
+          const chatIdStr = String(ownerChatId);
+          await upsertRailwayVariableCollection({
+            token: RAILWAY_API_TOKEN,
+            serviceId: agent.railway_service_id,
+            environmentId,
+            projectId,
+            variables: {
+              TELEGRAM_ALLOWED_USERS: chatIdStr,
+              TELEGRAM_HOME_CHANNEL: chatIdStr,
+            },
+            skipDeploys: true,
+          });
+          await deployRailwayService({
+            token: RAILWAY_API_TOKEN,
+            serviceId: agent.railway_service_id,
+            environmentId,
+          });
+          redeployed = true;
+          console.log(
+            `[capture-telegram-owner] Railway redeploy disparado para serviço ${agent.railway_service_id}`,
+          );
+        }
+      } catch (e) {
+        console.error(
+          "[capture-telegram-owner] falha ao atualizar Railway:",
+          e instanceof Error ? e.message : String(e),
+        );
+      }
+    }
+
     return jsonResponse({
       found: true,
       chat_id: ownerChatId,
       username: ownerUsername,
       first_name: ownerFirstName,
       bot_username: agent.telegram_bot_username,
+      redeployed,
     });
   } catch (err) {
     console.error("capture-telegram-owner fatal", err);
