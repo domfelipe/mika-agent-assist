@@ -51,7 +51,7 @@ export function BotFatherWizard({ agentName, fullName, onActivated, onSkip }: Pr
   const tokenValid = TOKEN_REGEX.test(token.trim());
 
   function handleOpenBotFather() {
-    window.open("https://t.me/BotFather?start=newbot", "_blank", "noopener,noreferrer");
+    window.open("https://t.me/BotFather", "_blank", "noopener,noreferrer");
     setStep1Done(true);
   }
 
@@ -111,8 +111,10 @@ export function BotFatherWizard({ agentName, fullName, onActivated, onSkip }: Pr
               className="mt-3"
             >
               Abrir BotFather
-              <ExternalLink className="ml-2 h-4 w-4" />
+              <ArrowRight className="ml-2 h-4 w-4" />
             </Button>
+            <p className="mt-3 text-xs text-white/60">Depois envie este comando:</p>
+            <CopyChip value="/newbot" onCopied={() => {}} />
           </Step>
 
           <Step
