@@ -11,6 +11,7 @@ import {
   deployRailwayService,
   deleteTelegramWebhook,
   getServiceContext,
+  findRailwayServiceByName,
   upsertRailwayVariableCollection,
 } from "../_shared/railway.ts";
 
@@ -241,12 +242,32 @@ Deno.serve(async (req) => {
   let railwayServiceId: string;
 
   try {
-    railwayServiceId = await createRailwayService({
-      token: RAILWAY_API_TOKEN,
-      projectId: pool.railway_project_id,
-      name: serviceName,
-    });
-    console.log(`[provision-agent] serviço criado: ${railwayServiceId}`);
+    try {
+      railwayServiceId = await createRailwayService({
+        token: RAILWAY_API_TOKEN,
+        projectId: pool.railway_project_id,
+        name: serviceName,
+      });
+      console.log(`[provision-agent] serviço criado: ${railwayServiceId}`);
+    } catch (createErr) {
+      const msg = createErr instanceof Error ? createErr.message : String(createErr);
+      // Recover from "service already exists" — provavelmente sobra de attempt anterior
+      if (msg.includes("already exists")) {
+        console.warn(`[provision-agent] serviço já existe, tentando recuperar ID por nome: ${serviceName}`);
+        const existingId = await findRailwayServiceByName({
+          token: RAILWAY_API_TOKEN,
+          projectId: pool.railway_project_id,
+          name: serviceName,
+        });
+        if (!existingId) {
+          throw new Error(`Service "${serviceName}" exists but could not be located via API`);
+        }
+        railwayServiceId = existingId;
+        console.log(`[provision-agent] serviço existente recuperado: ${railwayServiceId}`);
+      } else {
+        throw createErr;
+      }
+    }
 
     await configureRailwayService({
       token: RAILWAY_API_TOKEN,
