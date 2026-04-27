@@ -263,7 +263,7 @@ function ActiveSuccessCard({ botUsername }: { botUsername: string }) {
             rel="noopener noreferrer"
           >
             <MessageCircle className="mr-2 h-4 w-4" />
-            Falar com a Mika agora
+            Falar com seu Assistente Pessoal - IA agora
           </a>
         </Button>
       </div>
