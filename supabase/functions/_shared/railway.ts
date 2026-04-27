@@ -168,7 +168,7 @@ export async function upsertRailwayVariableCollection(opts: {
       variableCollectionUpsert(input: $input)
     }
   `;
-  const input = {
+  const input: Record<string, unknown> = {
     projectId: opts.projectId,
     environmentId: opts.environmentId,
     serviceId: opts.serviceId,
