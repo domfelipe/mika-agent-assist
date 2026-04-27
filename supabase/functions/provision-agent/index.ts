@@ -480,6 +480,15 @@ async function handleUpdateExistingService(
     HERMES_TTS_PROVIDER: ttsProvider,
   };
 
+  // Re-aplica TELEGRAM_ALLOWED_USERS / HOME_CHANNEL se já capturamos chat_id do dono
+  // (importante para corrigir agentes que foram provisionados sem chat_id e tinham
+  // que pedir pairing manual).
+  if (agent.telegram_user_chat_id) {
+    const chatIdStr = String(agent.telegram_user_chat_id);
+    variables.TELEGRAM_ALLOWED_USERS = chatIdStr;
+    variables.TELEGRAM_HOME_CHANNEL = chatIdStr;
+  }
+
   try {
     await upsertRailwayVariableCollection({
       token: RAILWAY_API_TOKEN!,
