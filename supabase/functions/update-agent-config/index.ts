@@ -115,6 +115,7 @@ Deno.serve(async (req) => {
       environmentId,
       projectId,
       variables,
+      skipDeploys: true,
     });
 
     await deployRailwayService({
