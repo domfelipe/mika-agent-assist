@@ -75,6 +75,7 @@ export async function configureRailwayService(opts: {
   token: string;
   serviceId: string;
   environmentId: string;
+  projectId?: string;
   image: string;
   variables: Record<string, string>;
   startCommand?: string;
