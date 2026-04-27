@@ -110,6 +110,7 @@ export async function configureRailwayService(opts: {
       token: opts.token,
       serviceId: opts.serviceId,
       environmentId: opts.environmentId,
+      projectId: opts.projectId,
       name,
       value,
     });
