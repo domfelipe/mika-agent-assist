@@ -246,7 +246,7 @@ function ActiveSuccessCard({ botUsername }: { botUsername: string }) {
             <CheckCircle2 className="h-5 w-5 text-success" />
           </div>
           <div>
-            <h2 className="text-lg font-bold">Sua Mika está no ar 🎉</h2>
+            <h2 className="text-lg font-bold">Seu Assistente Pessoal - IA está no ar 🎉</h2>
             <p className="mt-1 text-sm text-muted-foreground">
               Abra o Telegram e converse com{" "}
               <span className="font-mono text-foreground">@{botUsername}</span> para começar.
