@@ -1,14 +1,14 @@
 "use client";
 
-import { useEffect, useMemo, useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 import { motion, AnimatePresence } from "framer-motion";
 import {
   ArrowRight,
   Check,
   Copy,
-  ExternalLink,
   Loader2,
   AlertCircle,
+  MessageCircle,
 } from "lucide-react";
 import { toast } from "sonner";
 
@@ -30,16 +30,24 @@ interface Props {
   onSkip: () => void;
 }
 
+type Phase = "configure" | "awaiting_start" | "captured";
+
 export function BotFatherWizard({ agentName, fullName, onActivated, onSkip }: Props) {
+  const [phase, setPhase] = useState<Phase>("configure");
   const [step1Done, setStep1Done] = useState(false);
   const [step2Done, setStep2Done] = useState(false);
   const [step3Done, setStep3Done] = useState(false);
   const [token, setToken] = useState("");
   const [submitting, setSubmitting] = useState(false);
   const [errorMsg, setErrorMsg] = useState<string | null>(null);
+  const [validatedBot, setValidatedBot] = useState<{
+    bot_username: string;
+    bot_name: string;
+    bot_id: number;
+  } | null>(null);
+  const pollRef = useRef<number | null>(null);
 
   const suggestedUsername = useMemo(() => {
-    // base do agent_name; cai pro firstName se não der
     const base = sanitizeForUsername(agentName).replace(/^mikade/, "mika");
     if (base.length >= 5) {
       const trimmed = base.slice(0, 28);
@@ -53,16 +61,6 @@ export function BotFatherWizard({ agentName, fullName, onActivated, onSkip }: Pr
   function handleOpenBotFather() {
     window.open("https://t.me/BotFather", "_blank", "noopener,noreferrer");
     setStep1Done(true);
-  }
-
-  async function copyToClipboard(value: string, onDone: () => void) {
-    try {
-      await navigator.clipboard.writeText(value);
-      toast.success("Copiado!");
-      onDone();
-    } catch {
-      toast.error("Não foi possível copiar.");
-    }
   }
 
   async function handleActivate() {
@@ -82,7 +80,62 @@ export function BotFatherWizard({ agentName, fullName, onActivated, onSkip }: Pr
       );
       return;
     }
-    onActivated(data);
+    setSubmitting(false);
+    setValidatedBot(data);
+    setPhase("awaiting_start");
+  }
+
+  function handleOpenMyBot() {
+    if (!validatedBot?.bot_username) return;
+    window.open(
+      `https://t.me/${validatedBot.bot_username}`,
+      "_blank",
+      "noopener,noreferrer",
+    );
+  }
+
+  // Polling: enquanto phase === awaiting_start, chama capture-telegram-owner a cada 2.5s
+  useEffect(() => {
+    if (phase !== "awaiting_start") return;
+    let cancelled = false;
+
+    async function tick() {
+      if (cancelled) return;
+      const { data, error } = await invokeFunction<{
+        found: boolean;
+        chat_id?: number;
+        first_name?: string;
+        bot_username?: string;
+      }>("capture-telegram-owner", {});
+      if (cancelled) return;
+      if (error) {
+        console.warn("capture-telegram-owner error", error);
+        return;
+      }
+      if (data?.found && validatedBot) {
+        setPhase("captured");
+        setTimeout(() => onActivated(validatedBot), 1400);
+      }
+    }
+
+    tick();
+    pollRef.current = window.setInterval(tick, 2500);
+    return () => {
+      cancelled = true;
+      if (pollRef.current) window.clearInterval(pollRef.current);
+    };
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [phase, validatedBot]);
+
+  if (phase === "awaiting_start" || phase === "captured") {
+    return (
+      <AwaitingStartPanel
+        botUsername={validatedBot?.bot_username ?? ""}
+        botName={validatedBot?.bot_name ?? agentName}
+        captured={phase === "captured"}
+        onOpenBot={handleOpenMyBot}
+      />
+    );
   }
 
   return (
@@ -444,6 +497,98 @@ function ChatPreview({
           </motion.div>
         )}
       </div>
+    </div>
+  );
+}
+
+function AwaitingStartPanel({
+  botUsername,
+  botName,
+  captured,
+  onOpenBot,
+}: {
+  botUsername: string;
+  botName: string;
+  captured: boolean;
+  onOpenBot: () => void;
+}) {
+  return (
+    <div className="mx-auto max-w-xl">
+      <motion.div
+        initial={{ opacity: 0, y: 10 }}
+        animate={{ opacity: 1, y: 0 }}
+        className="rounded-2xl border border-white/10 bg-white/5 p-6 sm:p-8 text-center"
+      >
+        <AnimatePresence mode="wait">
+          {captured ? (
+            <motion.div
+              key="captured"
+              initial={{ opacity: 0, scale: 0.9 }}
+              animate={{ opacity: 1, scale: 1 }}
+              exit={{ opacity: 0 }}
+              className="space-y-4"
+            >
+              <div className="mx-auto h-16 w-16 rounded-full bg-emerald-500/20 flex items-center justify-center">
+                <Check className="h-8 w-8 text-emerald-400" />
+              </div>
+              <h2 className="text-2xl font-bold text-white">
+                Conectado! 🎉
+              </h2>
+              <p className="text-sm text-white/70">
+                Identificamos você no Telegram. Estamos finalizando a ativação
+                do seu agente — em alguns instantes ele começa a responder.
+              </p>
+            </motion.div>
+          ) : (
+            <motion.div
+              key="awaiting"
+              initial={{ opacity: 0 }}
+              animate={{ opacity: 1 }}
+              exit={{ opacity: 0 }}
+              className="space-y-5"
+            >
+              <div className="mx-auto h-16 w-16 rounded-full bg-primary/20 flex items-center justify-center">
+                <MessageCircle className="h-8 w-8 text-primary" />
+              </div>
+              <div>
+                <h2 className="text-2xl font-bold text-white">
+                  Última etapa: diga "oi" pro {botName}
+                </h2>
+                <p className="mt-2 text-sm text-white/70">
+                  Abra seu bot no Telegram e envie qualquer mensagem (pode
+                  ser <span className="font-mono text-white">/start</span>).
+                  Assim a gente sabe que é você e libera o acesso exclusivo.
+                </p>
+              </div>
+
+              <Button
+                size="lg"
+                onClick={onOpenBot}
+                className="w-full sm:w-auto sm:min-w-64"
+              >
+                Abrir @{botUsername}
+                <ArrowRight className="ml-2 h-4 w-4" />
+              </Button>
+
+              <div className="flex items-center justify-center gap-2 text-xs text-white/50">
+                <Loader2 className="h-3.5 w-3.5 animate-spin" />
+                Aguardando sua primeira mensagem…
+              </div>
+
+              <div className="rounded-lg border border-white/10 bg-black/20 p-3 text-left">
+                <p className="text-[11px] uppercase tracking-wide text-white/40">
+                  Por que isso?
+                </p>
+                <p className="mt-1 text-xs text-white/70">
+                  Seu agente responde só pra você. Ao enviar a primeira
+                  mensagem, capturamos seu ID do Telegram e bloqueamos o bot
+                  para qualquer outra pessoa — segurança total.
+                </p>
+              </div>
+            </motion.div>
+          )}
+        </AnimatePresence>
+      </motion.div>
     </div>
   );
 }
