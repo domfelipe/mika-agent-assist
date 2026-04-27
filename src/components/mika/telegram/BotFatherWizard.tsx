@@ -1,14 +1,14 @@
 "use client";
 
-import { useEffect, useMemo, useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 import { motion, AnimatePresence } from "framer-motion";
 import {
   ArrowRight,
   Check,
   Copy,
-  ExternalLink,
   Loader2,
   AlertCircle,
+  MessageCircle,
 } from "lucide-react";
 import { toast } from "sonner";
 
@@ -30,16 +30,24 @@ interface Props {
   onSkip: () => void;
 }
 
+type Phase = "configure" | "awaiting_start" | "captured";
+
 export function BotFatherWizard({ agentName, fullName, onActivated, onSkip }: Props) {
+  const [phase, setPhase] = useState<Phase>("configure");
   const [step1Done, setStep1Done] = useState(false);
   const [step2Done, setStep2Done] = useState(false);
   const [step3Done, setStep3Done] = useState(false);
   const [token, setToken] = useState("");
   const [submitting, setSubmitting] = useState(false);
   const [errorMsg, setErrorMsg] = useState<string | null>(null);
+  const [validatedBot, setValidatedBot] = useState<{
+    bot_username: string;
+    bot_name: string;
+    bot_id: number;
+  } | null>(null);
+  const pollRef = useRef<number | null>(null);
 
   const suggestedUsername = useMemo(() => {
-    // base do agent_name; cai pro firstName se não der
     const base = sanitizeForUsername(agentName).replace(/^mikade/, "mika");
     if (base.length >= 5) {
       const trimmed = base.slice(0, 28);
@@ -53,16 +61,6 @@ export function BotFatherWizard({ agentName, fullName, onActivated, onSkip }: Pr
   function handleOpenBotFather() {
     window.open("https://t.me/BotFather", "_blank", "noopener,noreferrer");
     setStep1Done(true);
-  }
-
-  async function copyToClipboard(value: string, onDone: () => void) {
-    try {
-      await navigator.clipboard.writeText(value);
-      toast.success("Copiado!");
-      onDone();
-    } catch {
-      toast.error("Não foi possível copiar.");
-    }
   }
 
   async function handleActivate() {
@@ -82,8 +80,52 @@ export function BotFatherWizard({ agentName, fullName, onActivated, onSkip }: Pr
       );
       return;
     }
-    onActivated(data);
+    setSubmitting(false);
+    setValidatedBot(data);
+    setPhase("awaiting_start");
   }
+
+  function handleOpenMyBot() {
+    if (!validatedBot?.bot_username) return;
+    window.open(
+      `https://t.me/${validatedBot.bot_username}`,
+      "_blank",
+      "noopener,noreferrer",
+    );
+  }
+
+  // Polling: enquanto phase === awaiting_start, chama capture-telegram-owner a cada 2.5s
+  useEffect(() => {
+    if (phase !== "awaiting_start") return;
+    let cancelled = false;
+
+    async function tick() {
+      if (cancelled) return;
+      const { data, error } = await invokeFunction<{
+        found: boolean;
+        chat_id?: number;
+        first_name?: string;
+        bot_username?: string;
+      }>("capture-telegram-owner", {});
+      if (cancelled) return;
+      if (error) {
+        console.warn("capture-telegram-owner error", error);
+        return;
+      }
+      if (data?.found && validatedBot) {
+        setPhase("captured");
+        setTimeout(() => onActivated(validatedBot), 1400);
+      }
+    }
+
+    tick();
+    pollRef.current = window.setInterval(tick, 2500);
+    return () => {
+      cancelled = true;
+      if (pollRef.current) window.clearInterval(pollRef.current);
+    };
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [phase, validatedBot]);
 
   return (
     <div className="grid gap-8 lg:grid-cols-2 lg:gap-10 items-start">
