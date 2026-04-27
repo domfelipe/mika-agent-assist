@@ -229,6 +229,31 @@ export async function setHermesSuspended(opts: {
   });
 }
 
+/** Busca o ID de um serviço pelo nome dentro de um projeto. Retorna null se não existir. */
+export async function findRailwayServiceByName(opts: {
+  token: string;
+  projectId: string;
+  name: string;
+}): Promise<string | null> {
+  const query = `
+    query Project($id: String!) {
+      project(id: $id) {
+        services { edges { node { id name } } }
+      }
+    }
+  `;
+  const res = await railwayQuery<{
+    project: { services: { edges: { node: { id: string; name: string } }[] } };
+  }>(query, { id: opts.projectId }, opts.token);
+  if (res.errors?.length) {
+    console.error("findRailwayServiceByName errors:", JSON.stringify(res.errors));
+    return null;
+  }
+  const edges = res.data?.project?.services?.edges ?? [];
+  const match = edges.find((e) => e.node.name === opts.name);
+  return match?.node.id ?? null;
+}
+
 /** Busca env+project IDs do primeiro deployment de um serviço. Útil quando vps_pool_id está null. */
 export async function getServiceContext(opts: {
   token: string;
