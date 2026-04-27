@@ -127,6 +127,17 @@ export function BotFatherWizard({ agentName, fullName, onActivated, onSkip }: Pr
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [phase, validatedBot]);
 
+  if (phase === "awaiting_start" || phase === "captured") {
+    return (
+      <AwaitingStartPanel
+        botUsername={validatedBot?.bot_username ?? ""}
+        botName={validatedBot?.bot_name ?? agentName}
+        captured={phase === "captured"}
+        onOpenBot={handleOpenMyBot}
+      />
+    );
+  }
+
   return (
     <div className="grid gap-8 lg:grid-cols-2 lg:gap-10 items-start">
       {/* COLUNA ESQUERDA — passos */}
