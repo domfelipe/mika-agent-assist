@@ -127,7 +127,7 @@ Deno.serve(async (req) => {
       serviceId: agent.railway_service_id,
       environmentId,
       projectId,
-      suspended: true,
+      suspend: true,
     });
     console.log(`[recover] Hermes suspenso, aguardando 25s para descer`);
   } catch (e) {
@@ -178,7 +178,7 @@ Deno.serve(async (req) => {
         serviceId: agent.railway_service_id,
         environmentId,
         projectId,
-        suspended: false,
+        suspend: false,
       });
     } catch { /* ignore */ }
     return jsonResponse({
