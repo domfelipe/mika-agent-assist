@@ -471,10 +471,10 @@ async function handleUpdateExistingService(
   }
 
   // Upsert das vars principais (não mexemos em token Telegram aqui — preservado)
+  // NÃO injetar HERMES_MODEL: a imagem custom já tem config.yaml com ollama-cloud/gemma4:31b-cloud.
+  // Sobrescrever via env var quebra o bot (model: "" / 404 not found).
   const variables: Record<string, string> = {
     HERMES_SOUL_OVERRIDE: soulContent,
-    HERMES_MODEL: model,
-    HERMES_FALLBACK_MODEL: "openrouter/google/gemma-4-31b-it",
     HERMES_STT_PROVIDER: sttProvider,
     HERMES_TTS_PROVIDER: ttsProvider,
   };
