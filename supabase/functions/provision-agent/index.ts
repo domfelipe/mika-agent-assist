@@ -236,6 +236,10 @@ Deno.serve(async (req) => {
     ? "openrouter/google/gemma-4-31b-it"
     : "openrouter/google/gemma-4-27b-a4b-it";
 
+  // Injetar modelo + fallback no container (faltava aqui — bots novos nasciam com model: "")
+  envVars.HERMES_MODEL = modelFinal;
+  envVars.HERMES_FALLBACK_MODEL = "openrouter/google/gemma-4-31b-it";
+
   // 7) Criar serviço no Railway
   const serviceName = `mika-${agent.uuid_tenant.replace(/-/g, "").slice(0, 8)}`;
   console.log(`[provision-agent] criando serviço Railway: ${serviceName}`);
