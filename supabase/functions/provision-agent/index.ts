@@ -230,15 +230,10 @@ Deno.serve(async (req) => {
     TELEGRAM_HOME_CHANNEL: chatIdStr,
   };
 
-  // Manter campos derivados para persistir em model_config
+  // Modelo é definido pelo config.yaml embutido na imagem custom (ollama-cloud + gemma4:31b-cloud).
+  // NÃO injetar HERMES_MODEL como env var — sobrescreve o config.yaml e quebra o bot.
   const agentNameFinal = agentName;
-  const modelFinal = isPro
-    ? "openrouter/google/gemma-4-31b-it"
-    : "openrouter/google/gemma-4-27b-a4b-it";
-
-  // Injetar modelo + fallback no container (faltava aqui — bots novos nasciam com model: "")
-  envVars.HERMES_MODEL = modelFinal;
-  envVars.HERMES_FALLBACK_MODEL = "openrouter/google/gemma-4-31b-it";
+  const modelFinal = isPro ? "ollama-cloud/gemma4:31b-cloud" : "ollama-cloud/gemma4:31b-cloud";
 
   // 7) Criar serviço no Railway
   const serviceName = `mika-${agent.uuid_tenant.replace(/-/g, "").slice(0, 8)}`;
@@ -476,10 +471,10 @@ async function handleUpdateExistingService(
   }
 
   // Upsert das vars principais (não mexemos em token Telegram aqui — preservado)
+  // NÃO injetar HERMES_MODEL: a imagem custom já tem config.yaml com ollama-cloud/gemma4:31b-cloud.
+  // Sobrescrever via env var quebra o bot (model: "" / 404 not found).
   const variables: Record<string, string> = {
     HERMES_SOUL_OVERRIDE: soulContent,
-    HERMES_MODEL: model,
-    HERMES_FALLBACK_MODEL: "openrouter/google/gemma-4-31b-it",
     HERMES_STT_PROVIDER: sttProvider,
     HERMES_TTS_PROVIDER: ttsProvider,
   };
