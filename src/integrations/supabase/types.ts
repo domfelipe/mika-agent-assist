@@ -475,6 +475,11 @@ export type Database = {
           natural_language_input: string
           next_run_at: string | null
           required_mcp_slugs: Json
+          runtime_last_delivery_error: string | null
+          runtime_last_error: string | null
+          runtime_last_status: string | null
+          runtime_state: string | null
+          runtime_synced_at: string | null
           status: string
           timezone: string
           updated_at: string
@@ -494,6 +499,11 @@ export type Database = {
           natural_language_input: string
           next_run_at?: string | null
           required_mcp_slugs?: Json
+          runtime_last_delivery_error?: string | null
+          runtime_last_error?: string | null
+          runtime_last_status?: string | null
+          runtime_state?: string | null
+          runtime_synced_at?: string | null
           status?: string
           timezone?: string
           updated_at?: string
@@ -513,6 +523,11 @@ export type Database = {
           natural_language_input?: string
           next_run_at?: string | null
           required_mcp_slugs?: Json
+          runtime_last_delivery_error?: string | null
+          runtime_last_error?: string | null
+          runtime_last_status?: string | null
+          runtime_state?: string | null
+          runtime_synced_at?: string | null
           status?: string
           timezone?: string
           updated_at?: string
