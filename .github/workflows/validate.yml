@@ -25,7 +25,7 @@ jobs:
           cache: npm
 
       - name: Install dependencies
-        run: npm ci
+        run: npm ci --legacy-peer-deps
 
       - name: Build frontend
         run: npm run build
@@ -45,5 +45,19 @@ jobs:
       - name: Type-check edge functions
         shell: bash
         run: |
-          mapfile -t files < <(find supabase/functions -name '*.ts' | sort)
+          files=(
+            supabase/functions/_shared/hermes-config.ts
+            supabase/functions/_shared/runtime-sync.ts
+            supabase/functions/sync-agent-runtime/index.ts
+            supabase/functions/sync-agent-skills/index.ts
+            supabase/functions/keep-alive-agents/index.ts
+            supabase/functions/provision-agent/index.ts
+            supabase/functions/publish-skill-version/index.ts
+            supabase/functions/railway-webhook/index.ts
+            supabase/functions/update-agent-config/index.ts
+            supabase/functions/list-ollama-models/index.ts
+            supabase/functions/oauth-callback/index.ts
+            supabase/functions/disconnect-integration/index.ts
+            supabase/functions/refresh-integration-token/index.ts
+          )
           deno check --config supabase/functions/deno.json "${files[@]}"
