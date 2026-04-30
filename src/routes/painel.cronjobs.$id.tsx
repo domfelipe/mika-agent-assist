@@ -17,11 +17,13 @@ import {
   AlertDialogTitle,
 } from "@/components/ui/alert-dialog";
 import {
+  type ScheduledJob,
   useCronjob,
   useDeleteCronjob,
   useUpdateCronjobStatus,
 } from "@/hooks/use-cronjobs";
 import { useAvailableMcps, useUserIntegrations } from "@/hooks/use-integrations";
+import { syncAgentRuntime } from "@/lib/sync-agent-runtime";
 
 export const Route = createFileRoute("/painel/cronjobs/$id")({
   component: CronjobDetailPage,
@@ -65,6 +67,7 @@ function CronjobDetailPage() {
 
   const isActive = job.status === "active";
   const isAutoPaused = job.status === "auto_paused";
+  const hasRuntimeError = job.runtime_state === "error" || job.runtime_last_status === "error";
 
   async function toggle() {
     try {
@@ -73,6 +76,11 @@ function CronjobDetailPage() {
         status: isActive ? "paused" : "active",
       });
       toast.success(isActive ? "Pausada." : "Ativada.");
+
+      const { error: syncError } = await syncAgentRuntime(job!.agent_instance_id, "cronjobs");
+      if (syncError) {
+        toast.warning("Status salvo, mas o runtime do agente não sincronizou.");
+      }
     } catch (e) {
       toast.error(e instanceof Error ? e.message : "Erro");
     }
@@ -82,6 +90,12 @@ function CronjobDetailPage() {
     try {
       await deleteMut.mutateAsync(job!.id);
       toast.success("Excluída.");
+
+      const { error: syncError } = await syncAgentRuntime(job!.agent_instance_id, "cronjobs");
+      if (syncError) {
+        toast.warning("Automação removida, mas o runtime do agente não sincronizou.");
+      }
+
       navigate({ to: "/painel/cronjobs" });
     } catch (e) {
       toast.error(e instanceof Error ? e.message : "Erro");
@@ -102,10 +116,14 @@ function CronjobDetailPage() {
           <div className="flex items-center gap-2 mt-2">
             {isActive && <Badge variant="success">Ativa</Badge>}
             {job.status === "paused" && <Badge variant="secondary">Pausada</Badge>}
+            {job.status === "error" && <Badge variant="destructive">Erro</Badge>}
             {isAutoPaused && (
               <Badge variant="destructive" className="gap-1">
                 <AlertTriangle className="h-3 w-3" /> Auto-pausada
               </Badge>
+            )}
+            {hasRuntimeError && !isAutoPaused && (
+              <Badge variant="destructive">Runtime com erro</Badge>
             )}
           </div>
         </div>
@@ -135,6 +153,22 @@ function CronjobDetailPage() {
         <div className="rounded-md border border-destructive bg-destructive/10 p-4 text-sm">
           <p className="font-medium text-destructive">Auto-pausada</p>
           <p className="text-muted-foreground mt-1">{job.auto_paused_reason}</p>
+        </div>
+      )}
+
+      {hasRuntimeError && (
+        <div className="rounded-md border border-destructive bg-destructive/10 p-4 text-sm">
+          <p className="font-medium text-destructive">Falha reportada pelo runtime</p>
+          <p className="text-muted-foreground mt-1">
+            {job.runtime_last_error ?? "O runtime marcou a última execução como erro."}
+          </p>
+        </div>
+      )}
+
+      {job.runtime_last_delivery_error && (
+        <div className="rounded-md border border-amber-500/40 bg-amber-500/10 p-4 text-sm">
+          <p className="font-medium text-amber-700 dark:text-amber-400">Falha na entrega do resultado</p>
+          <p className="text-muted-foreground mt-1">{job.runtime_last_delivery_error}</p>
         </div>
       )}
 
@@ -180,6 +214,23 @@ function CronjobDetailPage() {
                   timeStyle: "short",
                 })
               : "Nunca"
+          }
+        />
+        <Section label="Estado no runtime" value={formatRuntimeState(job.runtime_state)} />
+        <Section
+          label="Último resultado do runtime"
+          value={formatRuntimeLastStatus(job.runtime_last_status)}
+        />
+        <Section
+          label="Última sincronização do runtime"
+          value={
+            job.runtime_synced_at
+              ? new Date(job.runtime_synced_at).toLocaleString("pt-BR", {
+                  timeZone: job.timezone,
+                  dateStyle: "full",
+                  timeStyle: "short",
+                })
+              : "Ainda não sincronizado"
           }
         />
         <Section label="Fuso horário" value={job.timezone} />
@@ -264,4 +315,30 @@ function Section({
       </p>
     </div>
   );
+}
+
+function formatRuntimeState(state: ScheduledJob["runtime_state"]): string {
+  switch (state) {
+    case "scheduled":
+      return "Agendado";
+    case "paused":
+      return "Pausado";
+    case "completed":
+      return "Concluído";
+    case "error":
+      return "Erro";
+    default:
+      return "Desconhecido";
+  }
+}
+
+function formatRuntimeLastStatus(status: ScheduledJob["runtime_last_status"]): string {
+  switch (status) {
+    case "ok":
+      return "Sucesso";
+    case "error":
+      return "Erro";
+    default:
+      return "Ainda sem execução";
+  }
 }

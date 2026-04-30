@@ -14,6 +14,11 @@ import {
   findRailwayServiceByName,
   upsertRailwayVariableCollection,
 } from "../_shared/railway.ts";
+import {
+  DEFAULT_OLLAMA_MODEL,
+  DEFAULT_OLLAMA_PROVIDER,
+  normalizeOllamaModelSelection,
+} from "../_shared/hermes-config.ts";
 
 interface RequestBody {
   agent_instance_id: string;
@@ -128,8 +133,7 @@ Deno.serve(async (req) => {
 
   // deno-lint-ignore no-explicit-any
   const planSlug = ((subscription as any)?.plans?.slug as string | undefined) ?? "basic";
-  const isPro = ["professional", "enterprise"].includes(planSlug);
-  console.log(`[provision-agent] plano=${planSlug} isPro=${isPro}`);
+  console.log(`[provision-agent] plano=${planSlug}`);
 
   // 2) Buscar pool disponível (com IDs Railway preenchidos e capacidade)
   const { data: pool, error: poolErr } = await supabase
@@ -215,11 +219,15 @@ Deno.serve(async (req) => {
   const defaultSoul = `Você se chama ${agentName}. Você é um assistente pessoal de IA criado pela DomCo. exclusivamente para ${fullName}. Seu estilo: Direto e objetivo, sempre em português brasileiro, respostas curtas no Telegram, use emojis com moderação, trate ${firstName} pelo primeiro nome. Suas prioridades: produtividade, automação proativa. Identidade: você é ${agentName} da DomCo., nunca se identifique como Hermes ou qualquer outro modelo.`;
   const soulContent = body.soul_content?.trim() || defaultSoul;
 
+  const modelFinal = normalizeOllamaModelSelection(body.model || DEFAULT_OLLAMA_MODEL);
+
   const envVars: Record<string, string> = {
     HERMES_HOME: "/opt/data/.hermes",
     API_SERVER_ENABLED: "true",
     API_SERVER_KEY: Deno.env.get("HERMES_API_SERVER_KEY") ?? "",
     GATEWAY_ALLOW_ALL_USERS: "false",
+    HERMES_MODEL_DEFAULT: modelFinal,
+    HERMES_MODEL_PROVIDER: DEFAULT_OLLAMA_PROVIDER,
     HERMES_SOUL_OVERRIDE: soulContent,
     HERMES_STT_PROVIDER: sttProvider,
     HERMES_TTS_PROVIDER: ttsProvider,
@@ -230,10 +238,7 @@ Deno.serve(async (req) => {
     TELEGRAM_HOME_CHANNEL: chatIdStr,
   };
 
-  // Modelo é definido pelo config.yaml embutido na imagem custom (ollama-cloud + gemma4:31b-cloud).
-  // NÃO injetar HERMES_MODEL como env var — sobrescreve o config.yaml e quebra o bot.
   const agentNameFinal = agentName;
-  const modelFinal = isPro ? "ollama-cloud/gemma4:31b-cloud" : "ollama-cloud/gemma4:31b-cloud";
 
   // 7) Criar serviço no Railway
   const serviceName = `mika-${agent.uuid_tenant.replace(/-/g, "").slice(0, 8)}`;
@@ -307,7 +312,8 @@ Deno.serve(async (req) => {
       vps_pool_id: pool.id,
       agent_name: agentNameFinal,
       model_config: {
-        provider: modelFinal,
+        provider: DEFAULT_OLLAMA_PROVIDER,
+        model: modelFinal,
         stt: sttProvider,
         tts: ttsProvider,
         agent_name: agentNameFinal,
@@ -431,15 +437,10 @@ async function handleUpdateExistingService(
 
   // deno-lint-ignore no-explicit-any
   const planSlug = ((subscription as any)?.plans?.slug as string | undefined) ?? "basic";
-  const isPro = ["professional", "enterprise"].includes(planSlug);
-
   const defaultSoul = `Você se chama ${agentName}. Você é um assistente pessoal de IA criado pela DOMCO para ${fullName}. Você é proativo, direto e fala sempre em português brasileiro. Você ajuda ${firstName} a ser mais produtivo — gerenciando emails, agenda, tarefas e automatizando o que puder. Seja conciso nas respostas via Telegram. Nunca se identifique como Hermes ou como produto da Nous Research — você é Mika.`;
   const soulContent = body.soul_content?.trim() || defaultSoul;
 
-  const defaultModel = isPro
-    ? "openrouter/google/gemma-4-31b-it"
-    : "openrouter/google/gemma-4-27b-a4b-it";
-  const model = body.model || defaultModel;
+  const model = normalizeOllamaModelSelection(body.model || DEFAULT_OLLAMA_MODEL);
   const sttProvider = body.stt_provider || "local";
   const ttsProvider = body.tts_provider || "disabled";
 
@@ -470,10 +471,9 @@ async function handleUpdateExistingService(
     return jsonResponse(500, { error: "failed to resolve railway project/environment" });
   }
 
-  // Upsert das vars principais (não mexemos em token Telegram aqui — preservado)
-  // NÃO injetar HERMES_MODEL: a imagem custom já tem config.yaml com ollama-cloud/gemma4:31b-cloud.
-  // Sobrescrever via env var quebra o bot (model: "" / 404 not found).
   const variables: Record<string, string> = {
+    HERMES_MODEL_DEFAULT: model,
+    HERMES_MODEL_PROVIDER: DEFAULT_OLLAMA_PROVIDER,
     HERMES_SOUL_OVERRIDE: soulContent,
     HERMES_STT_PROVIDER: sttProvider,
     HERMES_TTS_PROVIDER: ttsProvider,
@@ -515,7 +515,8 @@ async function handleUpdateExistingService(
     .from("agent_instances")
     .update({
       model_config: {
-        provider: model,
+        provider: DEFAULT_OLLAMA_PROVIDER,
+        model,
         stt: sttProvider,
         tts: ttsProvider,
         agent_name: agentName,

@@ -8,6 +8,7 @@ import { formatDistanceToNow } from "date-fns";
 import { ptBR } from "date-fns/locale";
 import { toast } from "sonner";
 import { supabase } from "@/integrations/supabase/client";
+import { syncAgentSkills } from "@/lib/sync-agent-skills";
 import { Button } from "@/components/ui/button";
 import {
   DropdownMenu,
@@ -39,6 +40,15 @@ export function SkillCard({ skill }: { skill: Skill }) {
 
   const isArchived = skill.status === "archived";
 
+  async function syncRuntimeAfterMutation(actionLabel: string) {
+    const { error } = await syncAgentSkills(skill.agent_instance_id);
+    if (error) {
+      toast.warning(`${actionLabel}, mas o sync com o container falhou.`, {
+        description: error.message,
+      });
+    }
+  }
+
   const updateStatus = useMutation({
     mutationFn: async (newStatus: string) => {
       const { error } = await supabase
@@ -56,16 +66,21 @@ export function SkillCard({ skill }: { skill: Skill }) {
   const handleToggleActive = () => {
     const next = skill.status === "active" ? "disabled" : "active";
     updateStatus.mutate(next, {
-      onSuccess: () => toast.success(next === "active" ? "Skill ativada" : "Skill desativada"),
+      onSuccess: async () => {
+        const actionLabel = next === "active" ? "Skill ativada" : "Skill desativada";
+        toast.success(actionLabel);
+        await syncRuntimeAfterMutation(actionLabel);
+      },
       onError: (e: unknown) => toast.error(e instanceof Error ? e.message : "Erro ao atualizar"),
     });
   };
 
   const handleArchive = () => {
     updateStatus.mutate("archived", {
-      onSuccess: () => {
+      onSuccess: async () => {
         toast.success("Skill arquivada");
         setConfirmArchive(false);
+        await syncRuntimeAfterMutation("Skill arquivada");
       },
       onError: (e: unknown) => toast.error(e instanceof Error ? e.message : "Erro ao arquivar"),
     });
@@ -73,7 +88,10 @@ export function SkillCard({ skill }: { skill: Skill }) {
 
   const handleRestore = () => {
     updateStatus.mutate("draft", {
-      onSuccess: () => toast.success("Skill restaurada como rascunho"),
+      onSuccess: async () => {
+        toast.success("Skill restaurada como rascunho");
+        await syncRuntimeAfterMutation("Skill restaurada como rascunho");
+      },
       onError: (e: unknown) => {
         if ((e as { code?: string })?.code === "23505") {
           toast.error("Já existe outra skill ativa com esse nome. Renomeie antes de restaurar.");
@@ -89,11 +107,12 @@ export function SkillCard({ skill }: { skill: Skill }) {
       const { error } = await supabase.from("skills").delete().eq("id", skill.id);
       if (error) throw error;
     },
-    onSuccess: () => {
+    onSuccess: async () => {
       toast.success("Skill deletada");
       qc.invalidateQueries({ queryKey: ["skills"] });
       qc.invalidateQueries({ queryKey: ["user-limits"] });
       setConfirmDelete(false);
+      await syncRuntimeAfterMutation("Skill deletada");
     },
     onError: (e: unknown) => toast.error(e instanceof Error ? e.message : "Erro ao deletar"),
   });

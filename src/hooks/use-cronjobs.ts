@@ -15,10 +15,15 @@ export interface ScheduledJob {
   human_readable: string;
   action_prompt: string;
   required_mcp_slugs: string[];
-  status: "active" | "paused" | "auto_paused";
+  status: "active" | "paused" | "auto_paused" | "error" | "archived";
   auto_paused_reason: string | null;
   last_run_at: string | null;
   next_run_at: string | null;
+  runtime_state: "scheduled" | "paused" | "completed" | "error" | null;
+  runtime_last_status: "ok" | "error" | null;
+  runtime_last_error: string | null;
+  runtime_last_delivery_error: string | null;
+  runtime_synced_at: string | null;
   timezone: string;
   created_at: string;
   updated_at: string;

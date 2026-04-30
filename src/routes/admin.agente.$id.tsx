@@ -16,6 +16,11 @@ import {
 import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/hooks/use-auth";
 import { invokeFunction } from "@/lib/invoke-function";
+import {
+  DEFAULT_OLLAMA_MODEL,
+  formatOllamaModelLabel,
+  normalizeOllamaModelSelection,
+} from "@/lib/ollama-models";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { Skeleton } from "@/components/ui/skeleton";
@@ -33,19 +38,6 @@ import {
 export const Route = createFileRoute("/admin/agente/$id")({
   component: AgentDetailPage,
 });
-
-const MODEL_OPTIONS = [
-  {
-    value: "openrouter/google/gemma-4-27b-a4b-it",
-    label: "Gemma 4 27B — Rápido e gratuito (Basic/Starter)",
-    plans: ["basic", "starter"],
-  },
-  {
-    value: "openrouter/google/gemma-4-31b-it",
-    label: "Gemma 4 31B — Mais capaz (Professional)",
-    plans: ["professional", "enterprise"],
-  },
-];
 
 interface AgentDetail {
   id: string;
@@ -71,6 +63,15 @@ interface AgentDetail {
   } | null;
   user_email: string | null;
   subscription: { plans: { slug: string; name: string } | null } | null;
+}
+
+interface OllamaModelRow {
+  name: string;
+  raw_name: string;
+  modified_at: string | null;
+  size: number | null;
+  digest: string | null;
+  details: Record<string, unknown>;
 }
 
 function AgentDetailPage() {
@@ -178,6 +179,19 @@ function AgentDetailPage() {
     },
   });
 
+  const { data: availableModels } = useQuery({
+    queryKey: ["ollama-models"],
+    enabled: isAdmin === true,
+    staleTime: 5 * 60_000,
+    queryFn: async () => {
+      const { data, error } = await invokeFunction<{
+        models?: OllamaModelRow[];
+      }>("list-ollama-models");
+      if (error) throw new Error(error.message);
+      return data?.models ?? [];
+    },
+  });
+
   // Backfill: se o agente não tem telegram_user_chat_id mas já recebeu mensagens,
   // pega a primeira mensagem incoming e popula automaticamente.
   useEffect(() => {
@@ -210,11 +224,7 @@ function AgentDetailPage() {
   // ===== Estado do formulário =====
   const fullName = agent?.profile?.full_name?.trim() || "Usuário";
   const firstName = fullName.split(" ")[0] || "Usuário";
-  const planSlug = agent?.subscription?.plans?.slug ?? "basic";
-  const isPro = ["professional", "enterprise"].includes(planSlug);
-  const defaultModel = isPro
-    ? "openrouter/google/gemma-4-31b-it"
-    : "openrouter/google/gemma-4-27b-a4b-it";
+  const defaultModel = DEFAULT_OLLAMA_MODEL;
 
   const cfg = (agent?.model_config ?? {}) as Record<string, string | undefined>;
   const defaultAgentName = agent?.agent_name?.trim() || cfg.agent_name || `Mika de ${firstName}`;
@@ -231,16 +241,29 @@ function AgentDetailPage() {
   const [tts, setTts] = useState("disabled");
   const [busy, setBusy] = useState(false);
   const [initialized, setInitialized] = useState(false);
+  const modelOptions = useMemo(() => {
+    const options = new Map<string, string>();
+    options.set(DEFAULT_OLLAMA_MODEL, formatOllamaModelLabel(DEFAULT_OLLAMA_MODEL));
+
+    for (const row of availableModels ?? []) {
+      options.set(row.name, formatOllamaModelLabel(row.name));
+    }
+
+    const currentModel = normalizeOllamaModelSelection(cfg.model || cfg.provider || defaultModel);
+    options.set(currentModel, formatOllamaModelLabel(currentModel));
+
+    return Array.from(options.entries()).map(([value, label]) => ({ value, label }));
+  }, [availableModels, cfg.model, cfg.provider, defaultModel]);
 
   useEffect(() => {
     if (!agent || initialized) return;
     setAgentName(defaultAgentName);
     setSoul(defaultSoul);
-    setModel(cfg.provider || defaultModel);
+    setModel(normalizeOllamaModelSelection(cfg.model || cfg.provider || defaultModel));
     setStt(cfg.stt || "local");
     setTts(cfg.tts || "disabled");
     setInitialized(true);
-  }, [agent, initialized, defaultAgentName, defaultSoul, cfg.provider, cfg.stt, cfg.tts, defaultModel]);
+  }, [agent, initialized, defaultAgentName, defaultSoul, cfg.model, cfg.provider, cfg.stt, cfg.tts, defaultModel]);
 
   // ===== Auth guard =====
   useEffect(() => {
@@ -479,13 +502,16 @@ function AgentDetailPage() {
                     <SelectValue />
                   </SelectTrigger>
                   <SelectContent>
-                    {MODEL_OPTIONS.map((m) => (
+                    {modelOptions.map((m) => (
                       <SelectItem key={m.value} value={m.value}>
                         {m.label}
                       </SelectItem>
                     ))}
                   </SelectContent>
                 </Select>
+                <p className="text-xs text-muted-foreground">
+                  Catálogo carregado dinamicamente do Ollama Cloud.
+                </p>
               </div>
 
               <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">

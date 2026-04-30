@@ -118,12 +118,20 @@ function SkillPreviewPage() {
 
       // 3. Optionally publish
       if (publish) {
-        const { data: pubData, error: pubErr } = await supabase.functions.invoke(
+        const { data: pubData, error: pubErr } = await supabase.functions.invoke<{
+          success?: boolean;
+          synced?: boolean;
+          sync_error?: string;
+        }>(
           "publish-skill-version",
           { body: { skill_version_id: ver.id } },
         );
         if (pubErr) {
           toast.error("Skill salva, mas falha ao publicar: " + pubErr.message);
+        } else if (pubData?.synced === false) {
+          toast.warning("Skill publicada, mas o sync com o container falhou.", {
+            description: pubData.sync_error || "Tente novamente após o próximo deploy.",
+          });
         } else {
           toast.success("Skill publicada com sucesso!");
         }

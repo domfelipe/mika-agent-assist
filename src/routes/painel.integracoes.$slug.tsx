@@ -119,7 +119,11 @@ function IntegrationDetailPage() {
 
   async function handleRefresh() {
     setRefreshing(true);
-    const { error } = await invokeFunction("refresh-integration-token", {
+    const { data, error } = await invokeFunction<{
+      success: boolean;
+      expires_at: string | null;
+      runtime_sync_warning?: string | null;
+    }>("refresh-integration-token", {
       integration_id: integration!.id,
     });
     setRefreshing(false);
@@ -127,6 +131,9 @@ function IntegrationDetailPage() {
       toast.error(error.message);
     } else {
       toast.success("Token renovado.");
+      if (data?.runtime_sync_warning) {
+        toast.warning("Token renovado, mas o runtime do agente não sincronizou.");
+      }
     }
     queryClient.invalidateQueries({ queryKey: ["user-integrations"] });
   }

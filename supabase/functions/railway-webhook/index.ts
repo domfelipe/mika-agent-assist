@@ -10,11 +10,17 @@
 
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2.45.4";
 import { corsHeaders } from "../_shared/cors.ts";
+import {
+  syncAgentRuntimeSnapshot,
+  syncAgentSkillsSnapshot,
+} from "../_shared/runtime-sync.ts";
 
 const SUPABASE_URL = Deno.env.get("SUPABASE_URL")!;
 const SUPABASE_SERVICE_ROLE_KEY = Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!;
 const ADMIN_TELEGRAM_BOT_TOKEN = Deno.env.get("ADMIN_TELEGRAM_BOT_TOKEN");
 const ADMIN_TELEGRAM_CHAT_ID = Deno.env.get("ADMIN_TELEGRAM_CHAT_ID");
+const RAILWAY_API_TOKEN = Deno.env.get("RAILWAY_API_TOKEN") ?? "";
+const HERMES_API_SERVER_KEY = Deno.env.get("HERMES_API_SERVER_KEY") ?? "";
 
 async function notifyAdmin(message: string): Promise<void> {
   if (!ADMIN_TELEGRAM_BOT_TOKEN || !ADMIN_TELEGRAM_CHAT_ID) return;
@@ -138,8 +144,61 @@ Deno.serve(async (req) => {
       }
     }
 
+    let runtimeSyncError: string | null = null;
+    try {
+      const runtimeResult = await syncAgentRuntimeSnapshot({
+        supabase,
+        agentInstanceId: agent.id,
+        railwayToken: RAILWAY_API_TOKEN,
+        apiKey: HERMES_API_SERVER_KEY,
+        scope: "all",
+      });
+      console.log(
+        `railway-webhook: runtime sincronizado para agent ${agent.id} (${runtimeResult.cronjobs_synced_count} cronjobs, ${runtimeResult.integrations_synced_count} integrations)`,
+      );
+    } catch (e) {
+      runtimeSyncError = e instanceof Error ? e.message : String(e);
+      console.error(`railway-webhook: falha ao sincronizar runtime do agent ${agent.id}:`, runtimeSyncError);
+      if (wasProvisioning) {
+        const fullName = await loadFullName();
+        await notifyAdmin(
+          `⚠️ <b>Agente subiu, mas o sync operacional falhou</b>\n\n` +
+            `👤 <b>Cliente:</b> ${fullName}\n` +
+            `🚀 <b>Railway:</b> <code>${agent.railway_service_id}</code>\n` +
+            `❗ <b>Erro:</b> ${runtimeSyncError}\n\n` +
+            `➡️ <a href="https://mika.domco.ai/admin">Revisar no admin</a>`,
+        );
+      }
+    }
+
+    let skillsSyncError: string | null = null;
+    try {
+      const syncResult = await syncAgentSkillsSnapshot({
+        supabase,
+        agentInstanceId: agent.id,
+        railwayToken: RAILWAY_API_TOKEN,
+        apiKey: HERMES_API_SERVER_KEY,
+      });
+      console.log(
+        `railway-webhook: skills sincronizadas para agent ${agent.id} (${syncResult.synced_count} skills)`,
+      );
+    } catch (e) {
+      skillsSyncError = e instanceof Error ? e.message : String(e);
+      console.error(`railway-webhook: falha ao sincronizar skills do agent ${agent.id}:`, skillsSyncError);
+      if (wasProvisioning) {
+        const fullName = await loadFullName();
+        await notifyAdmin(
+          `⚠️ <b>Agente subiu, mas o sync de skills falhou</b>\n\n` +
+            `👤 <b>Cliente:</b> ${fullName}\n` +
+            `🚀 <b>Railway:</b> <code>${agent.railway_service_id}</code>\n` +
+            `❗ <b>Erro:</b> ${skillsSyncError}\n\n` +
+            `➡️ <a href="https://mika.domco.ai/admin">Revisar no admin</a>`,
+        );
+      }
+    }
+
     // Notifica admin somente se era um auto-provisionamento (status anterior=provisioning)
-    if (wasProvisioning) {
+    if (wasProvisioning && !skillsSyncError && !runtimeSyncError) {
       const fullName = await loadFullName();
       await notifyAdmin(
         `✅ <b>Agente provisionado automaticamente!</b>\n\n` +

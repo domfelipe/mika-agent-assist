@@ -23,6 +23,7 @@ import {
   useUpdateCronjobStatus,
 } from "@/hooks/use-cronjobs";
 import { useAvailableMcps, useUserIntegrations } from "@/hooks/use-integrations";
+import { syncAgentRuntime } from "@/lib/sync-agent-runtime";
 
 interface Props {
   job: ScheduledJob;
@@ -45,6 +46,8 @@ export function CronjobCard({ job }: Props) {
 
   const isActive = job.status === "active";
   const isAutoPaused = job.status === "auto_paused";
+  const hasRuntimeError = job.runtime_state === "error" || job.runtime_last_status === "error";
+  const runtimeErrorText = job.runtime_last_delivery_error ?? job.runtime_last_error;
 
   async function toggle() {
     try {
@@ -53,6 +56,11 @@ export function CronjobCard({ job }: Props) {
         status: isActive ? "paused" : "active",
       });
       toast.success(isActive ? "Automação pausada." : "Automação ativada.");
+
+      const { error: syncError } = await syncAgentRuntime(job.agent_instance_id, "cronjobs");
+      if (syncError) {
+        toast.warning("Status salvo, mas o runtime do agente não sincronizou.");
+      }
     } catch (e) {
       toast.error(e instanceof Error ? e.message : "Erro ao atualizar.");
     }
@@ -63,6 +71,11 @@ export function CronjobCard({ job }: Props) {
       await deleteMut.mutateAsync(job.id);
       toast.success("Automação excluída.");
       setConfirmDelete(false);
+
+      const { error: syncError } = await syncAgentRuntime(job.agent_instance_id, "cronjobs");
+      if (syncError) {
+        toast.warning("Automação removida, mas o runtime do agente não sincronizou.");
+      }
     } catch (e) {
       toast.error(e instanceof Error ? e.message : "Erro ao excluir.");
     }
@@ -76,10 +89,14 @@ export function CronjobCard({ job }: Props) {
             <h3 className="font-semibold truncate">{job.name}</h3>
             {isActive && <Badge variant="success">Ativa</Badge>}
             {job.status === "paused" && <Badge variant="secondary">Pausada</Badge>}
+            {job.status === "error" && <Badge variant="destructive">Erro</Badge>}
             {isAutoPaused && (
               <Badge variant="destructive" className="gap-1">
                 <AlertTriangle className="h-3 w-3" /> Auto-pausada
               </Badge>
+            )}
+            {hasRuntimeError && !isAutoPaused && (
+              <Badge variant="destructive">Runtime com erro</Badge>
             )}
           </div>
           <p className="text-sm text-muted-foreground mt-1 line-clamp-2">
@@ -90,6 +107,10 @@ export function CronjobCard({ job }: Props) {
 
       {isAutoPaused && job.auto_paused_reason && (
         <p className="text-xs text-destructive">{job.auto_paused_reason}</p>
+      )}
+
+      {hasRuntimeError && runtimeErrorText && (
+        <p className="text-xs text-destructive">{runtimeErrorText}</p>
       )}
 
       {missingMcps.length > 0 && isActive && (

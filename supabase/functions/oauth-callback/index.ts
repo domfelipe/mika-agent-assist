@@ -9,6 +9,10 @@ import {
   getProviderEnv,
   type ProviderSlug,
 } from "../_shared/oauth-providers.ts";
+import { syncAgentRuntimeSnapshot } from "../_shared/runtime-sync.ts";
+
+const RAILWAY_API_TOKEN = Deno.env.get("RAILWAY_API_TOKEN") ?? "";
+const HERMES_API_SERVER_KEY = Deno.env.get("HERMES_API_SERVER_KEY") ?? "";
 
 function siteUrl(): string {
   return Deno.env.get("SITE_URL") ?? "https://798b89e5-0dc6-412a-81be-a4b6dfea7b6c.lovable.app";
@@ -175,7 +179,29 @@ Deno.serve(async (req) => {
       return redirect("/painel/integracoes?error=db_error");
     }
 
-    // TODO Fase 5: notify Hermes container that MCP is now available
+    const { data: agent } = await admin
+      .from("agent_instances")
+      .select("id")
+      .eq("user_id", stateRow.user_id)
+      .maybeSingle();
+
+    if (agent?.id) {
+      try {
+        await syncAgentRuntimeSnapshot({
+          supabase: admin,
+          agentInstanceId: agent.id,
+          railwayToken: RAILWAY_API_TOKEN,
+          apiKey: HERMES_API_SERVER_KEY,
+          scope: "all",
+        });
+      } catch (syncErr) {
+        console.error(
+          "oauth-callback runtime sync warning",
+          syncErr instanceof Error ? syncErr.message : String(syncErr),
+        );
+      }
+    }
+
     return redirect(`/painel/integracoes?status=success&mcp=${encodeURIComponent(slug)}`);
   } catch (err) {
     console.error("oauth-callback fatal", err instanceof Error ? err.message : "unknown");
