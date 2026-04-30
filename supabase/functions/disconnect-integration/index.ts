@@ -11,6 +11,10 @@
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2.57.4";
 import { corsHeaders } from "../_shared/cors.ts";
 import { revokeToken, type ProviderSlug } from "../_shared/oauth-providers.ts";
+import { syncAgentRuntimeSnapshot } from "../_shared/runtime-sync.ts";
+
+const RAILWAY_API_TOKEN = Deno.env.get("RAILWAY_API_TOKEN") ?? "";
+const HERMES_API_SERVER_KEY = Deno.env.get("HERMES_API_SERVER_KEY") ?? "";
 
 function jsonResponse(body: unknown, status = 200): Response {
   return new Response(JSON.stringify(body), {
@@ -164,8 +168,36 @@ Deno.serve(async (req) => {
       return jsonResponse({ error: "Falha ao remover integração" }, 500);
     }
 
-    // TODO Fase 5: notify Hermes container that MCP was disconnected
-    return jsonResponse({ success: true, paused_jobs_count: pausedCount });
+    const { data: agent } = await admin
+      .from("agent_instances")
+      .select("id")
+      .eq("user_id", userId)
+      .maybeSingle();
+
+    let runtimeSyncError: string | null = null;
+    if (agent?.id) {
+      try {
+        await syncAgentRuntimeSnapshot({
+          supabase: admin,
+          agentInstanceId: agent.id,
+          railwayToken: RAILWAY_API_TOKEN,
+          apiKey: HERMES_API_SERVER_KEY,
+          scope: "all",
+        });
+      } catch (syncErr) {
+        runtimeSyncError = syncErr instanceof Error ? syncErr.message : "unknown";
+        console.error(
+          "disconnect-integration runtime sync warning",
+          runtimeSyncError,
+        );
+      }
+    }
+
+    return jsonResponse({
+      success: true,
+      paused_jobs_count: pausedCount,
+      runtime_sync_warning: runtimeSyncError,
+    });
   } catch (err) {
     console.error("disconnect-integration fatal", err instanceof Error ? err.message : "unknown");
     return jsonResponse(

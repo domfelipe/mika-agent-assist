@@ -10,6 +10,11 @@ import {
   getServiceContext,
   upsertRailwayVariableCollection,
 } from "../_shared/railway.ts";
+import {
+  DEFAULT_OLLAMA_MODEL,
+  DEFAULT_OLLAMA_PROVIDER,
+  normalizeOllamaModelSelection,
+} from "../_shared/hermes-config.ts";
 
 interface RequestBody {
   agent_instance_id: string;
@@ -102,7 +107,11 @@ Deno.serve(async (req) => {
   }
 
   // 4) Upsert variáveis (incluindo HERMES_SOUL_OVERRIDE editado pelo admin)
+  const model = normalizeOllamaModelSelection(body.model || DEFAULT_OLLAMA_MODEL);
+
   const variables: Record<string, string> = {
+    HERMES_MODEL_DEFAULT: model,
+    HERMES_MODEL_PROVIDER: DEFAULT_OLLAMA_PROVIDER,
     HERMES_SOUL_OVERRIDE: body.soul_content,
     HERMES_STT_PROVIDER: body.stt_provider || "local",
     HERMES_TTS_PROVIDER: body.tts_provider || "disabled",
@@ -134,7 +143,8 @@ Deno.serve(async (req) => {
     .from("agent_instances")
     .update({
       model_config: {
-        provider: body.model,
+        provider: DEFAULT_OLLAMA_PROVIDER,
+        model,
         stt: body.stt_provider || "local",
         tts: body.tts_provider || "disabled",
         agent_name: body.agent_name ?? null,

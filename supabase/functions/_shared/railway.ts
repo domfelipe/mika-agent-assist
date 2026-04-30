@@ -4,15 +4,13 @@ const RAILWAY_GRAPHQL = "https://backboard.railway.app/graphql/v2";
 
 /**
  * Start command padrão dos containers Hermes.
- * - Verifica HERMES_SUSPENDED no início: se true, dorme infinitamente (agente "pausado")
- * - Aplica HERMES_SOUL_OVERRIDE em /opt/data/SOUL.md se presente
- * - Inicia o gateway Hermes
+ * - Encaminha para o entrypoint custom da imagem `hermes-agent-custom`
+ * - O próprio entrypoint aplica SOUL.md, model/provider, STT/TTS e suspensão
  *
  * IMPORTANTE: este comando deve ser idêntico ao configurado nos serviços Railway
  * existentes. Para serviços antigos, atualize manualmente via UI/Agent do Railway.
  */
-export const HERMES_START_COMMAND =
-  `/bin/bash -c 'if [ "$HERMES_SUSPENDED" = "true" ]; then echo "Agent suspended" && sleep infinity; fi && if [ -n "$HERMES_SOUL_OVERRIDE" ]; then echo "$HERMES_SOUL_OVERRIDE" > /opt/data/SOUL.md; fi && /opt/hermes/docker/entrypoint.sh gateway run'`;
+export const HERMES_START_COMMAND = `/opt/hermes-custom/entrypoint.sh`;
 
 export interface RailwayError {
   message: string;
@@ -306,6 +304,151 @@ export async function getServiceEnvironmentId(opts: {
   serviceId: string;
 }): Promise<string | null> {
   return (await getServiceContext(opts)).environmentId;
+}
+
+export interface RailwayServiceDomainInfo {
+  id: string;
+  domain: string;
+  suffix?: string | null;
+  certificateStatus?: string | null;
+}
+
+export async function listRailwayServiceDomains(opts: {
+  token: string;
+  serviceId: string;
+  environmentId: string;
+  projectId?: string | null;
+}): Promise<{ serviceDomains: RailwayServiceDomainInfo[]; customDomains: RailwayServiceDomainInfo[] }> {
+  const query = `
+    query Domains($environmentId: String!, $serviceId: String!, $projectId: String) {
+      domains(environmentId: $environmentId, serviceId: $serviceId, projectId: $projectId) {
+        serviceDomains {
+          id
+          domain
+          suffix
+        }
+        customDomains {
+          id
+          domain
+          status {
+            certificateStatus
+          }
+        }
+      }
+    }
+  `;
+  const res = await railwayQuery<{
+    domains: {
+      serviceDomains?: { id: string; domain: string; suffix?: string | null }[];
+      customDomains?: { id: string; domain: string; status?: { certificateStatus?: string | null } | null }[];
+    };
+  }>(
+    query,
+    {
+      environmentId: opts.environmentId,
+      serviceId: opts.serviceId,
+      projectId: opts.projectId ?? null,
+    },
+    opts.token,
+  );
+
+  if (res.errors?.length) {
+    throw new Error(`domains query failed: ${JSON.stringify(res.errors)}`);
+  }
+
+  const serviceDomains = (res.data?.domains?.serviceDomains ?? []).map((item) => ({
+    id: item.id,
+    domain: item.domain,
+    suffix: item.suffix ?? null,
+    certificateStatus: "ISSUED",
+  }));
+
+  const customDomains = (res.data?.domains?.customDomains ?? []).map((item) => ({
+    id: item.id,
+    domain: item.domain,
+    certificateStatus: item.status?.certificateStatus ?? null,
+  }));
+
+  return { serviceDomains, customDomains };
+}
+
+export async function createRailwayServiceDomain(opts: {
+  token: string;
+  serviceId: string;
+  environmentId: string;
+  targetPort?: number;
+}): Promise<RailwayServiceDomainInfo> {
+  const mutation = `
+    mutation ServiceDomainCreate($input: ServiceDomainCreateInput!) {
+      serviceDomainCreate(input: $input) {
+        id
+        domain
+        suffix
+      }
+    }
+  `;
+
+  const input: Record<string, unknown> = {
+    serviceId: opts.serviceId,
+    environmentId: opts.environmentId,
+  };
+  if (opts.targetPort !== undefined) {
+    input.targetPort = opts.targetPort;
+  }
+
+  const res = await railwayQuery<{
+    serviceDomainCreate: { id: string; domain: string; suffix?: string | null };
+  }>(mutation, { input }, opts.token);
+
+  if (res.errors?.length) {
+    throw new Error(`serviceDomainCreate failed: ${JSON.stringify(res.errors)}`);
+  }
+
+  const created = res.data?.serviceDomainCreate;
+  if (!created?.domain) {
+    throw new Error("serviceDomainCreate returned no domain");
+  }
+
+  return {
+    id: created.id,
+    domain: created.domain,
+    suffix: created.suffix ?? null,
+    certificateStatus: "ISSUED",
+  };
+}
+
+export async function ensureRailwayServiceDomain(opts: {
+  token: string;
+  serviceId: string;
+  environmentId: string;
+  projectId?: string | null;
+  targetPort?: number;
+}): Promise<RailwayServiceDomainInfo> {
+  const existing = await listRailwayServiceDomains({
+    token: opts.token,
+    serviceId: opts.serviceId,
+    environmentId: opts.environmentId,
+    projectId: opts.projectId,
+  });
+
+  const serviceDomain = existing.serviceDomains.find((item) => item.domain);
+  if (serviceDomain) {
+    return serviceDomain;
+  }
+
+  const issuedCustomDomain = existing.customDomains.find((item) =>
+    item.domain && (!item.certificateStatus || item.certificateStatus === "ISSUED")
+  );
+  if (issuedCustomDomain) {
+    return issuedCustomDomain;
+  }
+
+  return await createRailwayServiceDomain({
+    token: opts.token,
+    serviceId: opts.serviceId,
+    environmentId: opts.environmentId,
+    targetPort: opts.targetPort,
+  });
 }
 
 /** Apaga o webhook do Telegram para que o Hermes assuma via polling. */

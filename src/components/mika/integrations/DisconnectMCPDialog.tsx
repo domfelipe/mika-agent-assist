@@ -43,7 +43,11 @@ export function DisconnectMCPDialog({
 
   async function handleDisconnect() {
     setSubmitting(true);
-    const { error } = await invokeFunction("disconnect-integration", {
+    const { data, error } = await invokeFunction<{
+      success: boolean;
+      paused_jobs_count: number;
+      runtime_sync_warning?: string | null;
+    }>("disconnect-integration", {
       integration_id: integrationId,
     });
     setSubmitting(false);
@@ -52,6 +56,9 @@ export function DisconnectMCPDialog({
       return;
     }
     toast.success(`${mcpName} desconectado.`);
+    if (data?.runtime_sync_warning) {
+      toast.warning("Integração removida, mas o runtime do agente não sincronizou.");
+    }
     queryClient.invalidateQueries({ queryKey: ["user-integrations"] });
     queryClient.invalidateQueries({ queryKey: ["user-integration-limits"] });
     onOpenChange(false);

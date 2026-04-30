@@ -10,6 +10,7 @@ import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
 import { Badge } from "@/components/ui/badge";
 import { invokeFunction } from "@/lib/invoke-function";
+import { syncAgentRuntime } from "@/lib/sync-agent-runtime";
 import { useCreateCronjob } from "@/hooks/use-cronjobs";
 import { useAvailableMcps, useUserIntegrations } from "@/hooks/use-integrations";
 import { useAgentInstance } from "@/hooks/use-agent-instance";
@@ -131,6 +132,12 @@ export function CronjobWizard({ onCreated, onCancel }: Props) {
         next_run_at: parsed?.next_run_at ?? null,
       });
       toast.success("Automação criada!");
+
+      const { error: syncError } = await syncAgentRuntime(agent.id, "cronjobs");
+      if (syncError) {
+        toast.warning("Automação criada, mas o runtime do agente não sincronizou.");
+      }
+
       onCreated?.(job.id);
     } catch (e) {
       const msg = e instanceof Error ? e.message : "Erro ao criar automação";

@@ -8,6 +8,10 @@ import {
   type ProviderSlug,
   refreshAccessToken,
 } from "../_shared/oauth-providers.ts";
+import { syncAgentRuntimeSnapshot } from "../_shared/runtime-sync.ts";
+
+const RAILWAY_API_TOKEN = Deno.env.get("RAILWAY_API_TOKEN") ?? "";
+const HERMES_API_SERVER_KEY = Deno.env.get("HERMES_API_SERVER_KEY") ?? "";
 
 function jsonResponse(body: unknown, status = 200): Response {
   return new Response(JSON.stringify(body), {
@@ -174,7 +178,33 @@ Deno.serve(async (req) => {
       })
       .eq("id", integration_id);
 
-    return jsonResponse({ success: true, expires_at: expiresAt });
+    let runtimeSyncError: string | null = null;
+    const { data: agent } = await admin
+      .from("agent_instances")
+      .select("id")
+      .eq("user_id", userId)
+      .maybeSingle();
+
+    if (agent?.id) {
+      try {
+        await syncAgentRuntimeSnapshot({
+          supabase: admin,
+          agentInstanceId: agent.id,
+          railwayToken: RAILWAY_API_TOKEN,
+          apiKey: HERMES_API_SERVER_KEY,
+          scope: "integrations",
+        });
+      } catch (syncErr) {
+        runtimeSyncError = syncErr instanceof Error ? syncErr.message : String(syncErr);
+        console.error("refresh-integration-token runtime sync warning", runtimeSyncError);
+      }
+    }
+
+    return jsonResponse({
+      success: true,
+      expires_at: expiresAt,
+      runtime_sync_warning: runtimeSyncError,
+    });
   } catch (err) {
     console.error("refresh-integration-token fatal", err instanceof Error ? err.message : "unknown");
     return jsonResponse(

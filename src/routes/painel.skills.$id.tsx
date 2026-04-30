@@ -12,6 +12,7 @@ import { toast } from "sonner";
 import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/hooks/use-auth";
 import { useSkill } from "@/hooks/use-skills";
+import { syncAgentSkills } from "@/lib/sync-agent-skills";
 import { SkillStatusBadge } from "@/components/mika/skills/SkillStatusBadge";
 import { SkillTestPanel } from "@/components/mika/skills/SkillTestPanel";
 import { Button } from "@/components/ui/button";
@@ -131,7 +132,13 @@ function SkillDetailPage() {
   // Publish version
   const publishVersion = useMutation({
     mutationFn: async (versionId: string) => {
-      const { data, error } = await supabase.functions.invoke("publish-skill-version", {
+      const { data, error } = await supabase.functions.invoke<{
+        success?: boolean;
+        no_op?: boolean;
+        version_number?: number;
+        synced?: boolean;
+        sync_error?: string;
+      }>("publish-skill-version", {
         body: { skill_version_id: versionId },
       });
       if (error) throw error;
@@ -140,6 +147,10 @@ function SkillDetailPage() {
     onSuccess: (data) => {
       if (data.no_op) {
         toast.info("Esta versão já está publicada");
+      } else if (data.synced === false) {
+        toast.warning(`Versão ${data.version_number} publicada, mas o sync falhou.`, {
+          description: data.sync_error || "Tente novamente após o próximo deploy.",
+        });
       } else {
         toast.success(`Versão ${data.version_number} publicada!`);
       }
@@ -170,6 +181,13 @@ function SkillDetailPage() {
       toast.success("Skill arquivada");
       qc.invalidateQueries({ queryKey: ["skills"] });
       qc.invalidateQueries({ queryKey: ["user-limits"] });
+      void syncAgentSkills(skill.data.agent_instance_id).then(({ error }) => {
+        if (error) {
+          toast.warning("Skill arquivada, mas o sync com o container falhou.", {
+            description: error.message,
+          });
+        }
+      });
       navigate({ to: "/painel/skills" });
     },
     onError: (e: unknown) => toast.error(e instanceof Error ? e.message : "Erro"),

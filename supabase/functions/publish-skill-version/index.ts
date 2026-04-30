@@ -1,11 +1,13 @@
 // Promove uma skill_version a "live" de forma atômica e idempotente.
 // Garantia adicional: unique index parcial skill_versions_one_live_per_skill no banco.
-// TODO Fase 5: dispatch SSH deploy to container after publish
 import { createClient } from "npm:@supabase/supabase-js@2";
 import { corsHeaders } from "../_shared/cors.ts";
+import { syncAgentSkillsSnapshot } from "../_shared/runtime-sync.ts";
 
 const SUPABASE_URL = Deno.env.get("SUPABASE_URL")!;
 const SUPABASE_SERVICE_ROLE_KEY = Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!;
+const RAILWAY_API_TOKEN = Deno.env.get("RAILWAY_API_TOKEN") ?? "";
+const HERMES_API_SERVER_KEY = Deno.env.get("HERMES_API_SERVER_KEY") ?? "";
 
 const admin = createClient(SUPABASE_URL, SUPABASE_SERVICE_ROLE_KEY);
 
@@ -53,7 +55,7 @@ Deno.serve(async (req) => {
   // Carrega versão + skill (verifica ownership e estado atual)
   const { data: versionRow, error: vErr } = await admin
     .from("skill_versions")
-    .select("id, skill_id, version_number, is_live, skills!inner(id, user_id)")
+    .select("id, skill_id, version_number, is_live, skills!inner(id, user_id, agent_instance_id)")
     .eq("id", skill_version_id)
     .maybeSingle();
 
@@ -81,6 +83,8 @@ Deno.serve(async (req) => {
   }
 
   const skillId: string = versionRow.skill_id;
+  // @ts-expect-error nested
+  const agentInstanceId: string = versionRow.skills.agent_instance_id;
 
   // Postgres não permite transação multi-statement via supabase-js.
   // Estratégia: 1) zera todos is_live da skill, 2) marca a alvo como live, 3) atualiza skills.
@@ -141,8 +145,35 @@ Deno.serve(async (req) => {
     });
   }
 
+  let syncResult:
+    | { synced: true; public_url: string; public_domain: string; synced_count: number }
+    | { synced: false; sync_error: string } = { synced: true, public_url: "", public_domain: "", synced_count: 0 };
+
+  try {
+    const result = await syncAgentSkillsSnapshot({
+      supabase: admin,
+      agentInstanceId,
+      railwayToken: RAILWAY_API_TOKEN,
+      apiKey: HERMES_API_SERVER_KEY,
+    });
+    syncResult = {
+      synced: true,
+      public_url: result.public_url,
+      public_domain: result.public_domain,
+      synced_count: result.synced_count,
+    };
+  } catch (e) {
+    const msg = e instanceof Error ? e.message : String(e);
+    console.error("publish skill sync failed:", msg);
+    syncResult = { synced: false, sync_error: msg };
+  }
+
   return new Response(
-    JSON.stringify({ success: true, version_number: versionRow.version_number }),
+    JSON.stringify({
+      success: true,
+      version_number: versionRow.version_number,
+      ...syncResult,
+    }),
     { status: 200, headers: { ...corsHeaders, "Content-Type": "application/json" } },
   );
 });
