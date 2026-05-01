@@ -145,14 +145,14 @@ function SkillDetailPage() {
       return data;
     },
     onSuccess: (data) => {
-      if (data.no_op) {
+      if (data?.no_op) {
         toast.info("Esta versão já está publicada");
-      } else if (data.synced === false) {
+      } else if (data?.synced === false) {
         toast.warning(`Versão ${data.version_number} publicada, mas o sync falhou.`, {
           description: data.sync_error || "Tente novamente após o próximo deploy.",
         });
       } else {
-        toast.success(`Versão ${data.version_number} publicada!`);
+        toast.success(`Versão ${data?.version_number ?? ""} publicada!`);
       }
       qc.invalidateQueries({ queryKey: ["skill-versions", id] });
       qc.invalidateQueries({ queryKey: ["skill", id] });
@@ -181,13 +181,15 @@ function SkillDetailPage() {
       toast.success("Skill arquivada");
       qc.invalidateQueries({ queryKey: ["skills"] });
       qc.invalidateQueries({ queryKey: ["user-limits"] });
-      void syncAgentSkills(skill.data.agent_instance_id).then(({ error }) => {
-        if (error) {
-          toast.warning("Skill arquivada, mas o sync com o container falhou.", {
-            description: error.message,
-          });
-        }
-      });
+      if (skill.data?.agent_instance_id) {
+        void syncAgentSkills(skill.data.agent_instance_id).then(({ error }) => {
+          if (error) {
+            toast.warning("Skill arquivada, mas o sync com o container falhou.", {
+              description: error.message,
+            });
+          }
+        });
+      }
       navigate({ to: "/painel/skills" });
     },
     onError: (e: unknown) => toast.error(e instanceof Error ? e.message : "Erro"),
