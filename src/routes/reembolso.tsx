@@ -78,7 +78,7 @@ function RefundPage() {
             podendo variar conforme o emissor do cartão ou banco.
           </p>
 
-          <h2 className="mt-8 text-2xl function-semibold">Renovações e cancelamento</h2>
+          <h2 className="mt-8 text-2xl font-semibold">Renovações e cancelamento</h2>
           <p>
             Você pode cancelar sua assinatura a qualquer momento pelo painel ou pelo
             portal da Paddle. O cancelamento interrompe renovações futuras; o acesso
