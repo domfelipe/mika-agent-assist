@@ -22,9 +22,9 @@ const cols = [
   {
     title: "Legal",
     items: [
-      { label: "Termos de Uso", href: "#" },
-      { label: "Política de Privacidade", href: "#" },
-      { label: "LGPD", href: "#" },
+      { label: "Termos de Uso", href: "/termos" },
+      { label: "Política de Privacidade", href: "/privacidade" },
+      { label: "Política de Reembolso", href: "/reembolso" },
     ],
   },
 ];

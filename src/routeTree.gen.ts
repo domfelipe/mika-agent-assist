@@ -9,9 +9,12 @@
 // Additionally, you should also exclude this file from your linter and/or formatter to prevent it from being checked or modified.
 
 import { Route as rootRouteImport } from './routes/__root'
+import { Route as TermosRouteImport } from './routes/termos'
 import { Route as SignupRouteImport } from './routes/signup'
+import { Route as ReembolsoRouteImport } from './routes/reembolso'
 import { Route as RedefinirSenhaRouteImport } from './routes/redefinir-senha'
 import { Route as RecuperarSenhaRouteImport } from './routes/recuperar-senha'
+import { Route as PrivacidadeRouteImport } from './routes/privacidade'
 import { Route as PainelRouteImport } from './routes/painel'
 import { Route as LoginRouteImport } from './routes/login'
 import { Route as BemVindoRouteImport } from './routes/bem-vindo'
@@ -35,9 +38,19 @@ import { Route as PainelCronjobsNovaRouteImport } from './routes/painel.cronjobs
 import { Route as PainelCronjobsIdRouteImport } from './routes/painel.cronjobs.$id'
 import { Route as AdminAgenteIdRouteImport } from './routes/admin.agente.$id'
 
+const TermosRoute = TermosRouteImport.update({
+  id: '/termos',
+  path: '/termos',
+  getParentRoute: () => rootRouteImport,
+} as any)
 const SignupRoute = SignupRouteImport.update({
   id: '/signup',
   path: '/signup',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const ReembolsoRoute = ReembolsoRouteImport.update({
+  id: '/reembolso',
+  path: '/reembolso',
   getParentRoute: () => rootRouteImport,
 } as any)
 const RedefinirSenhaRoute = RedefinirSenhaRouteImport.update({
@@ -48,6 +61,11 @@ const RedefinirSenhaRoute = RedefinirSenhaRouteImport.update({
 const RecuperarSenhaRoute = RecuperarSenhaRouteImport.update({
   id: '/recuperar-senha',
   path: '/recuperar-senha',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const PrivacidadeRoute = PrivacidadeRouteImport.update({
+  id: '/privacidade',
+  path: '/privacidade',
   getParentRoute: () => rootRouteImport,
 } as any)
 const PainelRoute = PainelRouteImport.update({
@@ -167,9 +185,12 @@ export interface FileRoutesByFullPath {
   '/bem-vindo': typeof BemVindoRoute
   '/login': typeof LoginRoute
   '/painel': typeof PainelRouteWithChildren
+  '/privacidade': typeof PrivacidadeRoute
   '/recuperar-senha': typeof RecuperarSenhaRoute
   '/redefinir-senha': typeof RedefinirSenhaRoute
+  '/reembolso': typeof ReembolsoRoute
   '/signup': typeof SignupRoute
+  '/termos': typeof TermosRoute
   '/checkout/sucesso': typeof CheckoutSucessoRoute
   '/painel/agente': typeof PainelAgenteRoute
   '/painel/configuracoes': typeof PainelConfiguracoesRoute
@@ -192,9 +213,12 @@ export interface FileRoutesByTo {
   '/': typeof IndexRoute
   '/bem-vindo': typeof BemVindoRoute
   '/login': typeof LoginRoute
+  '/privacidade': typeof PrivacidadeRoute
   '/recuperar-senha': typeof RecuperarSenhaRoute
   '/redefinir-senha': typeof RedefinirSenhaRoute
+  '/reembolso': typeof ReembolsoRoute
   '/signup': typeof SignupRoute
+  '/termos': typeof TermosRoute
   '/checkout/sucesso': typeof CheckoutSucessoRoute
   '/painel/agente': typeof PainelAgenteRoute
   '/painel/configuracoes': typeof PainelConfiguracoesRoute
@@ -219,9 +243,12 @@ export interface FileRoutesById {
   '/bem-vindo': typeof BemVindoRoute
   '/login': typeof LoginRoute
   '/painel': typeof PainelRouteWithChildren
+  '/privacidade': typeof PrivacidadeRoute
   '/recuperar-senha': typeof RecuperarSenhaRoute
   '/redefinir-senha': typeof RedefinirSenhaRoute
+  '/reembolso': typeof ReembolsoRoute
   '/signup': typeof SignupRoute
+  '/termos': typeof TermosRoute
   '/checkout/sucesso': typeof CheckoutSucessoRoute
   '/painel/agente': typeof PainelAgenteRoute
   '/painel/configuracoes': typeof PainelConfiguracoesRoute
@@ -248,9 +275,12 @@ export interface FileRouteTypes {
     | '/bem-vindo'
     | '/login'
     | '/painel'
+    | '/privacidade'
     | '/recuperar-senha'
     | '/redefinir-senha'
+    | '/reembolso'
     | '/signup'
+    | '/termos'
     | '/checkout/sucesso'
     | '/painel/agente'
     | '/painel/configuracoes'
@@ -273,9 +303,12 @@ export interface FileRouteTypes {
     | '/'
     | '/bem-vindo'
     | '/login'
+    | '/privacidade'
     | '/recuperar-senha'
     | '/redefinir-senha'
+    | '/reembolso'
     | '/signup'
+    | '/termos'
     | '/checkout/sucesso'
     | '/painel/agente'
     | '/painel/configuracoes'
@@ -299,9 +332,12 @@ export interface FileRouteTypes {
     | '/bem-vindo'
     | '/login'
     | '/painel'
+    | '/privacidade'
     | '/recuperar-senha'
     | '/redefinir-senha'
+    | '/reembolso'
     | '/signup'
+    | '/termos'
     | '/checkout/sucesso'
     | '/painel/agente'
     | '/painel/configuracoes'
@@ -327,19 +363,36 @@ export interface RootRouteChildren {
   BemVindoRoute: typeof BemVindoRoute
   LoginRoute: typeof LoginRoute
   PainelRoute: typeof PainelRouteWithChildren
+  PrivacidadeRoute: typeof PrivacidadeRoute
   RecuperarSenhaRoute: typeof RecuperarSenhaRoute
   RedefinirSenhaRoute: typeof RedefinirSenhaRoute
+  ReembolsoRoute: typeof ReembolsoRoute
   SignupRoute: typeof SignupRoute
+  TermosRoute: typeof TermosRoute
   CheckoutSucessoRoute: typeof CheckoutSucessoRoute
 }
 
 declare module '@tanstack/react-router' {
   interface FileRoutesByPath {
+    '/termos': {
+      id: '/termos'
+      path: '/termos'
+      fullPath: '/termos'
+      preLoaderRoute: typeof TermosRouteImport
+      parentRoute: typeof rootRouteImport
+    }
     '/signup': {
       id: '/signup'
       path: '/signup'
       fullPath: '/signup'
       preLoaderRoute: typeof SignupRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/reembolso': {
+      id: '/reembolso'
+      path: '/reembolso'
+      fullPath: '/reembolso'
+      preLoaderRoute: typeof ReembolsoRouteImport
       parentRoute: typeof rootRouteImport
     }
     '/redefinir-senha': {
@@ -354,6 +407,13 @@ declare module '@tanstack/react-router' {
       path: '/recuperar-senha'
       fullPath: '/recuperar-senha'
       preLoaderRoute: typeof RecuperarSenhaRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/privacidade': {
+      id: '/privacidade'
+      path: '/privacidade'
+      fullPath: '/privacidade'
+      preLoaderRoute: typeof PrivacidadeRouteImport
       parentRoute: typeof rootRouteImport
     }
     '/painel': {
@@ -578,9 +638,12 @@ const rootRouteChildren: RootRouteChildren = {
   BemVindoRoute: BemVindoRoute,
   LoginRoute: LoginRoute,
   PainelRoute: PainelRouteWithChildren,
+  PrivacidadeRoute: PrivacidadeRoute,
   RecuperarSenhaRoute: RecuperarSenhaRoute,
   RedefinirSenhaRoute: RedefinirSenhaRoute,
+  ReembolsoRoute: ReembolsoRoute,
   SignupRoute: SignupRoute,
+  TermosRoute: TermosRoute,
   CheckoutSucessoRoute: CheckoutSucessoRoute,
 }
 export const routeTree = rootRouteImport
