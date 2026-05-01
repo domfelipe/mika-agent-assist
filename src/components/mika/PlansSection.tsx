@@ -86,7 +86,7 @@ export function PlansSection() {
         <div className="max-w-2xl mx-auto text-center">
           <h2 className="text-3xl sm:text-4xl font-bold tracking-tight">Planos para cada estágio</h2>
           <p className="mt-4 text-lg text-muted-foreground">
-            Sem fidelidade. Cancele quando quiser. Reembolso integral nos primeiros 7 dias.
+            Sem fidelidade. Cancele quando quiser. Garantia de 30 dias para reembolso integral.
           </p>
 
           <div className="mt-8 inline-flex items-center gap-3 bg-muted rounded-full px-4 py-2">
