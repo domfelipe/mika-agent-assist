@@ -33,48 +33,59 @@ function NotFoundComponent() {
   );
 }
 
+const OG_IMAGE =
+  "https://pub-bb2e103a32db4e198524a2e9ed8f35b4.r2.dev/be92ada2-f87d-43b5-bd30-333f14e189e4/id-preview-6e3a7096--798b89e5-0dc6-412a-81be-a4b6dfea7b6c.lovable.app-1776957543862.png";
+
 export const Route = createRootRouteWithContext<RouterContext>()({
   head: () => ({
     meta: [
       { charSet: "utf-8" },
       { name: "viewport", content: "width=device-width, initial-scale=1" },
-      { title: "Mika — Assistente Pessoal IA" },
+      { title: "Mika — Assistente Pessoal IA no Telegram" },
       {
         name: "description",
         content:
-          "Agentes de IA personalizados que aprendem com você e te atendem direto no Telegram. Planos a partir de R$ 69,90/mês.",
+          "Agentes de IA personalizados que aprendem com você e atendem direto no Telegram. Planos a partir de R$ 69,90/mês.",
       },
       { name: "author", content: "DOMCO" },
       { name: "theme-color", content: "#F97316" },
-      { property: "og:title", content: "Mika — Assistente Pessoal IA" },
-      {
-        property: "og:description",
-        content:
-          "Agentes de IA personalizados que aprendem com você e te atendem direto no Telegram. Planos a partir de R$ 69,90/mês.",
-      },
+      { property: "og:site_name", content: "Mika" },
       { property: "og:type", content: "website" },
       { property: "og:locale", content: "pt_BR" },
-      { property: "og:url", content: "https://mika.domco.ai" },
-      { property: "og:image", content: "https://pub-bb2e103a32db4e198524a2e9ed8f35b4.r2.dev/be92ada2-f87d-43b5-bd30-333f14e189e4/id-preview-6e3a7096--798b89e5-0dc6-412a-81be-a4b6dfea7b6c.lovable.app-1776957543862.png" },
+      { property: "og:image", content: OG_IMAGE },
       { name: "twitter:card", content: "summary_large_image" },
-      { name: "twitter:title", content: "Mika — Assistente Pessoal IA" },
-      {
-        name: "twitter:description",
-        content: "Agentes de IA personalizados, em português, direto no Telegram.",
-      },
-      { name: "twitter:image", content: "https://pub-bb2e103a32db4e198524a2e9ed8f35b4.r2.dev/be92ada2-f87d-43b5-bd30-333f14e189e4/id-preview-6e3a7096--798b89e5-0dc6-412a-81be-a4b6dfea7b6c.lovable.app-1776957543862.png" },
-      { name: "description", content: "Mika: Seu Agente Inteligente - IA pessoal no Telegram." },
-      { property: "og:description", content: "Mika: Seu Agente Inteligente - IA pessoal no Telegram." },
-      { name: "twitter:description", content: "Mika: Seu Agente Inteligente - IA pessoal no Telegram." },
+      { name: "twitter:image", content: OG_IMAGE },
     ],
     links: [
       { rel: "stylesheet", href: appCss },
       { rel: "icon", href: "/favicon.svg", type: "image/svg+xml" },
-      { rel: "canonical", href: "https://mika.domco.ai" },
       { rel: "preconnect", href: "https://rsms.me" },
       {
         rel: "stylesheet",
         href: "https://rsms.me/inter/inter.css",
+      },
+    ],
+    scripts: [
+      {
+        type: "application/ld+json",
+        children: JSON.stringify({
+          "@context": "https://schema.org",
+          "@graph": [
+            {
+              "@type": "Organization",
+              name: "Mika",
+              url: "https://mika.domco.ai",
+              logo: "https://mika.domco.ai/favicon.svg",
+              parentOrganization: { "@type": "Organization", name: "DOMCO" },
+            },
+            {
+              "@type": "WebSite",
+              name: "Mika",
+              url: "https://mika.domco.ai",
+              inLanguage: "pt-BR",
+            },
+          ],
+        }),
       },
     ],
   }),

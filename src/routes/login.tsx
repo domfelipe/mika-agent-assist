@@ -27,6 +27,24 @@ export const Route = createFileRoute("/login")({
   validateSearch: (search: Record<string, unknown>): LoginSearch => ({
     redirect: typeof search.redirect === "string" ? search.redirect : undefined,
   }),
+  head: () => ({
+    meta: [
+      { title: "Entrar na Mika — Acesse seu agente de IA" },
+      {
+        name: "description",
+        content:
+          "Faça login na sua conta Mika para acessar seu agente de IA pessoal, integrações e configurações no painel.",
+      },
+      { property: "og:title", content: "Entrar na Mika" },
+      {
+        property: "og:description",
+        content: "Acesse seu agente de IA pessoal no painel da Mika.",
+      },
+      { property: "og:url", content: "https://mika.domco.ai/login" },
+      { name: "robots", content: "noindex,follow" },
+    ],
+    links: [{ rel: "canonical", href: "https://mika.domco.ai/login" }],
+  }),
   component: LoginPage,
 });
 

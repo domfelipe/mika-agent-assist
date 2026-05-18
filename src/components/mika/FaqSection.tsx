@@ -1,6 +1,6 @@
 import { Accordion, AccordionContent, AccordionItem, AccordionTrigger } from "@/components/ui/accordion";
 
-const faqs = [
+export const faqs = [
   {
     q: "O que é o Mika?",
     a: "Mika é uma plataforma brasileira que entrega para você um agente de IA pessoal hospedado em VPS gerenciada, acessível direto pelo Telegram. Ele aprende com você, lembra de contexto e executa tarefas com integrações reais.",
