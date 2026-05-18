@@ -10,6 +10,7 @@
 
 import { Route as rootRouteImport } from './routes/__root'
 import { Route as TermosRouteImport } from './routes/termos'
+import { Route as SitemapDotxmlRouteImport } from './routes/sitemap[.]xml'
 import { Route as SignupRouteImport } from './routes/signup'
 import { Route as ReembolsoRouteImport } from './routes/reembolso'
 import { Route as RedefinirSenhaRouteImport } from './routes/redefinir-senha'
@@ -41,6 +42,11 @@ import { Route as AdminAgenteIdRouteImport } from './routes/admin.agente.$id'
 const TermosRoute = TermosRouteImport.update({
   id: '/termos',
   path: '/termos',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const SitemapDotxmlRoute = SitemapDotxmlRouteImport.update({
+  id: '/sitemap.xml',
+  path: '/sitemap.xml',
   getParentRoute: () => rootRouteImport,
 } as any)
 const SignupRoute = SignupRouteImport.update({
@@ -190,6 +196,7 @@ export interface FileRoutesByFullPath {
   '/redefinir-senha': typeof RedefinirSenhaRoute
   '/reembolso': typeof ReembolsoRoute
   '/signup': typeof SignupRoute
+  '/sitemap.xml': typeof SitemapDotxmlRoute
   '/termos': typeof TermosRoute
   '/checkout/sucesso': typeof CheckoutSucessoRoute
   '/painel/agente': typeof PainelAgenteRoute
@@ -218,6 +225,7 @@ export interface FileRoutesByTo {
   '/redefinir-senha': typeof RedefinirSenhaRoute
   '/reembolso': typeof ReembolsoRoute
   '/signup': typeof SignupRoute
+  '/sitemap.xml': typeof SitemapDotxmlRoute
   '/termos': typeof TermosRoute
   '/checkout/sucesso': typeof CheckoutSucessoRoute
   '/painel/agente': typeof PainelAgenteRoute
@@ -248,6 +256,7 @@ export interface FileRoutesById {
   '/redefinir-senha': typeof RedefinirSenhaRoute
   '/reembolso': typeof ReembolsoRoute
   '/signup': typeof SignupRoute
+  '/sitemap.xml': typeof SitemapDotxmlRoute
   '/termos': typeof TermosRoute
   '/checkout/sucesso': typeof CheckoutSucessoRoute
   '/painel/agente': typeof PainelAgenteRoute
@@ -280,6 +289,7 @@ export interface FileRouteTypes {
     | '/redefinir-senha'
     | '/reembolso'
     | '/signup'
+    | '/sitemap.xml'
     | '/termos'
     | '/checkout/sucesso'
     | '/painel/agente'
@@ -308,6 +318,7 @@ export interface FileRouteTypes {
     | '/redefinir-senha'
     | '/reembolso'
     | '/signup'
+    | '/sitemap.xml'
     | '/termos'
     | '/checkout/sucesso'
     | '/painel/agente'
@@ -337,6 +348,7 @@ export interface FileRouteTypes {
     | '/redefinir-senha'
     | '/reembolso'
     | '/signup'
+    | '/sitemap.xml'
     | '/termos'
     | '/checkout/sucesso'
     | '/painel/agente'
@@ -368,6 +380,7 @@ export interface RootRouteChildren {
   RedefinirSenhaRoute: typeof RedefinirSenhaRoute
   ReembolsoRoute: typeof ReembolsoRoute
   SignupRoute: typeof SignupRoute
+  SitemapDotxmlRoute: typeof SitemapDotxmlRoute
   TermosRoute: typeof TermosRoute
   CheckoutSucessoRoute: typeof CheckoutSucessoRoute
 }
@@ -379,6 +392,13 @@ declare module '@tanstack/react-router' {
       path: '/termos'
       fullPath: '/termos'
       preLoaderRoute: typeof TermosRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/sitemap.xml': {
+      id: '/sitemap.xml'
+      path: '/sitemap.xml'
+      fullPath: '/sitemap.xml'
+      preLoaderRoute: typeof SitemapDotxmlRouteImport
       parentRoute: typeof rootRouteImport
     }
     '/signup': {
@@ -643,6 +663,7 @@ const rootRouteChildren: RootRouteChildren = {
   RedefinirSenhaRoute: RedefinirSenhaRoute,
   ReembolsoRoute: ReembolsoRoute,
   SignupRoute: SignupRoute,
+  SitemapDotxmlRoute: SitemapDotxmlRoute,
   TermosRoute: TermosRoute,
   CheckoutSucessoRoute: CheckoutSucessoRoute,
 }
