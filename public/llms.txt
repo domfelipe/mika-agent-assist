@@ -1,0 +1,20 @@
+# Mika
+
+> Mika é um assistente pessoal de IA no Telegram da Dom Tech. Agentes personalizados que aprendem com o usuário, executam skills sob demanda e integram com ferramentas externas. Planos a partir de R$ 69,90/mês com garantia de 30 dias para reembolso integral.
+
+## Páginas públicas
+
+- [Início](https://mika.domco.ai/): Visão geral do produto, recursos, como funciona, planos e FAQ.
+- [Criar conta](https://mika.domco.ai/signup): Cadastro de novos usuários para começar com a Mika.
+- [Entrar](https://mika.domco.ai/login): Acesso à conta existente.
+
+## Legal
+
+- [Termos de Uso](https://mika.domco.ai/termos): Condições de uso do serviço Mika operado pela Dom Tech.
+- [Política de Privacidade](https://mika.domco.ai/privacidade): Tratamento de dados pessoais conforme LGPD/GDPR.
+- [Política de Reembolso](https://mika.domco.ai/reembolso): Garantia de 30 dias para reembolso integral.
+
+## Recursos
+
+- [Sitemap](https://mika.domco.ai/sitemap.xml)
+- [robots.txt](https://mika.domco.ai/robots.txt)
