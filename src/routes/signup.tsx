@@ -40,25 +40,28 @@ export const Route = createFileRoute("/signup")({
     plan: typeof search.plan === "string" ? search.plan : undefined,
     cycle: search.cycle === "yearly" || search.cycle === "monthly" ? search.cycle : undefined,
   }),
-  head: () => ({
-    meta: [
-      { title: "Criar conta na Mika — Comece seu agente de IA" },
-      {
-        name: "description",
-        content:
-          "Crie sua conta Mika em minutos e tenha um agente de IA pessoal no Telegram. Garantia de 30 dias para reembolso integral.",
-      },
-      { property: "og:title", content: "Criar conta na Mika" },
-      {
-        property: "og:description",
-        content:
-          "Comece em minutos. Agente de IA pessoal no Telegram com garantia de 30 dias.",
-      },
-      { property: "og:url", content: "https://mika.domco.ai/signup" },
-      { name: "robots", content: "noindex,follow" },
-    ],
-    links: [{ rel: "canonical", href: "https://mika.domco.ai/signup" }],
-  }),
+  head: () => {
+    const title = "Criar conta na Mika — Comece seu agente de IA";
+    const ogTitle = "Criar conta na Mika";
+    const description =
+      "Crie sua conta Mika em minutos e tenha um agente de IA pessoal no Telegram. Garantia de 30 dias para reembolso integral.";
+    const ogDescription =
+      "Comece em minutos. Agente de IA pessoal no Telegram com garantia de 30 dias.";
+    const url = "https://mika.domco.ai/signup";
+    return {
+      meta: [
+        { title },
+        { name: "description", content: description },
+        { property: "og:title", content: ogTitle },
+        { property: "og:description", content: ogDescription },
+        { property: "og:url", content: url },
+        { name: "twitter:title", content: ogTitle },
+        { name: "twitter:description", content: ogDescription },
+        { name: "robots", content: "noindex,follow" },
+      ],
+      links: [{ rel: "canonical", href: url }],
+    };
+  },
   component: SignupPage,
 });
 
