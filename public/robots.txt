@@ -1,0 +1,10 @@
+User-agent: *
+Allow: /
+Disallow: /painel
+Disallow: /admin
+Disallow: /checkout
+Disallow: /bem-vindo
+Disallow: /redefinir-senha
+Disallow: /recuperar-senha
+
+Sitemap: https://mika.domco.ai/sitemap.xml
