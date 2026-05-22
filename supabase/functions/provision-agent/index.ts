@@ -502,6 +502,17 @@ async function handleUpdateExistingService(
     });
     console.log(`[provision-agent:update] variáveis atualizadas (${Object.keys(variables).length})`);
 
+    await configureRailwayService({
+      token: RAILWAY_API_TOKEN!,
+      serviceId: railwayServiceId,
+      environmentId,
+      projectId,
+      image: "ghcr.io/domfelipe/hermes-agent-custom:latest",
+      variables: {},
+      startCommand: HERMES_START_COMMAND,
+    });
+    console.log(`[provision-agent:update] imagem/start command reconciliados`);
+
     await deployRailwayService({
       token: RAILWAY_API_TOKEN!,
       serviceId: railwayServiceId,
