@@ -347,8 +347,12 @@ export async function listRailwayServiceDomains(opts: {
   environmentId: string;
   projectId?: string | null;
 }): Promise<{ serviceDomains: RailwayServiceDomainInfo[]; customDomains: RailwayServiceDomainInfo[] }> {
+  if (!opts.projectId) {
+    throw new Error("projectId is required to list Railway service domains");
+  }
+
   const query = `
-    query Domains($environmentId: String!, $serviceId: String!, $projectId: String) {
+    query Domains($environmentId: String!, $serviceId: String!, $projectId: String!) {
       domains(environmentId: $environmentId, serviceId: $serviceId, projectId: $projectId) {
         serviceDomains {
           id
@@ -375,7 +379,7 @@ export async function listRailwayServiceDomains(opts: {
     {
       environmentId: opts.environmentId,
       serviceId: opts.serviceId,
-      projectId: opts.projectId ?? null,
+      projectId: opts.projectId,
     },
     opts.token,
   );
