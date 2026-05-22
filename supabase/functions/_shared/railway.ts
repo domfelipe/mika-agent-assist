@@ -132,7 +132,28 @@ export async function deployRailwayService(opts: {
   token: string;
   serviceId: string;
   environmentId: string;
+  /** Use true on the first deploy of a freshly-created service (no prior deployment exists). */
+  firstDeploy?: boolean;
 }): Promise<void> {
+  // serviceInstanceRedeploy só funciona se já existe um deployment.
+  // Para o primeiro deploy de um serviço recém-criado, usamos serviceInstanceDeployV2.
+  if (opts.firstDeploy) {
+    const mutation = `
+      mutation ServiceInstanceDeployV2($serviceId: String!, $environmentId: String!) {
+        serviceInstanceDeployV2(serviceId: $serviceId, environmentId: $environmentId)
+      }
+    `;
+    const res = await railwayQuery(
+      mutation,
+      { serviceId: opts.serviceId, environmentId: opts.environmentId },
+      opts.token,
+    );
+    if (res.errors?.length) {
+      throw new Error(`serviceInstanceDeployV2 failed: ${JSON.stringify(res.errors)}`);
+    }
+    return;
+  }
+
   const mutation = `
     mutation ServiceInstanceRedeploy($serviceId: String!, $environmentId: String!) {
       serviceInstanceRedeploy(serviceId: $serviceId, environmentId: $environmentId)
@@ -144,7 +165,14 @@ export async function deployRailwayService(opts: {
     opts.token,
   );
   if (res.errors?.length) {
-    throw new Error(`serviceInstanceRedeploy failed: ${JSON.stringify(res.errors)}`);
+    const errStr = JSON.stringify(res.errors);
+    // Fallback: serviço novo sem deploy anterior — redeploy falha, tenta V2.
+    if (errStr.includes("no deployment") || errStr.includes("No deployments") || errStr.includes("not found")) {
+      console.warn(`[deployRailwayService] redeploy sem deploy anterior, fallback para serviceInstanceDeployV2`);
+      await deployRailwayService({ ...opts, firstDeploy: true });
+      return;
+    }
+    throw new Error(`serviceInstanceRedeploy failed: ${errStr}`);
   }
 }
 
