@@ -6,6 +6,7 @@
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2.45.4";
 import { corsHeaders } from "../_shared/cors.ts";
 import {
+  HERMES_START_COMMAND,
   createRailwayService,
   configureRailwayService,
   deployRailwayService,
@@ -280,6 +281,7 @@ Deno.serve(async (req) => {
       projectId: pool.railway_project_id,
       image: "ghcr.io/domfelipe/hermes-agent-custom:latest",
       variables: envVars,
+      startCommand: HERMES_START_COMMAND,
     });
     console.log(`[provision-agent] serviço configurado com ${Object.keys(envVars).length} env vars`);
 
