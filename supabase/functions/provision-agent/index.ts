@@ -6,6 +6,7 @@
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2.45.4";
 import { corsHeaders } from "../_shared/cors.ts";
 import {
+  HERMES_START_COMMAND,
   createRailwayService,
   configureRailwayService,
   deployRailwayService,
@@ -280,6 +281,7 @@ Deno.serve(async (req) => {
       projectId: pool.railway_project_id,
       image: "ghcr.io/domfelipe/hermes-agent-custom:latest",
       variables: envVars,
+      startCommand: HERMES_START_COMMAND,
     });
     console.log(`[provision-agent] serviço configurado com ${Object.keys(envVars).length} env vars`);
 
@@ -499,6 +501,17 @@ async function handleUpdateExistingService(
       skipDeploys: true,
     });
     console.log(`[provision-agent:update] variáveis atualizadas (${Object.keys(variables).length})`);
+
+    await configureRailwayService({
+      token: RAILWAY_API_TOKEN!,
+      serviceId: railwayServiceId,
+      environmentId,
+      projectId,
+      image: "ghcr.io/domfelipe/hermes-agent-custom:latest",
+      variables: {},
+      startCommand: HERMES_START_COMMAND,
+    });
+    console.log(`[provision-agent:update] imagem/start command reconciliados`);
 
     await deployRailwayService({
       token: RAILWAY_API_TOKEN!,
