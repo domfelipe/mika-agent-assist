@@ -1,35 +1,13 @@
 // telegram-webhook (PÚBLICA — verify_jwt = false)
-// Recebe updates do Telegram, valida 3 camadas (uuid_tenant, secret, rate limit),
-// registra mensagem em telegram_messages_log e responde com placeholder via sendMessage.
-//
-// TODO Fase 5: substituir resposta placeholder por proxy para container Hermes via SSH/API.
+// Recebe updates legados do Telegram, valida 3 camadas (uuid_tenant, secret, rate limit)
+// e registra mensagem em telegram_messages_log. O Hermes responde via polling/runtime;
+// esta função nunca deve enviar fallback para o usuário final.
 
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2.57.4";
-import { telegramApi, telegramAck } from "../_shared/telegram.ts";
+import { telegramAck } from "../_shared/telegram.ts";
 
 const RATE_LIMIT_MAX = 30;
 const RATE_LIMIT_WINDOW_MS = 60_000;
-
-function firstName(fullName: string | null | undefined): string {
-  if (!fullName) return "Mika";
-  const parts = fullName.trim().split(/\s+/);
-  return parts[0] || "Mika";
-}
-
-// deno-lint-ignore no-explicit-any
-async function getDecryptedSecret(
-  admin: any,
-  secretId: string,
-): Promise<string | null> {
-  const { data, error } = await admin
-    .rpc("vault_decrypt_secret", { secret_id: secretId })
-    .single();
-  if (!error && data) {
-    // deno-lint-ignore no-explicit-any
-    return (data as any).decrypted_secret ?? (data as unknown as string);
-  }
-  return null;
-}
 
 Deno.serve(async (req) => {
   // Sempre responde 200 para o Telegram não retentar — ack cedo em qualquer falha.
@@ -48,7 +26,7 @@ Deno.serve(async (req) => {
     const { data: agent, error: agentErr } = await admin
       .from("agent_instances")
       .select(
-        "id, user_id, status, telegram_webhook_secret, telegram_bot_token_vault_id, telegram_connected_at, profiles:profiles!agent_instances_user_id_fkey(full_name)",
+        "id, user_id, status, telegram_webhook_secret, telegram_connected_at",
       )
       .eq("uuid_tenant", uuidTenant)
       .maybeSingle();
@@ -157,54 +135,10 @@ Deno.serve(async (req) => {
       raw_payload: payload,
     });
 
-    // 7) Resposta placeholder via sendMessage
-    // TODO Fase 5: substituir resposta placeholder por proxy para container Hermes via SSH/API.
-    if (!agent.telegram_bot_token_vault_id) return telegramAck();
-    const token = await getDecryptedSecret(admin, agent.telegram_bot_token_vault_id as string);
-    if (!token) return telegramAck();
-
-    // deno-lint-ignore no-explicit-any
-    const fullName = (agent as any).profiles?.full_name as string | null | undefined;
-    const replyText =
-      `Olá! Sou o Mika de ${firstName(fullName)}. Estou quase pronto para conversar com você de verdade — meu cérebro está sendo configurado pela DOMCO. Em breve vou responder de forma inteligente! Por enquanto, este é apenas um teste de conexão. ✨`;
-
-    let send = await telegramApi(token, "sendMessage", {
+    console.log("telegram-webhook: update logged; runtime/polling owns the reply", {
+      agent_id: agent.id,
       chat_id: chatId,
-      text: replyText,
     });
-
-    if (!send.ok && send.status === 401) {
-      await admin
-        .from("agent_instances")
-        .update({ telegram_token_invalid: true, updated_at: new Date().toISOString() })
-        .eq("id", agent.id);
-      return telegramAck();
-    }
-
-    if (!send.ok && send.status === 429) {
-      const retryAfter = send.parameters?.retry_after ?? 1;
-      await new Promise((r) => setTimeout(r, Math.min(retryAfter, 5) * 1000));
-      send = await telegramApi(token, "sendMessage", {
-        chat_id: chatId,
-        text: replyText,
-      });
-    }
-
-    if (send.ok) {
-      await admin.from("telegram_messages_log").insert({
-        agent_instance_id: agent.id,
-        user_id: agent.user_id,
-        telegram_chat_id: chatId,
-        direction: "outgoing",
-        message_text: replyText,
-        message_type: "text",
-        is_first_message: false,
-        raw_payload: send.result ?? null,
-      });
-    } else {
-      console.error("sendMessage failed", send);
-    }
-
     return telegramAck();
   } catch (err) {
     console.error("telegram-webhook fatal", err);
