@@ -98,12 +98,13 @@ Deno.serve(async (req) => {
         409,
       );
     }
-    if (agent.status === "suspended" || agent.status === "error") {
+    if (agent.status === "suspended") {
       return jsonResponse(
         { error: "Agente suspenso. Regularize sua assinatura antes de conectar o Telegram." },
         403,
       );
     }
+    // status='error' por falta de token anterior é recuperável — apenas seguimos.
 
     // 4) Verifica unicidade do bot username (em outro agent_instance)
     const { data: conflict } = await admin
