@@ -1,5 +1,6 @@
 // configure-telegram-webhook
-// Gera secret aleatório, configura webhook no Telegram e marca telegram_webhook_configured=true.
+// Mantém compatibilidade com o wizard: garante que o webhook do Telegram fique desligado,
+// pois o Hermes responde via polling/runtime.
 
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2.57.4";
 import { corsHeaders } from "../_shared/cors.ts";
@@ -10,14 +11,6 @@ function jsonResponse(body: unknown, status = 200): Response {
     status,
     headers: { ...corsHeaders, "Content-Type": "application/json" },
   });
-}
-
-function randomHex(bytes: number): string {
-  const buf = new Uint8Array(bytes);
-  crypto.getRandomValues(buf);
-  return Array.from(buf)
-    .map((b) => b.toString(16).padStart(2, "0"))
-    .join("");
 }
 
 // deno-lint-ignore no-explicit-any
@@ -81,21 +74,14 @@ Deno.serve(async (req) => {
       );
     }
 
-    const webhookSecret = randomHex(32);
-    const webhookUrl =
-      `${supabaseUrl}/functions/v1/telegram-webhook?token=${agent.uuid_tenant}`;
-
-    const setRes = await telegramApi(token, "setWebhook", {
-      url: webhookUrl,
-      allowed_updates: ["message"],
-      drop_pending_updates: true,
-      secret_token: webhookSecret,
+    const deleteRes = await telegramApi(token, "deleteWebhook", {
+      drop_pending_updates: false,
     });
 
-    if (!setRes.ok) {
-      console.error("setWebhook failed", setRes);
+    if (!deleteRes.ok) {
+      console.error("deleteWebhook failed", deleteRes);
       return jsonResponse(
-        { error: "Falha ao configurar webhook no Telegram." },
+        { error: "Falha ao liberar o Telegram para o runtime do agente." },
         500,
       );
     }
@@ -103,8 +89,8 @@ Deno.serve(async (req) => {
     const { error: updErr } = await admin
       .from("agent_instances")
       .update({
-        telegram_webhook_secret: webhookSecret,
-        telegram_webhook_configured: true,
+        telegram_webhook_secret: null,
+        telegram_webhook_configured: false,
         updated_at: new Date().toISOString(),
       })
       .eq("id", agent.id);
