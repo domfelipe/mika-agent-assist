@@ -287,6 +287,7 @@ Deno.serve(async (req) => {
       token: RAILWAY_API_TOKEN,
       serviceId: railwayServiceId,
       environmentId: pool.railway_environment_id,
+      firstDeploy: true,
     });
     console.log(`[provision-agent] deploy disparado em Railway`);
   } catch (e) {
