@@ -197,9 +197,18 @@ Deno.serve(async (req) => {
   }
 
   if (!telegramBotToken) {
-    console.error(`[provision-agent] telegram_bot_token ausente — usuário ainda não conectou bot`);
-    await failJob(supabase, agent, job.id, "telegram_bot_token ausente no Vault — usuário precisa concluir onboarding antes");
-    return jsonResponse(412, { error: "telegram token missing" });
+    // Onboarding ainda não concluído. NÃO marca agent como 'error' — o wizard de Telegram
+    // dispara este endpoint de novo após o usuário salvar o token (validate-telegram-bot).
+    console.log(`[provision-agent] aguardando token do Telegram (job=${job.id})`);
+    await supabase
+      .from("provisioning_jobs")
+      .update({
+        status: "pending",
+        error_message: "Aguardando o usuário conectar o bot do Telegram",
+        completed_at: null,
+      })
+      .eq("id", job.id);
+    return jsonResponse(202, { waiting_for_token: true, agent_instance_id: agent.id });
   }
   console.log(`[provision-agent] token Telegram OK (len=${telegramBotToken.length})`);
 

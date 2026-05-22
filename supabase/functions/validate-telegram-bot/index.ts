@@ -98,12 +98,13 @@ Deno.serve(async (req) => {
         409,
       );
     }
-    if (agent.status === "suspended" || agent.status === "error") {
+    if (agent.status === "suspended") {
       return jsonResponse(
         { error: "Agente suspenso. Regularize sua assinatura antes de conectar o Telegram." },
         403,
       );
     }
+    // status='error' por falta de token anterior é recuperável — apenas seguimos.
 
     // 4) Verifica unicidade do bot username (em outro agent_instance)
     const { data: conflict } = await admin
@@ -186,7 +187,9 @@ Deno.serve(async (req) => {
       );
     }
 
-    // 7) Atualiza agent_instances
+    // 7) Atualiza agent_instances — reseta para 'provisioning' se estava em erro,
+    // garante que o provision-agent re-execute do zero.
+    const nextStatus = agent.status === "error" ? "provisioning" : agent.status;
     const { error: updErr } = await admin
       .from("agent_instances")
       .update({
@@ -196,6 +199,7 @@ Deno.serve(async (req) => {
         telegram_token_invalid: false,
         telegram_webhook_configured: false,
         telegram_first_message_received_at: null,
+        status: nextStatus,
         updated_at: new Date().toISOString(),
       })
       .eq("id", agent.id);
@@ -203,6 +207,26 @@ Deno.serve(async (req) => {
     if (updErr) {
       console.error("agent update error", updErr);
       return jsonResponse({ error: "Falha ao salvar dados do bot." }, 500);
+    }
+
+    // 8) Auto-provisionamento: dispara provision-agent assincronamente para que
+    // o container seja criado/atualizado no Railway. Fire-and-forget — o wizard
+    // não bloqueia esperando o deploy completar.
+    if (nextStatus === "provisioning" || agent.status === "active") {
+      try {
+        const provisionUrl = `${supabaseUrl}/functions/v1/provision-agent`;
+        console.log(`auto-provision: disparando para agent ${agent.id}`);
+        fetch(provisionUrl, {
+          method: "POST",
+          headers: {
+            "Content-Type": "application/json",
+            Authorization: `Bearer ${serviceKey}`,
+          },
+          body: JSON.stringify({ agent_instance_id: agent.id }),
+        }).catch((err) => console.error("auto-provision fetch error:", err));
+      } catch (err) {
+        console.error("auto-provision trigger error:", err);
+      }
     }
 
     return jsonResponse({
