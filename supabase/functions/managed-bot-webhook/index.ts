@@ -53,6 +53,20 @@ Deno.serve(async (req) => {
     return ack();
   }
 
+  // Verificação de origem: se TELEGRAM_MANAGER_BOT_WEBHOOK_SECRET estiver
+  // configurado, exige o header X-Telegram-Bot-Api-Secret-Token correspondente.
+  // Caso contrário, opera em modo permissivo (comportamento anterior) + log.
+  const expectedSecret = Deno.env.get("TELEGRAM_MANAGER_BOT_WEBHOOK_SECRET") ?? "";
+  if (expectedSecret) {
+    const incoming = req.headers.get("X-Telegram-Bot-Api-Secret-Token") ?? "";
+    if (incoming !== expectedSecret) {
+      console.warn("managed-bot-webhook: invalid telegram secret token");
+      return new Response("unauthorized", { status: 401 });
+    }
+  } else {
+    console.warn("managed-bot-webhook: TELEGRAM_MANAGER_BOT_WEBHOOK_SECRET ausente — modo permissivo");
+  }
+
   if (!managerToken) {
     console.error("TELEGRAM_MANAGER_BOT_TOKEN ausente");
     return ack();
@@ -165,6 +179,7 @@ Deno.serve(async (req) => {
       headers: {
         "Content-Type": "application/json",
         Authorization: `Bearer ${serviceKey}`,
+        "X-Internal-Secret": Deno.env.get("INTERNAL_FUNCTION_SECRET") ?? "",
       },
       body: JSON.stringify({
         agent_instance_id: agentInstance.id,

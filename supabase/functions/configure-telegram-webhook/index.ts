@@ -114,6 +114,7 @@ Deno.serve(async (req) => {
           headers: {
             "Content-Type": "application/json",
             Authorization: `Bearer ${serviceKey}`,
+            "X-Internal-Secret": Deno.env.get("INTERNAL_FUNCTION_SECRET") ?? "",
           },
           body: JSON.stringify({
             agent_instance_id: agent.id,

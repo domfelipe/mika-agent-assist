@@ -48,9 +48,39 @@ Deno.serve(async (req) => {
     return jsonResponse(200, { ignored: true, reason: "method not allowed" });
   }
 
+  const rawBody = await req.text();
+
+  // Verificação de assinatura: modo permissivo se RAILWAY_WEBHOOK_SECRET não estiver
+  // configurado (mantém comportamento atual). Quando configurado, exige HMAC SHA-256.
+  const railwaySecret = Deno.env.get("RAILWAY_WEBHOOK_SECRET") ?? "";
+  if (railwaySecret) {
+    const sig = req.headers.get("X-Railway-Signature") ?? "";
+    try {
+      const key = await crypto.subtle.importKey(
+        "raw",
+        new TextEncoder().encode(railwaySecret),
+        { name: "HMAC", hash: "SHA-256" },
+        false,
+        ["sign"],
+      );
+      const macBuf = await crypto.subtle.sign("HMAC", key, new TextEncoder().encode(rawBody));
+      const macHex = Array.from(new Uint8Array(macBuf)).map((b) => b.toString(16).padStart(2, "0")).join("");
+      const expected = sig.startsWith("sha256=") ? sig.slice(7) : sig;
+      if (expected !== macHex) {
+        console.warn("railway-webhook: invalid signature");
+        return jsonResponse(401, { error: "invalid signature" });
+      }
+    } catch (e) {
+      console.error("railway-webhook: signature verify failed:", String(e));
+      return jsonResponse(401, { error: "signature verification failed" });
+    }
+  } else {
+    console.warn("railway-webhook: RAILWAY_WEBHOOK_SECRET ausente — modo permissivo");
+  }
+
   let payload: Record<string, unknown>;
   try {
-    payload = await req.json();
+    payload = JSON.parse(rawBody);
   } catch {
     console.log("railway-webhook: invalid json body");
     return jsonResponse(200, { ignored: true, reason: "invalid json" });
