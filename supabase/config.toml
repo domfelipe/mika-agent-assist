@@ -6,8 +6,8 @@ verify_jwt = false
 [functions.get-paddle-price]
 verify_jwt = false
 
-[functions.generate-skill-markdown]
-verify_jwt = false
+# generate-skill-markdown: verify_jwt = true (default). Chamada do painel via
+# supabase.functions.invoke já anexa o JWT do usuário autenticado.
 
 [functions.test-skill-dry-run]
 verify_jwt = false
