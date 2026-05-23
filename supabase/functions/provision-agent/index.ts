@@ -5,6 +5,7 @@
 
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2.45.4";
 import { corsHeaders } from "../_shared/cors.ts";
+import { authorizeInternalRequest } from "../_shared/internal-auth.ts";
 import {
   HERMES_START_COMMAND,
   createRailwayService,
@@ -59,6 +60,13 @@ async function notifyAdmin(message: string): Promise<void> {
 
 Deno.serve(async (req) => {
   if (req.method === "OPTIONS") return new Response(null, { headers: corsHeaders });
+
+  // Auth: aceita X-Internal-Secret (trigger pg_net / chamadas internas) OU JWT de admin.
+  const auth = await authorizeInternalRequest(req, { allowOwner: false });
+  if (!auth.ok) {
+    console.warn(`[provision-agent] auth rejected: ${auth.reason}`);
+    return jsonResponse(401, { error: "unauthorized", reason: auth.reason });
+  }
 
   if (!RAILWAY_API_TOKEN) {
     return jsonResponse(500, { error: "RAILWAY_API_TOKEN not configured" });

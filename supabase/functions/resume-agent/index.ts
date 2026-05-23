@@ -5,6 +5,7 @@
 
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2.45.4";
 import { corsHeaders } from "../_shared/cors.ts";
+import { authorizeInternalRequest } from "../_shared/internal-auth.ts";
 import { setHermesSuspended, getServiceContext } from "../_shared/railway.ts";
 
 const SUPABASE_URL = Deno.env.get("SUPABASE_URL")!;
@@ -39,11 +40,19 @@ Deno.serve(async (req) => {
 
   const { data: agent } = await supabase
     .from("agent_instances")
-    .select("id, status, railway_service_id, vps_pool_id")
+    .select("id, status, railway_service_id, vps_pool_id, user_id")
     .eq("id", body.agent_instance_id)
     .maybeSingle();
 
   if (!agent) return jsonResponse(404, { error: "agent_instance not found" });
+
+  // Auth: X-Internal-Secret (trigger), JWT de admin, OU JWT do dono do agente.
+  const auth = await authorizeInternalRequest(req, { ownerUserId: agent.user_id });
+  if (!auth.ok) {
+    console.warn(`resume-agent: auth rejected (${auth.reason})`);
+    return jsonResponse(401, { error: "unauthorized", reason: auth.reason });
+  }
+
 
   if (!agent.railway_service_id) {
     return jsonResponse(409, {

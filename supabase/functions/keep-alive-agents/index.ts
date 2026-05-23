@@ -13,6 +13,7 @@
 
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2.45.4";
 import { corsHeaders } from "../_shared/cors.ts";
+import { authorizeInternalRequest } from "../_shared/internal-auth.ts";
 import { pullAgentCronjobsRuntimeState } from "../_shared/runtime-sync.ts";
 
 const SUPABASE_URL = Deno.env.get("SUPABASE_URL")!;
@@ -30,6 +31,13 @@ interface AgentRow {
 
 Deno.serve(async (req) => {
   if (req.method === "OPTIONS") return new Response(null, { headers: corsHeaders });
+
+  // Auth: aceita X-Internal-Secret (pg_cron) OU JWT de admin.
+  const auth = await authorizeInternalRequest(req, { allowOwner: false });
+  if (!auth.ok) {
+    console.warn(`keep-alive: auth rejected (${auth.reason})`);
+    return jsonResponse(401, { error: "unauthorized", reason: auth.reason });
+  }
 
   const supabase = createClient(SUPABASE_URL, SUPABASE_SERVICE_ROLE_KEY, {
     auth: { persistSession: false, autoRefreshToken: false },
