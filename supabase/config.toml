@@ -56,3 +56,7 @@ verify_jwt = false
 
 [functions.managed-bot-webhook]
 verify_jwt = false
+
+[functions.create-cronjob-from-agent]
+verify_jwt = false
+
