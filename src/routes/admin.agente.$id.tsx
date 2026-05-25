@@ -575,7 +575,10 @@ function AgentDetailPage() {
                 </Link>
               </Button>
             </section>
+
+            <RuntimeInspectSection agentInstanceId={id} />
           </div>
+
 
           {/* ===== Coluna direita — Status ===== */}
           <aside className="space-y-4">
