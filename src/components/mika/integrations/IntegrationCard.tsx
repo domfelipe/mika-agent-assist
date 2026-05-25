@@ -24,16 +24,16 @@ export function IntegrationCard({ state, agentReady }: Props) {
       return;
     }
     setConnecting(true);
-    const { data, error } = await invokeFunction<{ authorize_url: string }>(
+    const { data, error } = await invokeFunction<{ auth_url: string }>(
       "oauth-start",
       { mcp_slug: mcp.slug },
     );
     setConnecting(false);
-    if (error || !data?.authorize_url) {
+    if (error || !data?.auth_url) {
       toast.error(error?.message ?? "Não foi possível iniciar a conexão.");
       return;
     }
-    window.location.href = data.authorize_url;
+    window.location.href = data.auth_url;
   }
 
   return (
