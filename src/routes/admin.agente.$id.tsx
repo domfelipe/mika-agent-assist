@@ -748,3 +748,96 @@ function HistoryCard({
     </div>
   );
 }
+
+interface InspectResult {
+  path: string;
+  status: number;
+  ok: boolean;
+  body: unknown;
+}
+
+interface InspectResponse {
+  agent_instance_id: string;
+  public_url: string;
+  public_domain: string;
+  service_id: string;
+  results: InspectResult[];
+}
+
+function RuntimeInspectSection({ agentInstanceId }: { agentInstanceId: string }) {
+  const [loading, setLoading] = useState(false);
+  const [result, setResult] = useState<InspectResponse | null>(null);
+  const [pathsInput, setPathsInput] = useState(
+    "/api/health,/api/cronjobs,/api/integrations,/api/plugins",
+  );
+
+  async function handleInspect() {
+    setLoading(true);
+    const paths = pathsInput
+      .split(",")
+      .map((p) => p.trim())
+      .filter((p) => p.startsWith("/"));
+    const { data, error } = await invokeFunction<InspectResponse>(
+      "admin-runtime-inspect",
+      { agent_instance_id: agentInstanceId, paths },
+    );
+    setLoading(false);
+    if (error || !data) {
+      toast.error(error?.message ?? "Falha ao inspecionar runtime");
+      return;
+    }
+    setResult(data);
+  }
+
+  return (
+    <section className="rounded-xl border border-border bg-card p-6 shadow-soft space-y-3">
+      <div className="flex items-center justify-between gap-2">
+        <h2 className="font-semibold text-lg">Diagnóstico do runtime (Hermes)</h2>
+      </div>
+      <p className="text-sm text-muted-foreground">
+        Faz GET autenticado nos endpoints internos do container Hermes do agente.
+        Útil para verificar se o plugin de cron está ativo, jobs registrados na memória do runtime, integrações conhecidas etc.
+      </p>
+      <div className="space-y-2">
+        <Label htmlFor="inspect-paths" className="text-xs">
+          Paths (separados por vírgula)
+        </Label>
+        <Input
+          id="inspect-paths"
+          value={pathsInput}
+          onChange={(e) => setPathsInput(e.target.value)}
+          className="font-mono text-xs"
+        />
+      </div>
+      <Button onClick={handleInspect} disabled={loading} className="w-full">
+        {loading ? <Loader2 className="h-4 w-4 mr-2 animate-spin" /> : null}
+        Inspecionar runtime
+      </Button>
+      {result && (
+        <div className="space-y-3 pt-2">
+          <p className="text-xs text-muted-foreground font-mono break-all">
+            {result.public_url}
+          </p>
+          {result.results.map((r) => (
+            <div
+              key={r.path}
+              className="rounded-md border border-border bg-muted/30 p-3 space-y-1"
+            >
+              <div className="flex items-center justify-between gap-2">
+                <code className="text-xs font-mono">{r.path}</code>
+                <Badge variant={r.ok ? "success" : "destructive"}>
+                  HTTP {r.status}
+                </Badge>
+              </div>
+              <pre className="text-xs whitespace-pre-wrap break-all max-h-64 overflow-auto">
+                {typeof r.body === "string"
+                  ? r.body
+                  : JSON.stringify(r.body, null, 2)}
+              </pre>
+            </div>
+          ))}
+        </div>
+      )}
+    </section>
+  );
+}
