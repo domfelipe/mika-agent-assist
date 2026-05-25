@@ -397,7 +397,7 @@ async function loadAgentServiceTarget(
   };
 }
 
-async function resolveRuntimeTarget(opts: {
+export async function resolveRuntimeTarget(opts: {
   // deno-lint-ignore no-explicit-any
   supabase: any;
   agentInstanceId: string;
