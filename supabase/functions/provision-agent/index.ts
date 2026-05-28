@@ -641,7 +641,9 @@ async function handleUpdateExistingService(
       token: RAILWAY_API_TOKEN!,
       serviceId: railwayServiceId,
       environmentId,
+      fromSource: true,
     });
+
     console.log(`[provision-agent:update] redeploy disparado`);
   } catch (e) {
     const msg = e instanceof Error ? e.message : String(e);
