@@ -20,6 +20,27 @@ function jsonResponse(body: unknown, status = 200): Response {
   });
 }
 
+// deno-lint-ignore no-explicit-any
+async function deleteVaultSecret(
+  admin: any,
+  secretId: string,
+  context: string,
+): Promise<void> {
+  try {
+    const { error } = await admin.rpc("vault_delete_secret", {
+      secret_id: secretId,
+    });
+    if (error) {
+      console.warn(`vault_delete_secret ignored (${context}):`, error.message);
+    }
+  } catch (e) {
+    console.warn(
+      `vault_delete_secret ignored (${context}):`,
+      e instanceof Error ? e.message : "unknown",
+    );
+  }
+}
+
 Deno.serve(async (req) => {
   if (req.method === "OPTIONS") {
     return new Response(null, { headers: corsHeaders });
@@ -124,21 +145,13 @@ Deno.serve(async (req) => {
       );
     }
 
-    // 5) Se já houver um vault_id antigo, remove (reconexão)
-    if (agent.telegram_bot_token_vault_id) {
-      try { await admin.rpc("exec_sql_void", {} as never); } catch { /* ignore */ }
-      // tenta remover diretamente; ignora falha
-      const { error: delErr } = await admin
-        .from("vault.secrets" as unknown as never)
-        .delete()
-        .eq("id", agent.telegram_bot_token_vault_id);
-      if (delErr) {
-        console.warn("Vault old secret delete (ignorável):", delErr.message);
-      }
-    }
+    const oldSecretId = agent.telegram_bot_token_vault_id as string | null;
 
-    // 6) Cria secret no Vault via RPC SQL
-    const secretName = `telegram_bot_token_${userId}_${Math.floor(Date.now() / 1000)}`;
+    // 5) Cria secret novo no Vault antes de remover o antigo. Assim uma falha
+    // de Vault não quebra um bot que já estava conectado.
+    const secretName = `telegram_bot_token_${userId}_${Math.floor(
+      Date.now() / 1000,
+    )}`;
     const { data: vaultData, error: vaultErr } = await admin
       .rpc("vault_create_secret", {
         secret_value: token,
@@ -151,7 +164,8 @@ Deno.serve(async (req) => {
     if (!vaultErr && vaultData) {
       // RPC pode retornar { secret_id } ou string
       // deno-lint-ignore no-explicit-any
-      secretId = (vaultData as any).secret_id ?? (vaultData as unknown as string);
+      secretId =
+        (vaultData as any).secret_id ?? (vaultData as unknown as string);
     } else {
       // Fallback: usa SQL direto via PostgREST (requer função vault.create_secret exposta).
       // Caso não exista a RPC, criamos via PostgREST raw SQL exec.
@@ -187,7 +201,7 @@ Deno.serve(async (req) => {
       );
     }
 
-    // 7) Atualiza agent_instances — reseta para 'provisioning' se estava em erro,
+    // 6) Atualiza agent_instances — reseta para 'provisioning' se estava em erro,
     // garante que o provision-agent re-execute do zero.
     const nextStatus = agent.status === "error" ? "provisioning" : agent.status;
     const { error: updErr } = await admin
@@ -206,16 +220,35 @@ Deno.serve(async (req) => {
 
     if (updErr) {
       console.error("agent update error", updErr);
+      await deleteVaultSecret(
+        admin,
+        secretId,
+        "new secret after agent update failure",
+      );
       return jsonResponse({ error: "Falha ao salvar dados do bot." }, 500);
     }
 
-    // 8) Auto-provisionamento: dispara provision-agent assincronamente para que
+    if (oldSecretId && oldSecretId !== secretId) {
+      await deleteVaultSecret(
+        admin,
+        oldSecretId,
+        "old telegram token after reconnect",
+      );
+    }
+
+    // 7) Auto-provisionamento: dispara provision-agent assincronamente para que
     // o container seja criado/atualizado no Railway. Fire-and-forget — o wizard
     // não bloqueia esperando o deploy completar.
     if (nextStatus === "provisioning" || agent.status === "active") {
       try {
         const provisionUrl = `${supabaseUrl}/functions/v1/provision-agent`;
         console.log(`auto-provision: disparando para agent ${agent.id}`);
+        const provisionBody: Record<string, unknown> = {
+          agent_instance_id: agent.id,
+        };
+        if (agent.status === "active") {
+          provisionBody.mode = "telegram_reconnect";
+        }
         fetch(provisionUrl, {
           method: "POST",
           headers: {
@@ -223,7 +256,7 @@ Deno.serve(async (req) => {
             Authorization: `Bearer ${serviceKey}`,
             "X-Internal-Secret": Deno.env.get("INTERNAL_FUNCTION_SECRET") ?? "",
           },
-          body: JSON.stringify({ agent_instance_id: agent.id }),
+          body: JSON.stringify(provisionBody),
         }).catch((err) => console.error("auto-provision fetch error:", err));
       } catch (err) {
         console.error("auto-provision trigger error:", err);

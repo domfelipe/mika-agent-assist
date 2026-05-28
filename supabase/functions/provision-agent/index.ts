@@ -41,6 +41,7 @@ type SupabaseAdminClient = ReturnType<typeof createClient<GenericDatabase>>;
 
 interface RequestBody {
   agent_instance_id: string;
+  mode?: "telegram_reconnect";
   agent_name?: string;
   soul_content?: string;
   model?: string;
@@ -119,6 +120,12 @@ Quando o usuário pedir para agendar, lembrar, programar, criar rotina, criar au
 Quando o usuário pedir para criar, salvar, ensinar ou transformar instruções em uma skill reutilizável, use obrigatoriamente a tool skill_create passando a frase original dele em natural_language_input.`;
 }
 
+function readVaultSecretValue(data: unknown): string {
+  const row = Array.isArray(data) ? data[0] : data;
+  return (row as { decrypted_secret?: string | null } | null)?.decrypted_secret ??
+    "";
+}
+
 async function notifyAdmin(message: string): Promise<void> {
   if (!ADMIN_TELEGRAM_BOT_TOKEN || !ADMIN_TELEGRAM_CHAT_ID) return;
   try {
@@ -179,6 +186,17 @@ Deno.serve(async (req) => {
   if (agentErr || !agent) {
     console.error(`[provision-agent] agent_instance não encontrado: ${agentErr?.message}`);
     return jsonResponse(404, { error: "agent_instance not found", detail: agentErr?.message });
+  }
+
+  if (
+    body.mode === "telegram_reconnect" &&
+    agent.status === "active" &&
+    agent.railway_service_id
+  ) {
+    console.log(
+      `[provision-agent] active telegram reconnect for agent=${agent.id}`,
+    );
+    return await handleTelegramReconnect(supabase, agent);
   }
 
   if (agent.status !== "provisioning") {
@@ -512,6 +530,133 @@ async function scheduleRetry(
   return false;
 }
 
+async function resolveRailwayContextForAgent(
+  supabase: SupabaseAdminClient,
+  agent: AgentInstanceRow,
+  railwayServiceId: string,
+): Promise<{ projectId: string | null; environmentId: string | null }> {
+  let projectId: string | null = null;
+  let environmentId: string | null = null;
+
+  if (agent.vps_pool_id) {
+    const { data: poolData } = await supabase
+      .from("vps_pool")
+      .select("railway_project_id, railway_environment_id")
+      .eq("id", agent.vps_pool_id)
+      .maybeSingle();
+    const pool = poolData as {
+      railway_project_id?: string | null;
+      railway_environment_id?: string | null;
+    } | null;
+    projectId = pool?.railway_project_id ?? null;
+    environmentId = pool?.railway_environment_id ?? null;
+  }
+
+  if (!projectId || !environmentId) {
+    const ctx = await getServiceContext({
+      token: RAILWAY_API_TOKEN!,
+      serviceId: railwayServiceId,
+    });
+    projectId = projectId ?? ctx.projectId;
+    environmentId = environmentId ?? ctx.environmentId;
+  }
+
+  return { projectId, environmentId };
+}
+
+async function handleTelegramReconnect(
+  supabase: SupabaseAdminClient,
+  agent: AgentInstanceRow,
+): Promise<Response> {
+  const railwayServiceId = agent.railway_service_id;
+  if (!railwayServiceId) {
+    return jsonResponse(400, {
+      error: "railway_service_id required for telegram reconnect",
+    });
+  }
+
+  if (!agent.telegram_bot_token_vault_id) {
+    return jsonResponse(409, { error: "telegram bot token is not connected" });
+  }
+
+  const { data: secret } = await supabase.rpc("vault_decrypt_secret", {
+    secret_id: agent.telegram_bot_token_vault_id,
+  });
+  const telegramBotToken = readVaultSecretValue(secret);
+  if (!telegramBotToken) {
+    return jsonResponse(500, { error: "failed to decrypt telegram bot token" });
+  }
+
+  try {
+    await deleteTelegramWebhook(telegramBotToken);
+  } catch (e) {
+    console.warn(
+      "[provision-agent:telegram_reconnect] deleteWebhook failed:",
+      String(e),
+    );
+  }
+
+  const { projectId, environmentId } = await resolveRailwayContextForAgent(
+    supabase,
+    agent,
+    railwayServiceId,
+  );
+
+  if (!projectId || !environmentId) {
+    console.error(
+      `[provision-agent:telegram_reconnect] não foi possível resolver railway project/environment`,
+    );
+    return jsonResponse(500, {
+      error: "failed to resolve railway project/environment",
+    });
+  }
+
+  const variables: Record<string, string> = {
+    TELEGRAM_BOT_TOKEN: telegramBotToken,
+  };
+
+  if (agent.telegram_user_chat_id) {
+    const chatIdStr = String(agent.telegram_user_chat_id);
+    variables.TELEGRAM_ALLOWED_USERS = chatIdStr;
+    variables.TELEGRAM_HOME_CHANNEL = chatIdStr;
+  }
+
+  try {
+    await upsertRailwayVariableCollection({
+      token: RAILWAY_API_TOKEN!,
+      serviceId: railwayServiceId,
+      environmentId,
+      projectId,
+      variables,
+      skipDeploys: true,
+    });
+    await deployRailwayService({
+      token: RAILWAY_API_TOKEN!,
+      serviceId: railwayServiceId,
+      environmentId,
+    });
+  } catch (e) {
+    const msg = e instanceof Error ? e.message : String(e);
+    console.error("[provision-agent:telegram_reconnect] falha:", msg);
+    return jsonResponse(500, {
+      error: "telegram reconnect railway update failed",
+      detail: msg,
+    });
+  }
+
+  await supabase
+    .from("agent_instances")
+    .update({ updated_at: new Date().toISOString() })
+    .eq("id", agent.id);
+
+  return jsonResponse(200, {
+    success: true,
+    mode: "telegram_reconnect",
+    agent_instance_id: agent.id,
+    railway_service_id: railwayServiceId,
+  });
+}
+
 /**
  * Fluxo de re-provisionamento: agent_instance já tem railway_service_id.
  * Em vez de criar novo serviço (que dá erro "service already exists"),
@@ -603,6 +748,16 @@ async function handleUpdateExistingService(
     HERMES_STT_PROVIDER: sttProvider,
     HERMES_TTS_PROVIDER: ttsProvider,
   };
+
+  if (agent.telegram_bot_token_vault_id) {
+    const { data: secret } = await supabase.rpc("vault_decrypt_secret", {
+      secret_id: agent.telegram_bot_token_vault_id,
+    });
+    const telegramBotToken = readVaultSecretValue(secret);
+    if (telegramBotToken) {
+      variables.TELEGRAM_BOT_TOKEN = telegramBotToken;
+    }
+  }
 
   // Re-aplica TELEGRAM_ALLOWED_USERS / HOME_CHANNEL se já capturamos chat_id do dono
   // (importante para corrigir agentes que foram provisionados sem chat_id e tinham
