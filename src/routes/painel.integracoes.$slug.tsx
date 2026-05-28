@@ -122,6 +122,7 @@ function IntegrationDetailPage() {
     queryClient.invalidateQueries({ queryKey: ["user-integrations"] });
   }
 
+
   async function handleRefresh() {
     setRefreshing(true);
     const { data, error } = await invokeFunction<{
@@ -300,6 +301,7 @@ function IntegrationDetailPage() {
         mcpSlug={mcp.slug}
         mcpName={mcp.name}
       />
+
     </div>
   );
 }
