@@ -21,7 +21,7 @@ import {
   suggestBotUsername,
 } from "@/lib/telegram-username";
 
-const TOKEN_REGEX = /^\d+:[A-Za-z0-9_-]{35}$/;
+const TOKEN_REGEX = /^\d+:[A-Za-z0-9_-]+$/;
 
 interface Props {
   agentName: string;
