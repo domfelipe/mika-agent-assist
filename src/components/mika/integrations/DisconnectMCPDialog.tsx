@@ -71,6 +71,7 @@ export function DisconnectMCPDialog({
     onDisconnected?.();
   }
 
+
   return (
     <AlertDialog open={open} onOpenChange={onOpenChange}>
       <AlertDialogContent>
@@ -109,6 +110,7 @@ export function DisconnectMCPDialog({
                       </ul>
                       <p className="mt-2 text-xs">
                         Elas serão pausadas automaticamente ao desconectar.
+
                       </p>
                     </div>
                   </div>
@@ -125,6 +127,7 @@ export function DisconnectMCPDialog({
               handleDisconnect();
             }}
             disabled={submitting || isLoading}
+
             className="bg-destructive text-destructive-foreground hover:bg-destructive/90"
           >
             {submitting ? "Desconectando..." : "Desconectar"}

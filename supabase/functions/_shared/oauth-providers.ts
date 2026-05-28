@@ -65,6 +65,7 @@ export function getProviderEnv(slug: ProviderSlug, redirectUri: string): Provide
   return { clientId, clientSecret, redirectUri };
 }
 
+
 /**
  * Monta a URL de autorização para iniciar o fluxo OAuth.
  */
@@ -442,6 +443,7 @@ export async function revokeToken(
           // Todoist precisa client_id/secret + access_token no body
           const clientId = readFirstEnv(["TODOIST_CLIENT_ID", "TODOIST_OAUTH_CLIENT_ID"]);
           const clientSecret = readFirstEnv(["TODOIST_CLIENT_SECRET", "TODOIST_OAUTH_CLIENT_SECRET"]);
+
           const body = new URLSearchParams({
             client_id: clientId,
             client_secret: clientSecret,

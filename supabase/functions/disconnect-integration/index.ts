@@ -119,6 +119,7 @@ Deno.serve(async (req) => {
       if (!pErr) pausedCount = jobsToPause.length;
     }
 
+
     // 2. Busca tokens ANTES de qualquer delete
     const accessToken = integ.access_token_vault_id
       ? await getDecryptedSecret(admin, integ.access_token_vault_id)
