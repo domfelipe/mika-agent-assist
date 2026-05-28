@@ -45,19 +45,14 @@ jobs:
       - name: Type-check edge functions
         shell: bash
         run: |
-          files=(
-            supabase/functions/_shared/hermes-config.ts
-            supabase/functions/_shared/runtime-sync.ts
-            supabase/functions/sync-agent-runtime/index.ts
-            supabase/functions/sync-agent-skills/index.ts
-            supabase/functions/keep-alive-agents/index.ts
-            supabase/functions/provision-agent/index.ts
-            supabase/functions/publish-skill-version/index.ts
-            supabase/functions/railway-webhook/index.ts
-            supabase/functions/update-agent-config/index.ts
-            supabase/functions/list-ollama-models/index.ts
-            supabase/functions/oauth-callback/index.ts
-            supabase/functions/disconnect-integration/index.ts
-            supabase/functions/refresh-integration-token/index.ts
-          )
-          deno check --config supabase/functions/deno.json "${files[@]}"
+          files="$(
+            find supabase/functions \
+              -path '*/node_modules/*' -prune -o \
+              -type f \( -path '*/_shared/*.ts' -o -name 'index.ts' \) \
+              -print | sort
+          )"
+          if [ -z "$files" ]; then
+            echo "No edge function files found"
+            exit 1
+          fi
+          deno check --no-lock --config supabase/functions/deno.json $files

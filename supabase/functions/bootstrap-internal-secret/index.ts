@@ -52,12 +52,12 @@ Deno.serve(async (req) => {
   // tentamos atualizar existente primeiro via SQL direto.
   try {
     // 1) Tenta achar entry existente
-    const { data: existing } = await admin
+    const { data: existingData } = await admin
       .from("vault.decrypted_secrets" as never)
       .select("id, decrypted_secret")
       .eq("name", "internal_function_secret")
-      .maybeSingle()
-      .returns<{ id: string; decrypted_secret: string } | null>();
+      .maybeSingle();
+    const existing = existingData as { id: string; decrypted_secret: string } | null;
 
     if (existing && existing.decrypted_secret === secretValue) {
       return json(200, { ok: true, action: "already_synced" });
