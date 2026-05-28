@@ -130,6 +130,7 @@ export async function configureRailwayService(opts: {
 
 export async function deployRailwayService(opts: {
   token: string;
+  serviceId: string;
   environmentId: string;
   /** Use true on the first deploy of a freshly-created service (no prior deployment exists). */
   firstDeploy?: boolean;
