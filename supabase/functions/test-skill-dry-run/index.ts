@@ -34,7 +34,7 @@ Deno.serve(async (req) => {
   }
   const userId = userData.user.id;
 
-  let body: { skill_version_id?: string; test_input?: string };
+  let body: { skill_version_id?: string; test_input?: string; markdown_content?: string };
   try {
     body = await req.json();
   } catch {
@@ -44,58 +44,93 @@ Deno.serve(async (req) => {
     });
   }
 
-  const { skill_version_id, test_input } = body;
-  if (!skill_version_id || !test_input || test_input.trim().length === 0) {
+  const { skill_version_id, test_input, markdown_content } = body;
+  if (!test_input || test_input.trim().length === 0) {
     return new Response(
-      JSON.stringify({ error: "skill_version_id e test_input são obrigatórios" }),
+      JSON.stringify({ error: "test_input é obrigatório" }),
       { status: 400, headers: { ...corsHeaders, "Content-Type": "application/json" } },
     );
   }
 
-  // Verifica ownership: skill_version -> skill -> user_id
-  const { data: versionRow, error: vErr } = await admin
-    .from("skill_versions")
-    .select("id, markdown_content, skills!inner(user_id)")
-    .eq("id", skill_version_id)
-    .maybeSingle();
+  // Stateless mode: markdown_content direto (preview de nova skill, sem persistência)
+  const isStateless =
+    !!markdown_content &&
+    markdown_content.trim().length > 0 &&
+    (!skill_version_id || skill_version_id === "preview");
 
-  if (vErr || !versionRow) {
-    return new Response(JSON.stringify({ error: "Versão não encontrada" }), {
-      status: 404,
-      headers: { ...corsHeaders, "Content-Type": "application/json" },
-    });
+  let resolvedMarkdown: string | null = null;
+  let persistedVersionId: string | null = null;
+
+  if (isStateless) {
+    if (markdown_content!.length > 50000) {
+      return new Response(JSON.stringify({ error: "markdown_content excede 50.000 caracteres" }), {
+        status: 400,
+        headers: { ...corsHeaders, "Content-Type": "application/json" },
+      });
+    }
+    resolvedMarkdown = markdown_content!;
+  } else {
+    if (!skill_version_id) {
+      return new Response(
+        JSON.stringify({ error: "skill_version_id ou markdown_content é obrigatório" }),
+        { status: 400, headers: { ...corsHeaders, "Content-Type": "application/json" } },
+      );
+    }
+    // Verifica ownership: skill_version -> skill -> user_id
+    const { data: versionRow, error: vErr } = await admin
+      .from("skill_versions")
+      .select("id, markdown_content, skills!inner(user_id)")
+      .eq("id", skill_version_id)
+      .maybeSingle();
+
+    if (vErr || !versionRow) {
+      return new Response(JSON.stringify({ error: "Versão não encontrada" }), {
+        status: 404,
+        headers: { ...corsHeaders, "Content-Type": "application/json" },
+      });
+    }
+    // @ts-expect-error supabase nested type
+    if (versionRow.skills.user_id !== userId) {
+      return new Response(JSON.stringify({ error: "Acesso negado" }), {
+        status: 403,
+        headers: { ...corsHeaders, "Content-Type": "application/json" },
+      });
+    }
+    resolvedMarkdown = versionRow.markdown_content as string;
+    persistedVersionId = skill_version_id;
   }
-  // @ts-expect-error supabase nested type
-  if (versionRow.skills.user_id !== userId) {
-    return new Response(JSON.stringify({ error: "Acesso negado" }), {
-      status: 403,
-      headers: { ...corsHeaders, "Content-Type": "application/json" },
-    });
+
+  // Cria registro running apenas no modo persistido
+  let runId: string | null = null;
+  if (persistedVersionId) {
+    const { data: runRow, error: runErr } = await admin
+      .from("skill_test_runs")
+      .insert({
+        skill_version_id: persistedVersionId,
+        user_id: userId,
+        test_input,
+        status: "running",
+        test_type: "dry_run",
+      })
+      .select("id")
+      .single();
+
+    if (runErr || !runRow) {
+      console.error("Failed to create test run:", runErr);
+      return new Response(JSON.stringify({ error: "Falha ao registrar teste" }), {
+        status: 500,
+        headers: { ...corsHeaders, "Content-Type": "application/json" },
+      });
+    }
+    runId = runRow.id;
   }
 
-  // Cria registro running
-  const { data: runRow, error: runErr } = await admin
-    .from("skill_test_runs")
-    .insert({
-      skill_version_id,
-      user_id: userId,
-      test_input,
-      status: "running",
-      test_type: "dry_run",
-    })
-    .select("id")
-    .single();
-
-  if (runErr || !runRow) {
-    console.error("Failed to create test run:", runErr);
-    return new Response(JSON.stringify({ error: "Falha ao registrar teste" }), {
-      status: 500,
-      headers: { ...corsHeaders, "Content-Type": "application/json" },
-    });
-  }
-
-  const runId = runRow.id;
   const startedAt = Date.now();
+
+  const updateRun = async (patch: Record<string, unknown>) => {
+    if (!runId) return;
+    await admin.from("skill_test_runs").update(patch).eq("id", runId);
+  };
 
   try {
     const aiRes = await fetch("https://ai.gateway.lovable.dev/v1/chat/completions", {
@@ -110,7 +145,7 @@ Deno.serve(async (req) => {
           { role: "system", content: SYSTEM_PROMPT },
           {
             role: "user",
-            content: `Definição da skill:\n\`\`\`\n${versionRow.markdown_content}\n\`\`\`\n\nInput do usuário: ${test_input}`,
+            content: `Definição da skill:\n\`\`\`\n${resolvedMarkdown}\n\`\`\`\n\nInput do usuário: ${test_input}`,
           },
         ],
       }),
@@ -118,14 +153,11 @@ Deno.serve(async (req) => {
 
     if (aiRes.status === 429) {
       const duration = Date.now() - startedAt;
-      await admin
-        .from("skill_test_runs")
-        .update({
-          status: "error",
-          error_message: "Muitas requisições. Aguarde 1 minuto.",
-          duration_ms: duration,
-        })
-        .eq("id", runId);
+      await updateRun({
+        status: "error",
+        error_message: "Muitas requisições. Aguarde 1 minuto.",
+        duration_ms: duration,
+      });
       return new Response(
         JSON.stringify({ error: "Muitas requisições. Aguarde 1 minuto e tente novamente." }),
         { status: 429, headers: { ...corsHeaders, "Content-Type": "application/json" } },
@@ -135,14 +167,11 @@ Deno.serve(async (req) => {
     if (!aiRes.ok) {
       const txt = await aiRes.text();
       const duration = Date.now() - startedAt;
-      await admin
-        .from("skill_test_runs")
-        .update({
-          status: "error",
-          error_message: `AI error ${aiRes.status}: ${txt.slice(0, 200)}`,
-          duration_ms: duration,
-        })
-        .eq("id", runId);
+      await updateRun({
+        status: "error",
+        error_message: `AI error ${aiRes.status}: ${txt.slice(0, 200)}`,
+        duration_ms: duration,
+      });
       return new Response(JSON.stringify({ error: "Falha ao executar teste." }), {
         status: 500,
         headers: { ...corsHeaders, "Content-Type": "application/json" },
@@ -153,10 +182,7 @@ Deno.serve(async (req) => {
     const test_output: string = (data?.choices?.[0]?.message?.content ?? "").trim();
     const duration = Date.now() - startedAt;
 
-    await admin
-      .from("skill_test_runs")
-      .update({ status: "success", test_output, duration_ms: duration })
-      .eq("id", runId);
+    await updateRun({ status: "success", test_output, duration_ms: duration });
 
     return new Response(
       JSON.stringify({ test_output, duration_ms: duration, status: "success" }),
@@ -165,13 +191,11 @@ Deno.serve(async (req) => {
   } catch (e) {
     const duration = Date.now() - startedAt;
     const msg = e instanceof Error ? e.message : "Erro desconhecido";
-    await admin
-      .from("skill_test_runs")
-      .update({ status: "error", error_message: msg, duration_ms: duration })
-      .eq("id", runId);
+    await updateRun({ status: "error", error_message: msg, duration_ms: duration });
     return new Response(JSON.stringify({ error: "Erro ao executar teste." }), {
       status: 500,
       headers: { ...corsHeaders, "Content-Type": "application/json" },
     });
   }
 });
+

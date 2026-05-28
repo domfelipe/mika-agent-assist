@@ -67,9 +67,10 @@ function SkillsPage() {
           <div className="flex items-center gap-3 flex-wrap">
             {limits.data && limits.data.max_skills != null && (
               <span className="text-sm text-muted-foreground px-3 py-1.5 rounded-lg bg-muted">
-                {limits.data.current_skills_count} de {limits.data.max_skills} skills
+                {limits.data.current_skills_count} de {limits.data.max_skills} skills personalizadas
               </span>
             )}
+
 
             <div className="flex items-center gap-2">
               <Switch id="archived" checked={showArchived} onCheckedChange={setShowArchived} />

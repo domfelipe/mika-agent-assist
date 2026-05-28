@@ -191,11 +191,19 @@ export function SkillCard({ skill }: { skill: Skill }) {
         </div>
 
         <div className="mt-4 flex items-center justify-between gap-2">
-          <SkillStatusBadge status={skill.status} />
+          <div className="flex items-center gap-2">
+            <SkillStatusBadge status={skill.status} />
+            {(skill as Skill & { is_default?: boolean }).is_default && (
+              <span className="inline-flex items-center rounded-md border border-border bg-muted px-2 py-0.5 text-xs font-medium text-muted-foreground">
+                Padrão
+              </span>
+            )}
+          </div>
           <span className="text-xs text-muted-foreground">
             {formatDistanceToNow(new Date(skill.updated_at), { addSuffix: true, locale: ptBR })}
           </span>
         </div>
+
       </div>
 
       <AlertDialog open={confirmArchive} onOpenChange={setConfirmArchive}>
