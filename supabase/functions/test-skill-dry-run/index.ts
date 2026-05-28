@@ -35,11 +35,10 @@ Deno.serve(async (req) => {
   const userId = userData.user.id;
 
   let body: { skill_version_id?: string; test_input?: string };
-  try {
-    body = await req.json();
   let body: { skill_version_id?: string; test_input?: string; markdown_content?: string };
   try {
     body = await req.json();
+
   } catch {
     return new Response(JSON.stringify({ error: "JSON inválido" }), {
       status: 400,
