@@ -25,7 +25,8 @@ function generateUsername(name: string): string {
 }
 
 async function usernameAvailable(
-  admin: ReturnType<typeof createClient>,
+  // deno-lint-ignore no-explicit-any
+  admin: any,
   username: string,
 ): Promise<boolean> {
   const { data } = await admin
