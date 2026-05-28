@@ -25,6 +25,7 @@ import {
 const SUPABASE_URL = Deno.env.get("SUPABASE_URL")!;
 const SUPABASE_SERVICE_ROLE_KEY = Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!;
 const RAILWAY_API_TOKEN = Deno.env.get("RAILWAY_API_TOKEN") ?? "";
+const HERMES_API_SERVER_KEY = Deno.env.get("HERMES_API_SERVER_KEY") ?? "";
 const INTERNAL_FUNCTION_SECRET = Deno.env.get("INTERNAL_FUNCTION_SECRET") ?? "";
 const HERMES_RUNTIME_IMAGE =
   Deno.env.get("HERMES_RUNTIME_IMAGE") ?? "ghcr.io/domfelipe/hermes-agent-custom:latest";
@@ -44,6 +45,7 @@ function buildBackfillEnv(agentInstanceId: string): Record<string, string> {
 
   return {
     AGENT_INSTANCE_ID: agentInstanceId,
+    API_SERVER_KEY: HERMES_API_SERVER_KEY,
     API_SERVER_PORT: "8765",
     HERMES_AGENT_INSTANCE_ID: agentInstanceId,
     HERMES_CREATE_CRONJOB_URL: createCronjobUrl,
@@ -76,6 +78,9 @@ Deno.serve(async (req) => {
 
   if (!RAILWAY_API_TOKEN) {
     return jsonResponse(500, { error: "RAILWAY_API_TOKEN not configured" });
+  }
+  if (!HERMES_API_SERVER_KEY) {
+    return jsonResponse(500, { error: "HERMES_API_SERVER_KEY not configured" });
   }
 
   let body: { dry_run?: boolean; agent_instance_id?: string } = {};
