@@ -17,6 +17,20 @@ type GenericDatabase = {
 
 type SupabaseAdminClient = ReturnType<typeof createClient<GenericDatabase>>;
 
+type ExistingSkillRow = {
+  id: string;
+  current_version_id: string | null;
+  is_default: boolean | null;
+};
+
+async function deleteSkillAfterSeedFailure(
+  supabase: SupabaseAdminClient,
+  skillId: string,
+): Promise<string | null> {
+  const { error } = await supabase.from("skills").delete().eq("id", skillId);
+  return error?.message ?? null;
+}
+
 export interface DefaultSkillsEnsureResult {
   agent_instance_id: string;
   created_count: number;
@@ -218,13 +232,14 @@ export async function ensureDefaultSkillsForAgent(
   }
 
   for (const template of DEFAULT_HERMES_SKILLS) {
-    const { data: existing, error: existingErr } = await supabase
+    const { data: existingData, error: existingErr } = await supabase
       .from("skills")
-      .select("id")
+      .select("id, current_version_id, is_default")
       .eq("user_id", agent.user_id)
       .eq("name", template.name)
       .neq("status", "archived")
       .maybeSingle();
+    const existing = existingData as ExistingSkillRow | null;
 
     if (existingErr) {
       result.errors.push(
@@ -234,8 +249,21 @@ export async function ensureDefaultSkillsForAgent(
     }
 
     if (existing) {
-      result.skipped_count += 1;
-      continue;
+      if (existing.is_default && !existing.current_version_id) {
+        const { error: deleteErr } = await supabase.from("skills").delete().eq(
+          "id",
+          existing.id,
+        );
+        if (deleteErr) {
+          result.errors.push(
+            `${template.name}: failed to replace incomplete default skill (${deleteErr.message})`,
+          );
+          continue;
+        }
+      } else {
+        result.skipped_count += 1;
+        continue;
+      }
     }
 
     const { data: skillData, error: skillErr } = await supabase
@@ -279,6 +307,12 @@ export async function ensureDefaultSkillsForAgent(
       result.errors.push(
         `${template.name}: failed to create skill version (${versionErr?.message ?? "unknown"})`,
       );
+      const cleanupErr = await deleteSkillAfterSeedFailure(supabase, skill.id);
+      if (cleanupErr) {
+        result.errors.push(
+          `${template.name}: failed to clean up skill after version failure (${cleanupErr})`,
+        );
+      }
       continue;
     }
 
@@ -293,6 +327,12 @@ export async function ensureDefaultSkillsForAgent(
 
     if (updateErr) {
       result.errors.push(`${template.name}: failed to publish skill (${updateErr.message})`);
+      const cleanupErr = await deleteSkillAfterSeedFailure(supabase, skill.id);
+      if (cleanupErr) {
+        result.errors.push(
+          `${template.name}: failed to clean up skill after publish failure (${cleanupErr})`,
+        );
+      }
       continue;
     }
 
