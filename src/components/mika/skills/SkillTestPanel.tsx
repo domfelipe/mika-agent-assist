@@ -78,30 +78,28 @@ export function SkillTestPanel({
     mutationFn: async (): Promise<TestResult> => {
       if (stateless) {
         // Modo preview sem persistência: chama AI direto via edge function
-        const start = Date.now();
-        const { data, error } = await supabase.functions.invoke("test-skill-dry-run", {
-          body: { skill_version_id: skillVersionId, test_input: input },
-        });
-        if (error) {
-          return {
-            status: "error",
-            duration_ms: Date.now() - start,
-            error_message: error.message,
-          };
-        }
-        return data as TestResult;
+  const runTest = useMutation({
+    mutationFn: async (): Promise<TestResult> => {
+      const start = Date.now();
+      const requestBody: Record<string, unknown> = { test_input: input };
+      if (stateless) {
+        requestBody.markdown_content = stateless.markdown_content;
+      } else {
+        requestBody.skill_version_id = skillVersionId;
       }
       const { data, error } = await supabase.functions.invoke("test-skill-dry-run", {
-        body: { skill_version_id: skillVersionId, test_input: input },
+        body: requestBody,
       });
-      if (error) throw new Error(error.message);
+      if (error) {
+        return {
+          status: "error",
+          duration_ms: Date.now() - start,
+          error_message: error.message,
+        };
+      }
       return data as TestResult;
     },
-    onSuccess: (r) => {
-      setResult(r);
-      qc.invalidateQueries({ queryKey: ["skill-test-runs", skillVersionId] });
-    },
-    onError: (e: unknown) => {
+
       setResult({
         status: "error",
         duration_ms: 0,
