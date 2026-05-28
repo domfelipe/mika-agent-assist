@@ -11,7 +11,7 @@ import { Textarea } from "@/components/ui/textarea";
 import { Badge } from "@/components/ui/badge";
 import { invokeFunction } from "@/lib/invoke-function";
 import { syncAgentRuntime } from "@/lib/sync-agent-runtime";
-import { useCreateCronjob } from "@/hooks/use-cronjobs";
+import { markCronjobRuntimeSyncError, useCreateCronjob } from "@/hooks/use-cronjobs";
 import { useAvailableMcps, useUserIntegrations } from "@/hooks/use-integrations";
 import { useAgentInstance } from "@/hooks/use-agent-instance";
 import { useProfile } from "@/hooks/use-profile";
@@ -54,9 +54,12 @@ export function CronjobWizard({ onCreated, onCancel }: Props) {
   const { data: integrations = [] } = useUserIntegrations();
   const createMut = useCreateCronjob();
 
-  const tz = profile && "timezone" in profile && typeof (profile as { timezone?: string }).timezone === "string"
-    ? (profile as { timezone: string }).timezone
-    : "America/Sao_Paulo";
+  const tz =
+    profile &&
+    "timezone" in profile &&
+    typeof (profile as { timezone?: string }).timezone === "string"
+      ? (profile as { timezone: string }).timezone
+      : "America/Sao_Paulo";
 
   const mcpsBySlug = useMemo(() => {
     const m = new Map<string, { id: string; name: string }>();
@@ -83,10 +86,10 @@ export function CronjobWizard({ onCreated, onCancel }: Props) {
       return;
     }
     setParsing(true);
-    const { data, error } = await invokeFunction<ParseResult>(
-      "parse-cronjob-natural-language",
-      { natural_language_input: trimmed, user_timezone: tz },
-    );
+    const { data, error } = await invokeFunction<ParseResult>("parse-cronjob-natural-language", {
+      natural_language_input: trimmed,
+      user_timezone: tz,
+    });
     setParsing(false);
     if (error || !data) {
       toast.error(error?.message ?? "Não conseguimos interpretar. Tente reescrever.");
@@ -131,11 +134,14 @@ export function CronjobWizard({ onCreated, onCancel }: Props) {
         timezone: tz,
         next_run_at: parsed?.next_run_at ?? null,
       });
-      toast.success("Automação criada!");
-
       const { error: syncError } = await syncAgentRuntime(agent.id, "cronjobs");
       if (syncError) {
-        toast.warning("Automação criada, mas o runtime do agente não sincronizou.");
+        await markCronjobRuntimeSyncError(job.id, syncError.message);
+        toast.error("Automação criada, mas não foi ativada no agente.", {
+          description: "Corrija o runtime e tente sincronizar novamente pelo painel.",
+        });
+      } else {
+        toast.success("Automação criada e sincronizada!");
       }
 
       onCreated?.(job.id);
@@ -208,26 +214,29 @@ export function CronjobWizard({ onCreated, onCancel }: Props) {
       parsed.confidence === "high"
         ? "success"
         : parsed.confidence === "medium"
-        ? "secondary"
-        : "destructive";
+          ? "secondary"
+          : "destructive";
     return (
       <div className="space-y-6">
         <div className="rounded-xl border border-border bg-card p-6 space-y-4">
           <div className="flex items-center justify-between flex-wrap gap-2">
             <h2 className="text-lg font-semibold">Revisar interpretação</h2>
             <Badge variant={confidenceColor as "success" | "secondary" | "destructive"}>
-              Confiança: {parsed.confidence === "high" ? "alta" : parsed.confidence === "medium" ? "média" : "baixa"}
+              Confiança:{" "}
+              {parsed.confidence === "high"
+                ? "alta"
+                : parsed.confidence === "medium"
+                  ? "média"
+                  : "baixa"}
             </Badge>
           </div>
 
           {parsed.warnings.length > 0 && (
-            <div className="rounded-md border border-amber-500/40 bg-amber-500/10 p-3 text-sm">
+            <div className="rounded-md border border-warning/30 bg-warning/10 p-3 text-sm">
               <div className="flex items-start gap-2">
-                <AlertTriangle className="h-4 w-4 text-amber-600 mt-0.5 shrink-0" />
+                <AlertTriangle className="h-4 w-4 text-warning mt-0.5 shrink-0" />
                 <div>
-                  <p className="font-medium text-amber-700 dark:text-amber-400">
-                    Suposições da IA — confira:
-                  </p>
+                  <p className="font-medium text-warning">Suposições da IA — confira:</p>
                   <ul className="list-disc list-inside mt-1 text-muted-foreground">
                     {parsed.warnings.map((w, i) => (
                       <li key={i}>{w}</li>
@@ -317,7 +326,11 @@ export function CronjobWizard({ onCreated, onCancel }: Props) {
                       variant={connected ? "success" : "destructive"}
                       className="gap-1"
                     >
-                      {connected ? <CheckCircle2 className="h-3 w-3" /> : <Plug className="h-3 w-3" />}
+                      {connected ? (
+                        <CheckCircle2 className="h-3 w-3" />
+                      ) : (
+                        <Plug className="h-3 w-3" />
+                      )}
                       {mcp?.name ?? slug}
                       {!connected && " (não conectado)"}
                     </Badge>
@@ -331,7 +344,9 @@ export function CronjobWizard({ onCreated, onCancel }: Props) {
                   Conecte as integrações faltantes antes de criar.
                 </p>
                 <Button asChild size="sm" variant="outline" className="mt-2">
-                  <Link to="/painel/integracoes" search={{}}>Ir para Integrações</Link>
+                  <Link to="/painel/integracoes" search={{}}>
+                    Ir para Integrações
+                  </Link>
                 </Button>
               </div>
             )}
@@ -351,11 +366,7 @@ export function CronjobWizard({ onCreated, onCancel }: Props) {
         </div>
 
         <div className="flex justify-between gap-2">
-          <Button
-            variant="ghost"
-            onClick={() => setStep("input")}
-            disabled={createMut.isPending}
-          >
+          <Button variant="ghost" onClick={() => setStep("input")} disabled={createMut.isPending}>
             <ArrowLeft className="h-4 w-4 mr-2" /> Voltar
           </Button>
           <Button

@@ -60,3 +60,5 @@ verify_jwt = false
 [functions.create-cronjob-from-agent]
 verify_jwt = false
 
+[functions.create-skill-from-agent]
+verify_jwt = false
