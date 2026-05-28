@@ -181,11 +181,12 @@ Deno.serve(async (req) => {
         startCommand: HERMES_START_COMMAND,
       });
 
-      // 3) redeploy
+      // 3) deploy from source para puxar a imagem reconciliada, não o último deploy antigo
       await deployRailwayService({
         token: RAILWAY_API_TOKEN,
         serviceId: agent.railway_service_id as string,
         environmentId,
+        fromSource: true,
       });
 
       entry.status = "ok";
