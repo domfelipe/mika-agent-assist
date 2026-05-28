@@ -10,6 +10,7 @@ import { toast } from "sonner";
 import { supabase } from "@/integrations/supabase/client";
 import { syncAgentSkills } from "@/lib/sync-agent-skills";
 import { Button } from "@/components/ui/button";
+import { Badge } from "@/components/ui/badge";
 import {
   DropdownMenu,
   DropdownMenuContent,
@@ -128,9 +129,7 @@ export function SkillCard({ skill }: { skill: Skill }) {
             >
               {skill.name}
             </button>
-            <p className="mt-1 text-sm text-muted-foreground line-clamp-2">
-              {skill.description}
-            </p>
+            <p className="mt-1 text-sm text-muted-foreground line-clamp-2">{skill.description}</p>
           </div>
           <DropdownMenu>
             <DropdownMenuTrigger asChild>
@@ -191,7 +190,14 @@ export function SkillCard({ skill }: { skill: Skill }) {
         </div>
 
         <div className="mt-4 flex items-center justify-between gap-2">
-          <SkillStatusBadge status={skill.status} />
+          <div className="flex items-center gap-1.5">
+            <SkillStatusBadge status={skill.status} />
+            {skill.is_default && (
+              <Badge variant="muted" className="rounded-md font-medium">
+                Padrão
+              </Badge>
+            )}
+          </div>
           <span className="text-xs text-muted-foreground">
             {formatDistanceToNow(new Date(skill.updated_at), { addSuffix: true, locale: ptBR })}
           </span>
@@ -203,8 +209,8 @@ export function SkillCard({ skill }: { skill: Skill }) {
           <AlertDialogHeader>
             <AlertDialogTitle>Arquivar esta skill?</AlertDialogTitle>
             <AlertDialogDescription>
-              A skill <strong>{skill.name}</strong> ficará invisível para o agente. Você
-              poderá restaurá-la depois sem perder o histórico.
+              A skill <strong>{skill.name}</strong> ficará invisível para o agente. Você poderá
+              restaurá-la depois sem perder o histórico.
             </AlertDialogDescription>
           </AlertDialogHeader>
           <AlertDialogFooter>
@@ -219,8 +225,8 @@ export function SkillCard({ skill }: { skill: Skill }) {
           <AlertDialogHeader>
             <AlertDialogTitle>Deletar definitivamente?</AlertDialogTitle>
             <AlertDialogDescription>
-              Esta ação remove <strong>{skill.name}</strong> e todo o histórico de versões.
-              Não é possível desfazer.
+              Esta ação remove <strong>{skill.name}</strong> e todo o histórico de versões. Não é
+              possível desfazer.
             </AlertDialogDescription>
           </AlertDialogHeader>
           <AlertDialogFooter>

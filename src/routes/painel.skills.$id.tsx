@@ -3,7 +3,18 @@
 import { createFileRoute, useNavigate, Link } from "@tanstack/react-router";
 import { useState, useCallback, lazy, Suspense } from "react";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
-import { ArrowLeft, Check, Loader2, Play, Rocket, Save, MoreVertical, Copy, Archive, Trash2 } from "lucide-react";
+import {
+  ArrowLeft,
+  Check,
+  Loader2,
+  Play,
+  Rocket,
+  Save,
+  MoreVertical,
+  Copy,
+  Archive,
+  Trash2,
+} from "lucide-react";
 import { formatDistanceToNow } from "date-fns";
 import { ptBR } from "date-fns/locale";
 import ReactMarkdown from "react-markdown";
@@ -81,23 +92,20 @@ function SkillDetailPage() {
   const [confirmArchive, setConfirmArchive] = useState(false);
 
   // Sync markdown when versions load or selection changes
-  const currentVersion = versions.data?.find((v) =>
-    selectedVersionId ? v.id === selectedVersionId : v.is_live,
-  ) ?? versions.data?.[0];
+  const currentVersion =
+    versions.data?.find((v) => (selectedVersionId ? v.id === selectedVersionId : v.is_live)) ??
+    versions.data?.[0];
 
   if (currentVersion && markdown === "" && !editing) {
     // initial load
     setTimeout(() => setMarkdown(currentVersion.markdown_content), 0);
   }
 
-  const selectVersion = useCallback(
-    (v: SkillVersion) => {
-      setSelectedVersionId(v.id);
-      setMarkdown(v.markdown_content);
-      setEditing(false);
-    },
-    [],
-  );
+  const selectVersion = useCallback((v: SkillVersion) => {
+    setSelectedVersionId(v.id);
+    setMarkdown(v.markdown_content);
+    setEditing(false);
+  }, []);
 
   // Save new version
   const saveVersion = useMutation({
@@ -106,15 +114,17 @@ function SkillDetailPage() {
       const maxVer = Math.max(...versions.data.map((v) => v.version_number), 0);
       const { data, error } = await supabase
         .from("skill_versions")
-        .insert([{
-          skill_id: id,
-          version_number: maxVer + 1,
-          markdown_content: markdown,
-          // eslint-disable-next-line @typescript-eslint/no-explicit-any
-          form_inputs: (currentVersion?.form_inputs ?? {}) as any,
-          is_live: false,
-          created_by: user.id,
-        }])
+        .insert([
+          {
+            skill_id: id,
+            version_number: maxVer + 1,
+            markdown_content: markdown,
+            // eslint-disable-next-line @typescript-eslint/no-explicit-any
+            form_inputs: (currentVersion?.form_inputs ?? {}) as any,
+            is_live: false,
+            created_by: user.id,
+          },
+        ])
         .select("id, version_number")
         .single();
       if (error) throw error;
@@ -234,6 +244,11 @@ function SkillDetailPage() {
             <h1 className="text-xl font-bold truncate">{skill.data.name}</h1>
             <div className="flex items-center gap-2 mt-0.5">
               <SkillStatusBadge status={skill.data.status} />
+              {skill.data.is_default && (
+                <Badge variant="muted" className="rounded-md font-medium">
+                  Padrão
+                </Badge>
+              )}
               {currentVersion && (
                 <span className="text-xs text-muted-foreground">
                   v{currentVersion.version_number}
@@ -323,7 +338,10 @@ function SkillDetailPage() {
               <Suspense fallback={<Skeleton className="h-60" />}>
                 <CodeMirrorEditor
                   value={markdown}
-                  onChange={(v) => { setMarkdown(v); if (!editing) setEditing(true); }}
+                  onChange={(v) => {
+                    setMarkdown(v);
+                    if (!editing) setEditing(true);
+                  }}
                   readOnly={!editing}
                 />
               </Suspense>
@@ -336,15 +354,22 @@ function SkillDetailPage() {
           <div className="lg:hidden">
             <Tabs defaultValue="preview">
               <TabsList className="w-full">
-                <TabsTrigger value="editor" className="flex-1">Editor</TabsTrigger>
-                <TabsTrigger value="preview" className="flex-1">Preview</TabsTrigger>
+                <TabsTrigger value="editor" className="flex-1">
+                  Editor
+                </TabsTrigger>
+                <TabsTrigger value="preview" className="flex-1">
+                  Preview
+                </TabsTrigger>
               </TabsList>
               <TabsContent value="editor" className="mt-4">
                 <div className="rounded-xl border border-border bg-card overflow-hidden">
                   <Suspense fallback={<Skeleton className="h-60" />}>
                     <CodeMirrorEditor
                       value={markdown}
-                      onChange={(v) => { setMarkdown(v); if (!editing) setEditing(true); }}
+                      onChange={(v) => {
+                        setMarkdown(v);
+                        if (!editing) setEditing(true);
+                      }}
                       readOnly={!editing}
                     />
                   </Suspense>

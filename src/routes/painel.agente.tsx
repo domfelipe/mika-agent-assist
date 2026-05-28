@@ -19,7 +19,10 @@ export const Route = createFileRoute("/painel/agente")({
   component: AgentePage,
 });
 
-const STATUS_MAP: Record<string, { label: string; variant: "warning" | "success" | "destructive"; pulse?: boolean }> = {
+const STATUS_MAP: Record<
+  string,
+  { label: string; variant: "warning" | "success" | "destructive"; pulse?: boolean }
+> = {
   provisioning: { label: "Provisionando", variant: "warning", pulse: true },
   active: { label: "Online", variant: "success" },
   suspended: { label: "Suspenso", variant: "destructive" },
@@ -68,20 +71,22 @@ function AgentePage() {
     <div className="space-y-6">
       <header>
         <h1 className="text-3xl font-bold tracking-tight">Meu Agente</h1>
-        <p className="mt-1 text-muted-foreground">
-          Gerencie seu agente pessoal de IA
-        </p>
+        <p className="mt-1 text-muted-foreground">Gerencie seu agente pessoal de IA</p>
       </header>
 
       <div className="grid grid-cols-1 lg:grid-cols-2 gap-4">
         {/* Card 1: Seu agente — full width */}
         <div className="lg:col-span-2 rounded-xl border border-border bg-card p-6 shadow-soft">
           <div className="flex items-start gap-4">
-            <div className={cn(
-              "h-14 w-14 rounded-full flex items-center justify-center shrink-0",
-              status === "active" ? "bg-success/10" : "bg-primary/10",
-            )}>
-              <Bot className={cn("h-7 w-7", status === "active" ? "text-success" : "text-primary")} />
+            <div
+              className={cn(
+                "h-14 w-14 rounded-full flex items-center justify-center shrink-0",
+                status === "active" ? "bg-success/10" : "bg-primary/10",
+              )}
+            >
+              <Bot
+                className={cn("h-7 w-7", status === "active" ? "text-success" : "text-primary")}
+              />
             </div>
             <div className="flex-1">
               <div className="flex items-center gap-3 flex-wrap">
@@ -128,14 +133,17 @@ function AgentePage() {
           <div className="grid grid-cols-2 sm:grid-cols-4 gap-4">
             <StatItem label="Interações hoje" value="0" />
             <StatItem
-              label="Skills ativas"
+              label="Skills personalizadas"
               value={limits.isLoading ? "..." : String(limits.data?.current_skills_count ?? 0)}
             />
             <StatItem
               label="Último teste"
               value={
                 lastTestRun.data
-                  ? formatDistanceToNow(new Date(lastTestRun.data), { addSuffix: true, locale: ptBR })
+                  ? formatDistanceToNow(new Date(lastTestRun.data), {
+                      addSuffix: true,
+                      locale: ptBR,
+                    })
                   : "—"
               }
             />

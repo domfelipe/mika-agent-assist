@@ -11,6 +11,57 @@ const SYSTEM_PROMPT = `Você é o agente Mika executando uma skill em modo de te
 
 const admin = createClient(SUPABASE_URL, SUPABASE_SERVICE_ROLE_KEY);
 
+class DryRunError extends Error {
+  status: number;
+  clientMessage: string;
+
+  constructor(status: number, clientMessage: string, logMessage = clientMessage) {
+    super(logMessage);
+    this.status = status;
+    this.clientMessage = clientMessage;
+  }
+}
+
+async function generateDryRunOutput(markdownContent: string, testInput: string): Promise<string> {
+  const aiRes = await fetch("https://ai.gateway.lovable.dev/v1/chat/completions", {
+    method: "POST",
+    headers: {
+      Authorization: `Bearer ${LOVABLE_API_KEY}`,
+      "Content-Type": "application/json",
+    },
+    body: JSON.stringify({
+      model: MODEL,
+      messages: [
+        { role: "system", content: SYSTEM_PROMPT },
+        {
+          role: "user",
+          content: `Definição da skill:\n\`\`\`\n${markdownContent}\n\`\`\`\n\nInput do usuário: ${testInput}`,
+        },
+      ],
+    }),
+  });
+
+  if (aiRes.status === 429) {
+    throw new DryRunError(
+      429,
+      "Muitas requisições. Aguarde 1 minuto e tente novamente.",
+      "Muitas requisições. Aguarde 1 minuto.",
+    );
+  }
+
+  if (!aiRes.ok) {
+    const txt = await aiRes.text();
+    throw new DryRunError(
+      500,
+      "Falha ao executar teste.",
+      `AI error ${aiRes.status}: ${txt.slice(0, 200)}`,
+    );
+  }
+
+  const data = await aiRes.json();
+  return (data?.choices?.[0]?.message?.content ?? "").trim();
+}
+
 Deno.serve(async (req) => {
   if (req.method === "OPTIONS") {
     return new Response(null, { headers: corsHeaders });
@@ -34,7 +85,7 @@ Deno.serve(async (req) => {
   }
   const userId = userData.user.id;
 
-  let body: { skill_version_id?: string; test_input?: string };
+  let body: { skill_version_id?: string; markdown_content?: string; test_input?: string };
   try {
     body = await req.json();
   } catch {
@@ -44,19 +95,57 @@ Deno.serve(async (req) => {
     });
   }
 
-  const { skill_version_id, test_input } = body;
-  if (!skill_version_id || !test_input || test_input.trim().length === 0) {
+  const skillVersionId =
+    typeof body.skill_version_id === "string" ? body.skill_version_id.trim() : "";
+  const markdownContent =
+    typeof body.markdown_content === "string" ? body.markdown_content.trim() : "";
+  const testInput = typeof body.test_input === "string" ? body.test_input.trim() : "";
+
+  if (testInput.length === 0) {
+    return new Response(JSON.stringify({ error: "test_input é obrigatório" }), {
+      status: 400,
+      headers: { ...corsHeaders, "Content-Type": "application/json" },
+    });
+  }
+
+  if (!skillVersionId && !markdownContent) {
     return new Response(
-      JSON.stringify({ error: "skill_version_id e test_input são obrigatórios" }),
+      JSON.stringify({ error: "skill_version_id ou markdown_content é obrigatório" }),
       { status: 400, headers: { ...corsHeaders, "Content-Type": "application/json" } },
     );
+  }
+
+  if (markdownContent.length > 50000) {
+    return new Response(JSON.stringify({ error: "markdown_content excede 50000 caracteres" }), {
+      status: 400,
+      headers: { ...corsHeaders, "Content-Type": "application/json" },
+    });
+  }
+
+  if (markdownContent) {
+    const startedAt = Date.now();
+    try {
+      const test_output = await generateDryRunOutput(markdownContent, testInput);
+      return new Response(
+        JSON.stringify({ test_output, duration_ms: Date.now() - startedAt, status: "success" }),
+        { status: 200, headers: { ...corsHeaders, "Content-Type": "application/json" } },
+      );
+    } catch (e) {
+      const msg = e instanceof DryRunError ? e.clientMessage : "Erro ao executar teste.";
+      const status = e instanceof DryRunError ? e.status : 500;
+      console.error("Stateless skill dry-run failed:", e instanceof Error ? e.message : String(e));
+      return new Response(JSON.stringify({ error: msg }), {
+        status,
+        headers: { ...corsHeaders, "Content-Type": "application/json" },
+      });
+    }
   }
 
   // Verifica ownership: skill_version -> skill -> user_id
   const { data: versionRow, error: vErr } = await admin
     .from("skill_versions")
     .select("id, markdown_content, skills!inner(user_id)")
-    .eq("id", skill_version_id)
+    .eq("id", skillVersionId)
     .maybeSingle();
 
   if (vErr || !versionRow) {
@@ -77,9 +166,9 @@ Deno.serve(async (req) => {
   const { data: runRow, error: runErr } = await admin
     .from("skill_test_runs")
     .insert({
-      skill_version_id,
+      skill_version_id: skillVersionId,
       user_id: userId,
-      test_input,
+      test_input: testInput,
       status: "running",
       test_type: "dry_run",
     })
@@ -98,59 +187,7 @@ Deno.serve(async (req) => {
   const startedAt = Date.now();
 
   try {
-    const aiRes = await fetch("https://ai.gateway.lovable.dev/v1/chat/completions", {
-      method: "POST",
-      headers: {
-        Authorization: `Bearer ${LOVABLE_API_KEY}`,
-        "Content-Type": "application/json",
-      },
-      body: JSON.stringify({
-        model: MODEL,
-        messages: [
-          { role: "system", content: SYSTEM_PROMPT },
-          {
-            role: "user",
-            content: `Definição da skill:\n\`\`\`\n${versionRow.markdown_content}\n\`\`\`\n\nInput do usuário: ${test_input}`,
-          },
-        ],
-      }),
-    });
-
-    if (aiRes.status === 429) {
-      const duration = Date.now() - startedAt;
-      await admin
-        .from("skill_test_runs")
-        .update({
-          status: "error",
-          error_message: "Muitas requisições. Aguarde 1 minuto.",
-          duration_ms: duration,
-        })
-        .eq("id", runId);
-      return new Response(
-        JSON.stringify({ error: "Muitas requisições. Aguarde 1 minuto e tente novamente." }),
-        { status: 429, headers: { ...corsHeaders, "Content-Type": "application/json" } },
-      );
-    }
-
-    if (!aiRes.ok) {
-      const txt = await aiRes.text();
-      const duration = Date.now() - startedAt;
-      await admin
-        .from("skill_test_runs")
-        .update({
-          status: "error",
-          error_message: `AI error ${aiRes.status}: ${txt.slice(0, 200)}`,
-          duration_ms: duration,
-        })
-        .eq("id", runId);
-      return new Response(JSON.stringify({ error: "Falha ao executar teste." }), {
-        status: 500,
-        headers: { ...corsHeaders, "Content-Type": "application/json" },
-      });
-    }
-
-    const data = await aiRes.json();
-    const test_output: string = (data?.choices?.[0]?.message?.content ?? "").trim();
+    const test_output = await generateDryRunOutput(versionRow.markdown_content, testInput);
     const duration = Date.now() - startedAt;
 
     await admin
@@ -158,10 +195,10 @@ Deno.serve(async (req) => {
       .update({ status: "success", test_output, duration_ms: duration })
       .eq("id", runId);
 
-    return new Response(
-      JSON.stringify({ test_output, duration_ms: duration, status: "success" }),
-      { status: 200, headers: { ...corsHeaders, "Content-Type": "application/json" } },
-    );
+    return new Response(JSON.stringify({ test_output, duration_ms: duration, status: "success" }), {
+      status: 200,
+      headers: { ...corsHeaders, "Content-Type": "application/json" },
+    });
   } catch (e) {
     const duration = Date.now() - startedAt;
     const msg = e instanceof Error ? e.message : "Erro desconhecido";
@@ -169,9 +206,14 @@ Deno.serve(async (req) => {
       .from("skill_test_runs")
       .update({ status: "error", error_message: msg, duration_ms: duration })
       .eq("id", runId);
-    return new Response(JSON.stringify({ error: "Erro ao executar teste." }), {
-      status: 500,
-      headers: { ...corsHeaders, "Content-Type": "application/json" },
-    });
+    return new Response(
+      JSON.stringify({
+        error: e instanceof DryRunError ? e.clientMessage : "Erro ao executar teste.",
+      }),
+      {
+        status: e instanceof DryRunError ? e.status : 500,
+        headers: { ...corsHeaders, "Content-Type": "application/json" },
+      },
+    );
   }
 });
