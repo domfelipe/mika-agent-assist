@@ -10,10 +10,33 @@
 
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2.45.4";
 import { corsHeaders } from "../_shared/cors.ts";
-import {
-  syncAgentRuntimeSnapshot,
-  syncAgentSkillsSnapshot,
-} from "../_shared/runtime-sync.ts";
+import { syncAgentRuntimeSnapshot, syncAgentSkillsSnapshot } from "../_shared/runtime-sync.ts";
+import { ensureDefaultSkillsForAgent } from "../_shared/default-skills.ts";
+
+type GenericTable = {
+  Row: Record<string, unknown>;
+  Insert: Record<string, unknown>;
+  Update: Record<string, unknown>;
+  Relationships: [];
+};
+
+type GenericDatabase = {
+  public: {
+    Tables: Record<string, GenericTable>;
+    Views: Record<string, GenericTable>;
+    Functions: Record<string, { Args: Record<string, unknown>; Returns: unknown }>;
+  };
+};
+
+type SupabaseAdminClient = ReturnType<typeof createClient<GenericDatabase>>;
+
+interface AgentWelcomeRow {
+  id: string;
+  user_id: string;
+  telegram_bot_token_vault_id: string;
+  telegram_user_chat_id: string | number;
+  agent_name?: string | null;
+}
 
 const SUPABASE_URL = Deno.env.get("SUPABASE_URL")!;
 const SUPABASE_SERVICE_ROLE_KEY = Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!;
@@ -25,18 +48,15 @@ const HERMES_API_SERVER_KEY = Deno.env.get("HERMES_API_SERVER_KEY") ?? "";
 async function notifyAdmin(message: string): Promise<void> {
   if (!ADMIN_TELEGRAM_BOT_TOKEN || !ADMIN_TELEGRAM_CHAT_ID) return;
   try {
-    await fetch(
-      `https://api.telegram.org/bot${ADMIN_TELEGRAM_BOT_TOKEN}/sendMessage`,
-      {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({
-          chat_id: ADMIN_TELEGRAM_CHAT_ID,
-          text: message,
-          parse_mode: "HTML",
-        }),
-      },
-    );
+    await fetch(`https://api.telegram.org/bot${ADMIN_TELEGRAM_BOT_TOKEN}/sendMessage`, {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({
+        chat_id: ADMIN_TELEGRAM_CHAT_ID,
+        text: message,
+        parse_mode: "HTML",
+      }),
+    });
   } catch (e) {
     console.error("notifyAdmin failed:", e);
   }
@@ -64,7 +84,9 @@ Deno.serve(async (req) => {
         ["sign"],
       );
       const macBuf = await crypto.subtle.sign("HMAC", key, new TextEncoder().encode(rawBody));
-      const macHex = Array.from(new Uint8Array(macBuf)).map((b) => b.toString(16).padStart(2, "0")).join("");
+      const macHex = Array.from(new Uint8Array(macBuf))
+        .map((b) => b.toString(16).padStart(2, "0"))
+        .join("");
       const expected = sig.startsWith("sha256=") ? sig.slice(7) : sig;
       if (expected !== macHex) {
         console.warn("railway-webhook: invalid signature");
@@ -188,7 +210,10 @@ Deno.serve(async (req) => {
       );
     } catch (e) {
       runtimeSyncError = e instanceof Error ? e.message : String(e);
-      console.error(`railway-webhook: falha ao sincronizar runtime do agent ${agent.id}:`, runtimeSyncError);
+      console.error(
+        `railway-webhook: falha ao sincronizar runtime do agent ${agent.id}:`,
+        runtimeSyncError,
+      );
       if (wasProvisioning) {
         const fullName = await loadFullName();
         await notifyAdmin(
@@ -196,6 +221,33 @@ Deno.serve(async (req) => {
             `👤 <b>Cliente:</b> ${fullName}\n` +
             `🚀 <b>Railway:</b> <code>${agent.railway_service_id}</code>\n` +
             `❗ <b>Erro:</b> ${runtimeSyncError}\n\n` +
+            `➡️ <a href="https://mika.domco.ai/admin">Revisar no admin</a>`,
+        );
+      }
+    }
+
+    let defaultSkillsError: string | null = null;
+    try {
+      const defaultSkillsResult = await ensureDefaultSkillsForAgent(supabase, agent.id);
+      if (defaultSkillsResult.errors.length > 0) {
+        throw new Error(defaultSkillsResult.errors.join("; "));
+      }
+      console.log(
+        `railway-webhook: default skills agent ${agent.id} (${defaultSkillsResult.created_count} criadas, ${defaultSkillsResult.skipped_count} existentes)`,
+      );
+    } catch (e) {
+      defaultSkillsError = e instanceof Error ? e.message : String(e);
+      console.error(
+        `railway-webhook: falha ao garantir skills padrão do agent ${agent.id}:`,
+        defaultSkillsError,
+      );
+      if (wasProvisioning) {
+        const fullName = await loadFullName();
+        await notifyAdmin(
+          `⚠️ <b>Agente subiu, mas as skills padrão falharam</b>\n\n` +
+            `👤 <b>Cliente:</b> ${fullName}\n` +
+            `🚀 <b>Railway:</b> <code>${agent.railway_service_id}</code>\n` +
+            `❗ <b>Erro:</b> ${defaultSkillsError}\n\n` +
             `➡️ <a href="https://mika.domco.ai/admin">Revisar no admin</a>`,
         );
       }
@@ -214,7 +266,10 @@ Deno.serve(async (req) => {
       );
     } catch (e) {
       skillsSyncError = e instanceof Error ? e.message : String(e);
-      console.error(`railway-webhook: falha ao sincronizar skills do agent ${agent.id}:`, skillsSyncError);
+      console.error(
+        `railway-webhook: falha ao sincronizar skills do agent ${agent.id}:`,
+        skillsSyncError,
+      );
       if (wasProvisioning) {
         const fullName = await loadFullName();
         await notifyAdmin(
@@ -228,7 +283,7 @@ Deno.serve(async (req) => {
     }
 
     // Notifica admin somente se era um auto-provisionamento (status anterior=provisioning)
-    if (wasProvisioning && !skillsSyncError && !runtimeSyncError) {
+    if (wasProvisioning && !skillsSyncError && !runtimeSyncError && !defaultSkillsError) {
       const fullName = await loadFullName();
       await notifyAdmin(
         `✅ <b>Agente provisionado automaticamente!</b>\n\n` +
@@ -243,10 +298,7 @@ Deno.serve(async (req) => {
   }
 
   if (upper === "FAILED" || upper === "CRASHED") {
-    await supabase
-      .from("agent_instances")
-      .update({ status: "error" })
-      .eq("id", agent.id);
+    await supabase.from("agent_instances").update({ status: "error" }).eq("id", agent.id);
 
     await supabase
       .from("provisioning_jobs")
@@ -286,12 +338,15 @@ function jsonResponse(status: number, body: unknown) {
   });
 }
 
-// deno-lint-ignore no-explicit-any
-async function sendWelcomeMessage(supabase: any, agent: any): Promise<void> {
+async function sendWelcomeMessage(
+  supabase: SupabaseAdminClient,
+  agent: AgentWelcomeRow,
+): Promise<void> {
   // Decifra o token do bot
-  const { data: secret } = await supabase.rpc("vault_decrypt_secret", {
+  const { data: secretData } = await supabase.rpc("vault_decrypt_secret", {
     secret_id: agent.telegram_bot_token_vault_id,
   });
+  const secret = secretData as { decrypted_secret?: string | null }[] | null;
   const token: string = secret?.[0]?.decrypted_secret ?? "";
   if (!token) {
     console.warn("sendWelcomeMessage: token vazio, abortando");

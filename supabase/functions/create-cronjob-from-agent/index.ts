@@ -23,12 +23,30 @@ import cronstrue from "https://esm.sh/cronstrue@2.50.0/i18n";
 import { corsHeaders } from "../_shared/cors.ts";
 import { syncAgentRuntimeSnapshot } from "../_shared/runtime-sync.ts";
 
+type GenericTable = {
+  Row: Record<string, unknown>;
+  Insert: Record<string, unknown>;
+  Update: Record<string, unknown>;
+  Relationships: [];
+};
+
+type GenericDatabase = {
+  public: {
+    Tables: Record<string, GenericTable>;
+    Views: Record<string, GenericTable>;
+    Functions: Record<string, { Args: Record<string, unknown>; Returns: unknown }>;
+  };
+};
+
+type SupabaseAdminClient = ReturnType<typeof createClient<GenericDatabase>>;
+
 const SUPABASE_URL = Deno.env.get("SUPABASE_URL")!;
 const SUPABASE_SERVICE_ROLE_KEY = Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!;
 const INTERNAL_FUNCTION_SECRET = Deno.env.get("INTERNAL_FUNCTION_SECRET") ?? "";
 const LOVABLE_API_KEY = Deno.env.get("LOVABLE_API_KEY") ?? "";
 const RAILWAY_API_TOKEN = Deno.env.get("RAILWAY_API_TOKEN") ?? "";
 const HERMES_API_SERVER_KEY = Deno.env.get("HERMES_API_SERVER_KEY") ?? "";
+const CONTRACT_VERSION = "2026-05-28";
 
 const MODEL = "google/gemini-2.5-flash";
 
@@ -66,6 +84,13 @@ function constantTimeEq(a: string, b: string): boolean {
   return diff === 0;
 }
 
+function isAuthorized(req: Request): boolean {
+  const received = req.headers.get("x-internal-secret") ?? "";
+  return (
+    !!INTERNAL_FUNCTION_SECRET && !!received && constantTimeEq(INTERNAL_FUNCTION_SECRET, received)
+  );
+}
+
 function buildSystemPrompt(tz: string): string {
   return `Você é um parser de descrições de cronjobs em português para o assistente Mika. Receba uma descrição em linguagem natural e retorne APENAS JSON válido, sem markdown, sem explicações.
 
@@ -90,12 +115,16 @@ interface ParsedJob {
 function tryParseJson(text: string): ParsedJob | null {
   try {
     return JSON.parse(text) as ParsedJob;
-  } catch (_) { /* segue */ }
+  } catch (_) {
+    /* segue */
+  }
   const match = text.match(/\{[\s\S]*\}/);
   if (match) {
     try {
       return JSON.parse(match[0]) as ParsedJob;
-    } catch (_) { /* falhou */ }
+    } catch (_) {
+      /* falhou */
+    }
   }
   return null;
 }
@@ -123,15 +152,55 @@ async function parseWithAI(input: string, tz: string): Promise<ParsedJob | null>
   return tryParseJson(content);
 }
 
+async function markJobRuntimeSyncError(
+  admin: SupabaseAdminClient,
+  jobId: string,
+  syncError: string,
+): Promise<void> {
+  const message = syncError.slice(0, 2000);
+  const { error } = await admin
+    .from("scheduled_jobs")
+    .update({
+      status: "error",
+      auto_paused_reason: "Falha ao sincronizar esta automação com o runtime do agente.",
+      runtime_state: "error",
+      runtime_last_status: "error",
+      runtime_last_error: message,
+    })
+    .eq("id", jobId);
+
+  if (error) {
+    console.error("failed to mark scheduled_job runtime sync error:", error);
+  }
+}
+
 Deno.serve(async (req) => {
   if (req.method === "OPTIONS") return new Response(null, { headers: corsHeaders });
-  if (req.method !== "POST") return json({ error: "method not allowed" }, 405);
 
   // 1) Auth: apenas X-Internal-Secret (chamada server-to-server do runtime)
-  const received = req.headers.get("x-internal-secret") ?? "";
-  if (!INTERNAL_FUNCTION_SECRET || !received || !constantTimeEq(INTERNAL_FUNCTION_SECRET, received)) {
+  if (!isAuthorized(req)) {
     return json({ error: "unauthorized" }, 401);
   }
+
+  if (req.method === "GET" || req.method === "HEAD") {
+    return json({
+      success: true,
+      endpoint: "create-cronjob-from-agent",
+      contract_version: CONTRACT_VERSION,
+      expected_header: "X-Internal-Secret",
+      required_body_fields: ["agent_instance_id", "natural_language_input"],
+      optional_body_fields: [
+        "cron_expression",
+        "action_prompt",
+        "required_mcp_slugs",
+        "name",
+        "description",
+        "timezone",
+      ],
+    });
+  }
+
+  if (req.method !== "POST") return json({ error: "method not allowed" }, 405);
 
   // 2) Body
   let body: RequestBody;
@@ -144,7 +213,8 @@ Deno.serve(async (req) => {
   if (!body.agent_instance_id) return json({ error: "agent_instance_id required" }, 400);
   const input = (body.natural_language_input ?? "").trim();
   if (input.length < 5) return json({ error: "natural_language_input too short" }, 400);
-  if (input.length > 1000) return json({ error: "natural_language_input too long (max 1000)" }, 400);
+  if (input.length > 1000)
+    return json({ error: "natural_language_input too long (max 1000)" }, 400);
 
   const admin = createClient(SUPABASE_URL, SUPABASE_SERVICE_ROLE_KEY, {
     auth: { persistSession: false, autoRefreshToken: false },
@@ -172,7 +242,9 @@ Deno.serve(async (req) => {
   let cron = (body.cron_expression ?? "").trim();
   let actionPrompt = (body.action_prompt ?? "").trim();
   let reqSlugs = Array.isArray(body.required_mcp_slugs)
-    ? body.required_mcp_slugs.filter((s): s is string => typeof s === "string" && VALID_MCP_SLUGS.has(s))
+    ? body.required_mcp_slugs.filter(
+        (s): s is string => typeof s === "string" && VALID_MCP_SLUGS.has(s),
+      )
     : [];
 
   if (!cron || !actionPrompt) {
@@ -208,7 +280,9 @@ Deno.serve(async (req) => {
   let humanReadable = cron;
   try {
     humanReadable = cronstrue.toString(cron, { locale: "pt_BR" });
-  } catch (_) { /* fallback */ }
+  } catch (_) {
+    /* fallback */
+  }
 
   // 7) Nome: usa o fornecido ou deriva do input
   const name = (body.name ?? "").trim() || input.slice(0, 80);
@@ -245,7 +319,8 @@ Deno.serve(async (req) => {
     return json({ error: "failed to create cronjob", detail: insertErr.message }, 500);
   }
 
-  // 9) Push para o runtime (best-effort; não derruba a criação se falhar)
+  // 9) Push para o runtime. Se falhar, o job fica registrado como erro,
+  // mas não fica ativo na UI como se estivesse realmente agendado.
   let syncOk = false;
   let syncError: string | null = null;
   try {
@@ -259,7 +334,23 @@ Deno.serve(async (req) => {
     syncOk = true;
   } catch (e) {
     syncError = e instanceof Error ? e.message : String(e);
-    console.error("runtime sync failed (job created anyway):", syncError);
+    console.error("runtime sync failed; marking job as error:", syncError);
+    await markJobRuntimeSyncError(admin, inserted.id, syncError);
+    return json(
+      {
+        success: false,
+        job_id: inserted.id,
+        name: inserted.name,
+        cron_expression: inserted.cron_expression,
+        human_readable: inserted.human_readable,
+        next_run_at: inserted.next_run_at,
+        required_mcp_slugs: inserted.required_mcp_slugs,
+        status: "error",
+        runtime_sync_ok: false,
+        runtime_sync_error: syncError,
+      },
+      502,
+    );
   }
 
   return json({
@@ -270,6 +361,7 @@ Deno.serve(async (req) => {
     human_readable: inserted.human_readable,
     next_run_at: inserted.next_run_at,
     required_mcp_slugs: inserted.required_mcp_slugs,
+    status: inserted.status,
     runtime_sync_ok: syncOk,
     runtime_sync_error: syncError,
   });

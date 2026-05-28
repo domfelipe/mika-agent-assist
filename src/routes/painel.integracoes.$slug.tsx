@@ -89,11 +89,11 @@ function IntegrationDetailPage() {
           </Link>
         </Button>
         <div className="rounded-xl border border-border bg-card p-8 text-center">
-          <p className="text-muted-foreground">
-            Você ainda não conectou {mcp.name}.
-          </p>
+          <p className="text-muted-foreground">Você ainda não conectou {mcp.name}.</p>
           <Button asChild className="mt-4">
-            <Link to="/painel/integracoes" search={{}}>Conectar</Link>
+            <Link to="/painel/integracoes" search={{}}>
+              Conectar
+            </Link>
           </Button>
         </div>
       </div>
@@ -248,9 +248,7 @@ function IntegrationDetailPage() {
                 className="flex items-center justify-between text-sm border-b border-border last:border-0 pb-2 last:pb-0"
               >
                 <span>{j.name}</span>
-                <Badge variant={j.status === "active" ? "success" : "secondary"}>
-                  {j.status}
-                </Badge>
+                <Badge variant={j.status === "active" ? "success" : "secondary"}>{j.status}</Badge>
               </li>
             ))}
           </ul>
@@ -271,25 +269,20 @@ function IntegrationDetailPage() {
         {(status === "expired" || status === "revoked" || status === "error") && (
           <Button
             onClick={async () => {
-              const { data, error } = await invokeFunction<{ authorize_url: string }>(
-                "oauth-start",
-                { mcp_slug: mcp.slug },
-              );
-              if (error || !data?.authorize_url) {
+              const { data, error } = await invokeFunction<{ auth_url: string }>("oauth-start", {
+                mcp_slug: mcp.slug,
+              });
+              if (error || !data?.auth_url) {
                 toast.error(error?.message ?? "Falha ao iniciar reconexão.");
                 return;
               }
-              window.location.href = data.authorize_url;
+              window.location.href = data.auth_url;
             }}
           >
             Reconectar
           </Button>
         )}
-        <Button
-          variant="destructive"
-          onClick={() => setDisconnectOpen(true)}
-          className="ml-auto"
-        >
+        <Button variant="destructive" onClick={() => setDisconnectOpen(true)} className="ml-auto">
           <Unplug className="h-4 w-4 mr-2" /> Desconectar
         </Button>
       </div>
@@ -300,14 +293,12 @@ function IntegrationDetailPage() {
           setDisconnectOpen(o);
           if (!o) {
             // se desconectou, volta para a lista
-            queryClient
-              .invalidateQueries({ queryKey: ["user-integrations"] })
-              .then(() => {
-                const stillConnected = integs.some((i) => i.id === integration.id);
-                if (!stillConnected) {
-                  navigate({ to: "/painel/integracoes", search: {} });
-                }
-              });
+            queryClient.invalidateQueries({ queryKey: ["user-integrations"] }).then(() => {
+              const stillConnected = integs.some((i) => i.id === integration.id);
+              if (!stillConnected) {
+                navigate({ to: "/painel/integracoes", search: {} });
+              }
+            });
           }
         }}
         integrationId={integration.id}
