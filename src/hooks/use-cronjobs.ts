@@ -142,16 +142,29 @@ export function useCreateCronjob() {
   });
 }
 
+export async function markCronjobRuntimeSyncError(id: string, detail: string) {
+  const message = detail.slice(0, 2000);
+  const { error } = await supabase
+    .from("scheduled_jobs")
+    .update({
+      status: "error",
+      auto_paused_reason: "Falha ao sincronizar esta automação com o runtime do agente.",
+      runtime_state: "error",
+      runtime_last_status: "error",
+      runtime_last_error: message,
+    })
+    .eq("id", id);
+
+  if (error) throw error;
+}
+
 export function useUpdateCronjobStatus() {
   const qc = useQueryClient();
   return useMutation({
     mutationFn: async ({ id, status }: { id: string; status: "active" | "paused" }) => {
       const update: { status: "active" | "paused"; auto_paused_reason?: null } = { status };
       if (status === "paused") update.auto_paused_reason = null;
-      const { error } = await supabase
-        .from("scheduled_jobs")
-        .update(update)
-        .eq("id", id);
+      const { error } = await supabase.from("scheduled_jobs").update(update).eq("id", id);
       if (error) throw error;
     },
     onSuccess: () => {

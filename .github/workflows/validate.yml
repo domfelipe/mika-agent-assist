@@ -47,11 +47,14 @@ jobs:
         run: |
           files=(
             supabase/functions/_shared/hermes-config.ts
+            supabase/functions/_shared/default-skills.ts
             supabase/functions/_shared/runtime-sync.ts
             supabase/functions/sync-agent-runtime/index.ts
             supabase/functions/sync-agent-skills/index.ts
             supabase/functions/keep-alive-agents/index.ts
             supabase/functions/provision-agent/index.ts
+            supabase/functions/create-cronjob-from-agent/index.ts
+            supabase/functions/create-skill-from-agent/index.ts
             supabase/functions/publish-skill-version/index.ts
             supabase/functions/railway-webhook/index.ts
             supabase/functions/update-agent-config/index.ts

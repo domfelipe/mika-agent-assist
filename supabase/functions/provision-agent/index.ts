@@ -22,6 +22,23 @@ import {
   normalizeOllamaModelSelection,
 } from "../_shared/hermes-config.ts";
 
+type GenericTable = {
+  Row: Record<string, unknown>;
+  Insert: Record<string, unknown>;
+  Update: Record<string, unknown>;
+  Relationships: [];
+};
+
+type GenericDatabase = {
+  public: {
+    Tables: Record<string, GenericTable>;
+    Views: Record<string, GenericTable>;
+    Functions: Record<string, { Args: Record<string, unknown>; Returns: unknown }>;
+  };
+};
+
+type SupabaseAdminClient = ReturnType<typeof createClient<GenericDatabase>>;
+
 interface RequestBody {
   agent_instance_id: string;
   agent_name?: string;
@@ -31,28 +48,77 @@ interface RequestBody {
   tts_provider?: string;
 }
 
+interface SubscriptionWithPlan {
+  plans?: { slug?: string | null } | { slug?: string | null }[] | null;
+}
+
+interface AgentInstanceRow {
+  id: string;
+  user_id: string;
+  uuid_tenant: string;
+  status: string;
+  telegram_bot_token_vault_id?: string | null;
+  telegram_bot_username?: string | null;
+  telegram_user_chat_id?: string | number | null;
+  railway_service_id?: string | null;
+  agent_name?: string | null;
+  vps_pool_id?: string | null;
+}
+
+function getPlanSlug(subscription: SubscriptionWithPlan | null): string {
+  const plans = subscription?.plans;
+  const plan = Array.isArray(plans) ? plans[0] : plans;
+  return plan?.slug ?? "basic";
+}
+
 const SUPABASE_URL = Deno.env.get("SUPABASE_URL")!;
 const SUPABASE_SERVICE_ROLE_KEY = Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!;
 const RAILWAY_API_TOKEN = Deno.env.get("RAILWAY_API_TOKEN");
+const HERMES_API_SERVER_KEY = Deno.env.get("HERMES_API_SERVER_KEY") ?? "";
+const INTERNAL_FUNCTION_SECRET = Deno.env.get("INTERNAL_FUNCTION_SECRET") ?? "";
+const HERMES_RUNTIME_IMAGE =
+  Deno.env.get("HERMES_RUNTIME_IMAGE") ?? "ghcr.io/domfelipe/hermes-agent-custom:latest";
+const MIKA_RUNTIME_CONTRACT_VERSION = "2026-05-28";
 
 const ADMIN_TELEGRAM_BOT_TOKEN = Deno.env.get("ADMIN_TELEGRAM_BOT_TOKEN");
 const ADMIN_TELEGRAM_CHAT_ID = Deno.env.get("ADMIN_TELEGRAM_CHAT_ID");
 
+function buildRuntimePlatformEnv(agentInstanceId: string): Record<string, string> {
+  const functionsBaseUrl = `${SUPABASE_URL.replace(/\/$/, "")}/functions/v1`;
+  const createCronjobUrl = `${functionsBaseUrl}/create-cronjob-from-agent`;
+  const createSkillUrl = `${functionsBaseUrl}/create-skill-from-agent`;
+
+  return {
+    AGENT_INSTANCE_ID: agentInstanceId,
+    HERMES_AGENT_INSTANCE_ID: agentInstanceId,
+    HERMES_CREATE_CRONJOB_URL: createCronjobUrl,
+    HERMES_CREATE_SKILL_URL: createSkillUrl,
+    HERMES_INTERNAL_FUNCTION_SECRET: INTERNAL_FUNCTION_SECRET,
+    HERMES_PLATFORM_FUNCTIONS_BASE_URL: functionsBaseUrl,
+    HERMES_RUNTIME_CONTRACT_VERSION: MIKA_RUNTIME_CONTRACT_VERSION,
+    INTERNAL_FUNCTION_SECRET,
+    MIKA_AGENT_INSTANCE_ID: agentInstanceId,
+    MIKA_CREATE_CRONJOB_URL: createCronjobUrl,
+    MIKA_CREATE_SKILL_URL: createSkillUrl,
+    MIKA_INTERNAL_FUNCTION_SECRET: INTERNAL_FUNCTION_SECRET,
+    MIKA_PLATFORM_FUNCTIONS_BASE_URL: functionsBaseUrl,
+    MIKA_RUNTIME_CONTRACT_VERSION,
+    SUPABASE_URL,
+  };
+}
+
 async function notifyAdmin(message: string): Promise<void> {
   if (!ADMIN_TELEGRAM_BOT_TOKEN || !ADMIN_TELEGRAM_CHAT_ID) return;
   try {
-    await fetch(
-      `https://api.telegram.org/bot${ADMIN_TELEGRAM_BOT_TOKEN}/sendMessage`,
-      {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({
-          chat_id: ADMIN_TELEGRAM_CHAT_ID,
-          text: message,
-          parse_mode: "HTML",
-        }),
-      },
-    );
+    await fetch(`https://api.telegram.org/bot${ADMIN_TELEGRAM_BOT_TOKEN}/sendMessage`, {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({
+        chat_id: ADMIN_TELEGRAM_CHAT_ID,
+        text: message,
+        parse_mode: "HTML",
+      }),
+    });
   } catch (e) {
     console.error("notifyAdmin failed:", e);
   }
@@ -93,7 +159,7 @@ Deno.serve(async (req) => {
   const { data: agent, error: agentErr } = await supabase
     .from("agent_instances")
     .select(
-      "id, user_id, uuid_tenant, status, telegram_bot_token_vault_id, telegram_bot_username, telegram_user_chat_id, railway_service_id, agent_name",
+      "id, user_id, uuid_tenant, status, telegram_bot_token_vault_id, telegram_bot_username, telegram_user_chat_id, railway_service_id, agent_name, vps_pool_id",
     )
     .eq("id", body.agent_instance_id)
     .maybeSingle();
@@ -105,29 +171,33 @@ Deno.serve(async (req) => {
 
   if (agent.status !== "provisioning") {
     console.log(`[provision-agent] status atual=${agent.status}, abortando`);
-    return jsonResponse(409, { error: "agent_instance is not in provisioning status", status: agent.status });
+    return jsonResponse(409, {
+      error: "agent_instance is not in provisioning status",
+      status: agent.status,
+    });
   }
 
   // Se já existe railway_service_id → fluxo de UPDATE (não tenta criar novo serviço)
   if (agent.railway_service_id) {
-    console.log(`[provision-agent] railway_service_id já existe (${agent.railway_service_id}) → modo update`);
+    console.log(
+      `[provision-agent] railway_service_id já existe (${agent.railway_service_id}) → modo update`,
+    );
     return await handleUpdateExistingService(supabase, agent, body);
   }
 
   // 1b) Carregar profile (full_name → nome do agente)
-  const { data: profile } = await supabase
+  const { data: profileData } = await supabase
     .from("profiles")
     .select("full_name")
     .eq("id", agent.user_id)
     .maybeSingle();
+  const profile = profileData as { full_name?: string | null } | null;
 
   const fullName = (profile?.full_name?.trim() || "Usuário").toString();
   const firstName = fullName.split(" ")[0] || "Usuário";
   // Prioridade: body > coluna agent_name no DB > default "Mika de {firstName}"
   const agentName =
-    body.agent_name?.trim() ||
-    (agent.agent_name?.trim() ?? "") ||
-    `Mika de ${firstName}`;
+    body.agent_name?.trim() || (agent.agent_name?.trim() ?? "") || `Mika de ${firstName}`;
   console.log(`[provision-agent] profile carregado: ${fullName} → agent_name=${agentName}`);
 
   // 1c) Carregar subscription ativa (para definir modelo Pro vs Basic)
@@ -140,8 +210,7 @@ Deno.serve(async (req) => {
     .limit(1)
     .maybeSingle();
 
-  // deno-lint-ignore no-explicit-any
-  const planSlug = ((subscription as any)?.plans?.slug as string | undefined) ?? "basic";
+  const planSlug = getPlanSlug(subscription as SubscriptionWithPlan | null);
   console.log(`[provision-agent] plano=${planSlug}`);
 
   // 2) Buscar pool disponível (com IDs Railway preenchidos e capacidade)
@@ -166,7 +235,9 @@ Deno.serve(async (req) => {
     );
     return jsonResponse(503, { error: "no railway pool available" });
   }
-  console.log(`[provision-agent] pool selecionado: ${pool.id} (railway_project=${pool.railway_project_id})`);
+  console.log(
+    `[provision-agent] pool selecionado: ${pool.id} (railway_project=${pool.railway_project_id})`,
+  );
 
   // 3) Criar provisioning_job em status running
   const { data: job, error: jobErr } = await supabase
@@ -190,14 +261,19 @@ Deno.serve(async (req) => {
 
   if (jobErr || !job) {
     console.error(`[provision-agent] falha ao criar job: ${jobErr?.message}`);
-    return jsonResponse(500, { error: "failed to create provisioning_job", detail: jobErr?.message });
+    return jsonResponse(500, {
+      error: "failed to create provisioning_job",
+      detail: jobErr?.message,
+    });
   }
   console.log(`[provision-agent] provisioning_job criado: ${job.id}`);
 
   // 4) Decrypt do telegram_bot_token (se existir)
   let telegramBotToken = "";
   if (agent.telegram_bot_token_vault_id) {
-    console.log(`[provision-agent] decifrando token do Vault: ${agent.telegram_bot_token_vault_id}`);
+    console.log(
+      `[provision-agent] decifrando token do Vault: ${agent.telegram_bot_token_vault_id}`,
+    );
     const { data: secret } = await supabase.rpc("vault_decrypt_secret", {
       secret_id: agent.telegram_bot_token_vault_id,
     });
@@ -240,9 +316,10 @@ Deno.serve(async (req) => {
   const modelFinal = normalizeOllamaModelSelection(body.model || DEFAULT_OLLAMA_MODEL);
 
   const envVars: Record<string, string> = {
+    ...buildRuntimePlatformEnv(agent.id),
     HERMES_HOME: "/opt/data/.hermes",
     API_SERVER_ENABLED: "true",
-    API_SERVER_KEY: Deno.env.get("HERMES_API_SERVER_KEY") ?? "",
+    API_SERVER_KEY: HERMES_API_SERVER_KEY,
     GATEWAY_ALLOW_ALL_USERS: "false",
     HERMES_MODEL_DEFAULT: modelFinal,
     HERMES_MODEL_PROVIDER: DEFAULT_OLLAMA_PROVIDER,
@@ -275,7 +352,9 @@ Deno.serve(async (req) => {
       const msg = createErr instanceof Error ? createErr.message : String(createErr);
       // Recover from "service already exists" — provavelmente sobra de attempt anterior
       if (msg.includes("already exists")) {
-        console.warn(`[provision-agent] serviço já existe, tentando recuperar ID por nome: ${serviceName}`);
+        console.warn(
+          `[provision-agent] serviço já existe, tentando recuperar ID por nome: ${serviceName}`,
+        );
         const existingId = await findRailwayServiceByName({
           token: RAILWAY_API_TOKEN,
           projectId: pool.railway_project_id,
@@ -296,11 +375,13 @@ Deno.serve(async (req) => {
       serviceId: railwayServiceId,
       environmentId: pool.railway_environment_id,
       projectId: pool.railway_project_id,
-      image: "ghcr.io/domfelipe/hermes-agent-custom:latest",
+      image: HERMES_RUNTIME_IMAGE,
       variables: envVars,
       startCommand: HERMES_START_COMMAND,
     });
-    console.log(`[provision-agent] serviço configurado com ${Object.keys(envVars).length} env vars`);
+    console.log(
+      `[provision-agent] serviço configurado com ${Object.keys(envVars).length} env vars`,
+    );
 
     await deployRailwayService({
       token: RAILWAY_API_TOKEN,
@@ -346,7 +427,9 @@ Deno.serve(async (req) => {
     .update({ railway_service_id: railwayServiceId, status: "running" })
     .eq("id", job.id);
 
-  console.log(`[provision-agent] sucesso: agent=${agent.id} railway=${railwayServiceId} (aguardando deploy)`);
+  console.log(
+    `[provision-agent] sucesso: agent=${agent.id} railway=${railwayServiceId} (aguardando deploy)`,
+  );
 
   // status do agent permanece 'provisioning' — railway-webhook atualiza para 'active' quando deploy subir
   return jsonResponse(200, {
@@ -367,8 +450,7 @@ function jsonResponse(status: number, body: unknown) {
 }
 
 async function failJob(
-  // deno-lint-ignore no-explicit-any
-  supabase: any,
+  supabase: SupabaseAdminClient,
   agent: { id: string },
   jobId: string | null,
   message: string,
@@ -383,8 +465,7 @@ async function failJob(
 }
 
 async function scheduleRetry(
-  // deno-lint-ignore no-explicit-any
-  supabase: any,
+  supabase: SupabaseAdminClient,
   agent: { id: string },
   jobId: string,
   message: string,
@@ -424,27 +505,27 @@ async function scheduleRetry(
  * faz upsert das variáveis de ambiente com defaults automáticos e dispara redeploy.
  */
 async function handleUpdateExistingService(
-  // deno-lint-ignore no-explicit-any
-  supabase: any,
-  // deno-lint-ignore no-explicit-any
-  agent: any,
+  supabase: SupabaseAdminClient,
+  agent: AgentInstanceRow,
   body: RequestBody,
 ): Promise<Response> {
-  const railwayServiceId: string = agent.railway_service_id;
+  const railwayServiceId = agent.railway_service_id;
+  if (!railwayServiceId) {
+    return jsonResponse(400, { error: "railway_service_id required for update mode" });
+  }
 
   // Carregar profile + plano para gerar defaults coerentes
-  const { data: profile } = await supabase
+  const { data: profileData } = await supabase
     .from("profiles")
     .select("full_name")
     .eq("id", agent.user_id)
     .maybeSingle();
+  const profile = profileData as { full_name?: string | null } | null;
 
   const fullName = (profile?.full_name?.trim() || "Usuário").toString();
   const firstName = fullName.split(" ")[0] || "Usuário";
   const agentName =
-    body.agent_name?.trim() ||
-    (agent.agent_name?.trim() ?? "") ||
-    `Mika de ${firstName}`;
+    body.agent_name?.trim() || (agent.agent_name?.trim() ?? "") || `Mika de ${firstName}`;
 
   const { data: subscription } = await supabase
     .from("subscriptions")
@@ -455,8 +536,7 @@ async function handleUpdateExistingService(
     .limit(1)
     .maybeSingle();
 
-  // deno-lint-ignore no-explicit-any
-  const planSlug = ((subscription as any)?.plans?.slug as string | undefined) ?? "basic";
+  const planSlug = getPlanSlug(subscription as SubscriptionWithPlan | null);
   const defaultSoul = `Você se chama ${agentName}. Você é um assistente pessoal de IA criado pela DOMCO para ${fullName}. Você é proativo, direto e fala sempre em português brasileiro. Você ajuda ${firstName} a ser mais produtivo — gerenciando emails, agenda, tarefas e automatizando o que puder. Seja conciso nas respostas via Telegram. Nunca se identifique como Hermes ou como produto da Nous Research — você é Mika.`;
   const soulContent = body.soul_content?.trim() || defaultSoul;
 
@@ -464,18 +544,24 @@ async function handleUpdateExistingService(
   const sttProvider = body.stt_provider || "local";
   const ttsProvider = body.tts_provider || "disabled";
 
-  console.log(`[provision-agent:update] agent=${agent.id} service=${railwayServiceId} plano=${planSlug}`);
+  console.log(
+    `[provision-agent:update] agent=${agent.id} service=${railwayServiceId} plano=${planSlug}`,
+  );
 
   // Resolver project/environment Railway
   let projectId: string | null = null;
   let environmentId: string | null = null;
 
   if (agent.vps_pool_id) {
-    const { data: pool } = await supabase
+    const { data: poolData } = await supabase
       .from("vps_pool")
       .select("railway_project_id, railway_environment_id")
       .eq("id", agent.vps_pool_id)
       .maybeSingle();
+    const pool = poolData as {
+      railway_project_id?: string | null;
+      railway_environment_id?: string | null;
+    } | null;
     projectId = pool?.railway_project_id ?? null;
     environmentId = pool?.railway_environment_id ?? null;
   }
@@ -492,6 +578,11 @@ async function handleUpdateExistingService(
   }
 
   const variables: Record<string, string> = {
+    ...buildRuntimePlatformEnv(agent.id),
+    API_SERVER_ENABLED: "true",
+    API_SERVER_KEY: HERMES_API_SERVER_KEY,
+    GATEWAY_ALLOW_ALL_USERS: "false",
+    HERMES_HOME: "/opt/data/.hermes",
     HERMES_MODEL_DEFAULT: model,
     HERMES_MODEL_PROVIDER: DEFAULT_OLLAMA_PROVIDER,
     HERMES_SOUL_OVERRIDE: soulContent,
@@ -517,14 +608,16 @@ async function handleUpdateExistingService(
       variables,
       skipDeploys: true,
     });
-    console.log(`[provision-agent:update] variáveis atualizadas (${Object.keys(variables).length})`);
+    console.log(
+      `[provision-agent:update] variáveis atualizadas (${Object.keys(variables).length})`,
+    );
 
     await configureRailwayService({
       token: RAILWAY_API_TOKEN!,
       serviceId: railwayServiceId,
       environmentId,
       projectId,
-      image: "ghcr.io/domfelipe/hermes-agent-custom:latest",
+      image: HERMES_RUNTIME_IMAGE,
       variables: {},
       startCommand: HERMES_START_COMMAND,
     });
