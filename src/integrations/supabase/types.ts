@@ -694,6 +694,7 @@ export type Database = {
           current_version_id: string | null
           description: string
           id: string
+          is_default: boolean
           name: string
           status: string
           trigger_keywords: string
@@ -706,6 +707,7 @@ export type Database = {
           current_version_id?: string | null
           description: string
           id?: string
+          is_default?: boolean
           name: string
           status?: string
           trigger_keywords: string
@@ -718,6 +720,7 @@ export type Database = {
           current_version_id?: string | null
           description?: string
           id?: string
+          is_default?: boolean
           name?: string
           status?: string
           trigger_keywords?: string

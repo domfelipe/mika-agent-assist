@@ -220,11 +220,16 @@ export async function ensureDefaultSkillsForAgent(
   for (const template of DEFAULT_HERMES_SKILLS) {
     const { data: existing, error: existingErr } = await supabase
       .from("skills")
-      .select("id")
+      .select("id, current_version_id, is_default")
       .eq("user_id", agent.user_id)
       .eq("name", template.name)
       .neq("status", "archived")
       .maybeSingle();
+    const existingSkill = existing as {
+      id: string;
+      current_version_id: string | null;
+      is_default?: boolean | null;
+    } | null;
 
     if (existingErr) {
       result.errors.push(
@@ -233,9 +238,18 @@ export async function ensureDefaultSkillsForAgent(
       continue;
     }
 
-    if (existing) {
+    if (existingSkill?.current_version_id) {
       result.skipped_count += 1;
       continue;
+    }
+
+    if (existingSkill) {
+      if (existingSkill.is_default) {
+        await supabase.from("skills").delete().eq("id", existingSkill.id);
+      } else {
+        result.skipped_count += 1;
+        continue;
+      }
     }
 
     const { data: skillData, error: skillErr } = await supabase
@@ -246,6 +260,7 @@ export async function ensureDefaultSkillsForAgent(
         name: template.name,
         description: template.description,
         trigger_keywords: template.trigger_keywords,
+        is_default: true,
         status: "draft",
       })
       .select("id")
@@ -274,6 +289,7 @@ export async function ensureDefaultSkillsForAgent(
     const version = versionData as { id: string } | null;
 
     if (versionErr || !version) {
+      await supabase.from("skills").delete().eq("id", skill.id);
       result.errors.push(
         `${template.name}: failed to create skill version (${versionErr?.message ?? "unknown"})`,
       );
@@ -290,6 +306,7 @@ export async function ensureDefaultSkillsForAgent(
       .eq("id", skill.id);
 
     if (updateErr) {
+      await supabase.from("skills").delete().eq("id", skill.id);
       result.errors.push(`${template.name}: failed to publish skill (${updateErr.message})`);
       continue;
     }

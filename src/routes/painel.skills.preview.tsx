@@ -45,109 +45,117 @@ function SkillPreviewPage() {
   const hasContent = markdown.trim().length > 0;
 
   // Helper: parse Supabase error codes
-  const handleSupabaseError = useCallback((error: { code?: string; message?: string }) => {
-    if (error.code === "P0001") {
-      toast.error("Você precisa de uma assinatura ativa para criar skills.", {
-        action: { label: "Ver planos", onClick: () => navigate({ to: "/", hash: "planos" }) },
-      });
-      return true;
-    }
-    if (error.code === "P0002") {
-      toast.error("Você atingiu o limite de skills do seu plano. Faça upgrade ou arquive uma skill existente.");
-      return true;
-    }
-    if (error.code === "23505") {
-      toast.error("Você já tem uma skill com esse nome. Escolha outro.");
-      return true;
-    }
-    return false;
-  }, [navigate]);
-
-  const createSkill = useCallback(async (publish: boolean) => {
-    if (!user || !agentId) return;
-    if (markdown.length > 50000) {
-      toast.error("O conteúdo excede 50.000 caracteres. Reduza antes de salvar.");
-      return;
-    }
-
-    const setter = publish ? setPublishing : setSaving;
-    setter(true);
-
-    try {
-      const fi = formInputs as Record<string, unknown>;
-      // 1. Create skill
-      const { data: skill, error: skillErr } = await supabase
-        .from("skills")
-        .insert({
-          user_id: user.id,
-          agent_instance_id: agentId,
-          name: (fi.name as string) || "Skill sem nome",
-          description: (fi.description as string) || "",
-          trigger_keywords: (fi.trigger_keywords as string) || "",
-          status: "draft",
-        })
-        .select("id")
-        .single();
-
-      if (skillErr) {
-        if (!handleSupabaseError(skillErr as { code?: string })) {
-          toast.error(skillErr.message || "Erro ao criar skill");
-        }
-        return;
+  const handleSupabaseError = useCallback(
+    (error: { code?: string; message?: string }) => {
+      if (error.code === "P0001") {
+        toast.error("Você precisa de uma assinatura ativa para criar skills.", {
+          action: { label: "Ver planos", onClick: () => navigate({ to: "/", hash: "planos" }) },
+        });
+        return true;
       }
-
-      // 2. Create version
-      const { data: ver, error: verErr } = await supabase
-        .from("skill_versions")
-        .insert([{
-          skill_id: skill.id,
-          version_number: 1,
-          markdown_content: markdown,
-          // eslint-disable-next-line @typescript-eslint/no-explicit-any
-          form_inputs: formInputs as any,
-          is_live: false,
-          created_by: user.id,
-        }])
-        .select("id")
-        .single();
-
-      if (verErr) {
-        toast.error(verErr.message || "Erro ao salvar versão");
-        return;
-      }
-
-      // 3. Optionally publish
-      if (publish) {
-        const { data: pubData, error: pubErr } = await supabase.functions.invoke<{
-          success?: boolean;
-          synced?: boolean;
-          sync_error?: string;
-        }>(
-          "publish-skill-version",
-          { body: { skill_version_id: ver.id } },
+      if (error.code === "P0002") {
+        toast.error(
+          "Você atingiu o limite de skills do seu plano. Faça upgrade ou arquive uma skill existente.",
         );
-        if (pubErr) {
-          toast.error("Skill salva, mas falha ao publicar: " + pubErr.message);
-        } else if (pubData?.synced === false) {
-          toast.warning("Skill publicada, mas o sync com o container falhou.", {
-            description: pubData.sync_error || "Tente novamente após o próximo deploy.",
-          });
-        } else {
-          toast.success("Skill publicada com sucesso!");
-        }
-      } else {
-        toast.success("Rascunho salvo!");
+        return true;
+      }
+      if (error.code === "23505") {
+        toast.error("Você já tem uma skill com esse nome. Escolha outro.");
+        return true;
+      }
+      return false;
+    },
+    [navigate],
+  );
+
+  const createSkill = useCallback(
+    async (publish: boolean) => {
+      if (!user || !agentId) return;
+      if (markdown.length > 50000) {
+        toast.error("O conteúdo excede 50.000 caracteres. Reduza antes de salvar.");
+        return;
       }
 
-      qc.invalidateQueries({ queryKey: ["skills"] });
-      qc.invalidateQueries({ queryKey: ["user-limits"] });
-      navigate({ to: "/painel/skills/$id", params: { id: skill.id } });
-    } catch {
-      toast.error("Erro inesperado");
-    } finally {
-      setter(false);
-    }
-  }, [user, agentId, markdown, formInputs, handleSupabaseError, navigate, qc]);
+      const setter = publish ? setPublishing : setSaving;
+      setter(true);
+
+      try {
+        const fi = formInputs as Record<string, unknown>;
+        // 1. Create skill
+        const { data: skill, error: skillErr } = await supabase
+          .from("skills")
+          .insert({
+            user_id: user.id,
+            agent_instance_id: agentId,
+            name: (fi.name as string) || "Skill sem nome",
+            description: (fi.description as string) || "",
+            trigger_keywords: (fi.trigger_keywords as string) || "",
+            status: "draft",
+          })
+          .select("id")
+          .single();
+
+        if (skillErr) {
+          if (!handleSupabaseError(skillErr as { code?: string })) {
+            toast.error(skillErr.message || "Erro ao criar skill");
+          }
+          return;
+        }
+
+        // 2. Create version
+        const { data: ver, error: verErr } = await supabase
+          .from("skill_versions")
+          .insert([
+            {
+              skill_id: skill.id,
+              version_number: 1,
+              markdown_content: markdown,
+              // eslint-disable-next-line @typescript-eslint/no-explicit-any
+              form_inputs: formInputs as any,
+              is_live: false,
+              created_by: user.id,
+            },
+          ])
+          .select("id")
+          .single();
+
+        if (verErr) {
+          await supabase.from("skills").delete().eq("id", skill.id);
+          toast.error(verErr.message || "Erro ao salvar versão");
+          return;
+        }
+
+        // 3. Optionally publish
+        if (publish) {
+          const { data: pubData, error: pubErr } = await supabase.functions.invoke<{
+            success?: boolean;
+            synced?: boolean;
+            sync_error?: string;
+          }>("publish-skill-version", { body: { skill_version_id: ver.id } });
+          if (pubErr) {
+            toast.error("Skill salva, mas falha ao publicar: " + pubErr.message);
+          } else if (pubData?.synced === false) {
+            toast.warning("Skill publicada, mas o sync com o container falhou.", {
+              description: pubData.sync_error || "Tente novamente após o próximo deploy.",
+            });
+          } else {
+            toast.success("Skill publicada com sucesso!");
+          }
+        } else {
+          toast.success("Rascunho salvo!");
+        }
+
+        qc.invalidateQueries({ queryKey: ["skills"] });
+        qc.invalidateQueries({ queryKey: ["user-limits"] });
+        navigate({ to: "/painel/skills/$id", params: { id: skill.id } });
+      } catch {
+        toast.error("Erro inesperado");
+      } finally {
+        setter(false);
+      }
+    },
+    [user, agentId, markdown, formInputs, handleSupabaseError, navigate, qc],
+  );
 
   if (!routerState.markdown_content) {
     return (
@@ -175,8 +183,16 @@ function SkillPreviewPage() {
           <Button variant="outline" onClick={() => setTestOpen(true)} disabled={!hasContent}>
             <Play className="h-4 w-4 mr-1" /> Testar antes
           </Button>
-          <Button variant="outline" onClick={() => createSkill(false)} disabled={saving || publishing || !hasContent}>
-            {saving ? <Loader2 className="h-4 w-4 mr-1 animate-spin" /> : <Save className="h-4 w-4 mr-1" />}
+          <Button
+            variant="outline"
+            onClick={() => createSkill(false)}
+            disabled={saving || publishing || !hasContent}
+          >
+            {saving ? (
+              <Loader2 className="h-4 w-4 mr-1 animate-spin" />
+            ) : (
+              <Save className="h-4 w-4 mr-1" />
+            )}
             Salvar rascunho
           </Button>
           <Button
@@ -184,7 +200,11 @@ function SkillPreviewPage() {
             disabled={saving || publishing || !hasContent}
             className="bg-primary hover:bg-primary-dark text-primary-foreground"
           >
-            {publishing ? <Loader2 className="h-4 w-4 mr-1 animate-spin" /> : <FileText className="h-4 w-4 mr-1" />}
+            {publishing ? (
+              <Loader2 className="h-4 w-4 mr-1 animate-spin" />
+            ) : (
+              <FileText className="h-4 w-4 mr-1" />
+            )}
             Publicar agora
           </Button>
         </div>

@@ -33,7 +33,9 @@ export function SkillsDashboardWidget() {
             <h3 className="font-semibold">Suas skills</h3>
             <p className="text-xs text-muted-foreground">
               {activeCount} ativa{activeCount === 1 ? "" : "s"}
-              {limits?.max_skills ? ` de ${limits.max_skills} disponíveis` : ""}
+              {limits?.max_skills
+                ? ` · ${limits.current_skills_count} de ${limits.max_skills} personalizadas`
+                : ""}
             </p>
           </div>
         </div>
@@ -67,7 +69,11 @@ export function SkillsDashboardWidget() {
                 <div className="min-w-0 flex-1">
                   <p className="text-sm font-medium truncate">{skill.name}</p>
                   <p className="text-xs text-muted-foreground">
-                    Atualizada {formatDistanceToNow(new Date(skill.updated_at), { addSuffix: true, locale: ptBR })}
+                    Atualizada{" "}
+                    {formatDistanceToNow(new Date(skill.updated_at), {
+                      addSuffix: true,
+                      locale: ptBR,
+                    })}
                   </p>
                 </div>
                 <SkillStatusBadge status={skill.status} className="shrink-0" />

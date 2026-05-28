@@ -6,20 +6,11 @@ import { Loader2, Play, X } from "lucide-react";
 import { formatDistanceToNow } from "date-fns";
 import { ptBR } from "date-fns/locale";
 import { supabase } from "@/integrations/supabase/client";
-import {
-  Dialog,
-  DialogContent,
-  DialogHeader,
-  DialogTitle,
-} from "@/components/ui/dialog";
+import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { Button } from "@/components/ui/button";
 import { Textarea } from "@/components/ui/textarea";
 import { Badge } from "@/components/ui/badge";
-import {
-  Collapsible,
-  CollapsibleContent,
-  CollapsibleTrigger,
-} from "@/components/ui/collapsible";
+import { Collapsible, CollapsibleContent, CollapsibleTrigger } from "@/components/ui/collapsible";
 
 interface Props {
   open: boolean;
@@ -80,7 +71,7 @@ export function SkillTestPanel({
         // Modo preview sem persistência: chama AI direto via edge function
         const start = Date.now();
         const { data, error } = await supabase.functions.invoke("test-skill-dry-run", {
-          body: { skill_version_id: skillVersionId, test_input: input },
+          body: { markdown_content: stateless.markdown_content, test_input: input },
         });
         if (error) {
           return {
@@ -122,9 +113,7 @@ export function SkillTestPanel({
 
         <div className="space-y-4">
           <div>
-            <label className="text-sm font-medium block mb-2">
-              Digite um exemplo de input
-            </label>
+            <label className="text-sm font-medium block mb-2">Digite um exemplo de input</label>
             <Textarea
               ref={inputRef}
               value={input}
@@ -166,12 +155,11 @@ export function SkillTestPanel({
                 <h3 className="font-semibold text-sm">
                   {result.status === "success" ? "Resultado do teste" : "Erro no teste"}
                 </h3>
-                {result.status === "success" && (
-                  <Badge variant="info">
-                    Dry-run
-                  </Badge>
-                )}
-                <button onClick={() => setResult(null)} className="ml-auto text-muted-foreground hover:text-foreground">
+                {result.status === "success" && <Badge variant="info">Dry-run</Badge>}
+                <button
+                  onClick={() => setResult(null)}
+                  className="ml-auto text-muted-foreground hover:text-foreground"
+                >
                   <X className="h-4 w-4" />
                 </button>
               </div>
@@ -193,7 +181,10 @@ export function SkillTestPanel({
               </CollapsibleTrigger>
               <CollapsibleContent className="mt-3 space-y-2">
                 {history.data.map((run) => (
-                  <div key={run.id} className="rounded-lg border border-border bg-muted/30 p-3 text-xs">
+                  <div
+                    key={run.id}
+                    className="rounded-lg border border-border bg-muted/30 p-3 text-xs"
+                  >
                     <div className="flex items-center justify-between mb-1">
                       <Badge
                         variant="outline"
@@ -206,7 +197,10 @@ export function SkillTestPanel({
                         {run.status === "success" ? "Sucesso" : "Erro"}
                       </Badge>
                       <span className="text-muted-foreground">
-                        {formatDistanceToNow(new Date(run.created_at), { addSuffix: true, locale: ptBR })}
+                        {formatDistanceToNow(new Date(run.created_at), {
+                          addSuffix: true,
+                          locale: ptBR,
+                        })}
                       </span>
                     </div>
                     <p className="font-medium text-foreground/80 truncate">{run.test_input}</p>
@@ -217,8 +211,8 @@ export function SkillTestPanel({
           )}
 
           <p className="text-xs text-muted-foreground border-t border-border pt-3">
-            O teste em modo simulação não executa ferramentas reais. Em breve você poderá
-            testar a skill diretamente no seu agente.
+            O teste em modo simulação não executa ferramentas reais. Em breve você poderá testar a
+            skill diretamente no seu agente.
           </p>
         </div>
       </DialogContent>

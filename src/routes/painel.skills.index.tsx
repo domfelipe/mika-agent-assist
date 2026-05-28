@@ -14,11 +14,7 @@ import { Button } from "@/components/ui/button";
 import { Skeleton } from "@/components/ui/skeleton";
 import { Switch } from "@/components/ui/switch";
 import { Label } from "@/components/ui/label";
-import {
-  Tooltip,
-  TooltipContent,
-  TooltipTrigger,
-} from "@/components/ui/tooltip";
+import { Tooltip, TooltipContent, TooltipTrigger } from "@/components/ui/tooltip";
 
 export const Route = createFileRoute("/painel/skills/")({
   component: SkillsPage,
@@ -31,10 +27,8 @@ function SkillsPage() {
   const skills = useSkills(showArchived);
 
   const loading = limits.isLoading || agent.isLoading || skills.isLoading;
-  const noSub = !limits.isLoading && (limits.data?.max_skills == null);
-  const agentNotReady =
-    !agent.isLoading &&
-    (!agent.data || agent.data.status === "provisioning");
+  const noSub = !limits.isLoading && limits.data?.max_skills == null;
+  const agentNotReady = !agent.isLoading && (!agent.data || agent.data.status === "provisioning");
   const atLimit =
     limits.data != null &&
     limits.data.max_skills != null &&
@@ -67,7 +61,7 @@ function SkillsPage() {
           <div className="flex items-center gap-3 flex-wrap">
             {limits.data && limits.data.max_skills != null && (
               <span className="text-sm text-muted-foreground px-3 py-1.5 rounded-lg bg-muted">
-                {limits.data.current_skills_count} de {limits.data.max_skills} skills
+                {limits.data.current_skills_count} de {limits.data.max_skills} personalizadas
               </span>
             )}
 
@@ -102,7 +96,7 @@ function SkillsPage() {
                 <TooltipContent>
                   {agentNotReady
                     ? "Aguarde o provisionamento do agente terminar"
-                    : `Limite de ${limits.data?.max_skills} skills do plano ${limits.data?.plan_slug ?? ""}. Faça upgrade ou arquive uma skill.`}
+                    : `Limite de ${limits.data?.max_skills} skills personalizadas do plano ${limits.data?.plan_slug ?? ""}. Faça upgrade ou arquive uma skill.`}
                 </TooltipContent>
               )}
             </Tooltip>
