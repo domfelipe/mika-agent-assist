@@ -103,11 +103,37 @@ Deno.serve(async (req) => {
     persistedVersionId = skill_version_id;
   }
 
-    });
+  // Cria registro running apenas no modo persistido
+  let runId: string | null = null;
+  if (persistedVersionId) {
+    const { data: runRow, error: runErr } = await admin
+      .from("skill_test_runs")
+      .insert({
+        skill_version_id: persistedVersionId,
+        user_id: userId,
+        test_input,
+        status: "running",
+        test_type: "dry_run",
+      })
+      .select("id")
+      .single();
+
+    if (runErr || !runRow) {
+      console.error("Failed to create test run:", runErr);
+      return new Response(JSON.stringify({ error: "Falha ao registrar teste" }), {
+        status: 500,
+        headers: { ...corsHeaders, "Content-Type": "application/json" },
+      });
+    }
+    runId = runRow.id;
   }
 
-  const runId = runRow.id;
   const startedAt = Date.now();
+
+  const updateRun = async (patch: Record<string, unknown>) => {
+    if (!runId) return;
+    await admin.from("skill_test_runs").update(patch).eq("id", runId);
+  };
 
   try {
     const aiRes = await fetch("https://ai.gateway.lovable.dev/v1/chat/completions", {
@@ -122,7 +148,7 @@ Deno.serve(async (req) => {
           { role: "system", content: SYSTEM_PROMPT },
           {
             role: "user",
-            content: `Definição da skill:\n\`\`\`\n${versionRow.markdown_content}\n\`\`\`\n\nInput do usuário: ${test_input}`,
+            content: `Definição da skill:\n\`\`\`\n${resolvedMarkdown}\n\`\`\`\n\nInput do usuário: ${test_input}`,
           },
         ],
       }),
@@ -130,14 +156,11 @@ Deno.serve(async (req) => {
 
     if (aiRes.status === 429) {
       const duration = Date.now() - startedAt;
-      await admin
-        .from("skill_test_runs")
-        .update({
-          status: "error",
-          error_message: "Muitas requisições. Aguarde 1 minuto.",
-          duration_ms: duration,
-        })
-        .eq("id", runId);
+      await updateRun({
+        status: "error",
+        error_message: "Muitas requisições. Aguarde 1 minuto.",
+        duration_ms: duration,
+      });
       return new Response(
         JSON.stringify({ error: "Muitas requisições. Aguarde 1 minuto e tente novamente." }),
         { status: 429, headers: { ...corsHeaders, "Content-Type": "application/json" } },
@@ -147,14 +170,11 @@ Deno.serve(async (req) => {
     if (!aiRes.ok) {
       const txt = await aiRes.text();
       const duration = Date.now() - startedAt;
-      await admin
-        .from("skill_test_runs")
-        .update({
-          status: "error",
-          error_message: `AI error ${aiRes.status}: ${txt.slice(0, 200)}`,
-          duration_ms: duration,
-        })
-        .eq("id", runId);
+      await updateRun({
+        status: "error",
+        error_message: `AI error ${aiRes.status}: ${txt.slice(0, 200)}`,
+        duration_ms: duration,
+      });
       return new Response(JSON.stringify({ error: "Falha ao executar teste." }), {
         status: 500,
         headers: { ...corsHeaders, "Content-Type": "application/json" },
@@ -165,10 +185,7 @@ Deno.serve(async (req) => {
     const test_output: string = (data?.choices?.[0]?.message?.content ?? "").trim();
     const duration = Date.now() - startedAt;
 
-    await admin
-      .from("skill_test_runs")
-      .update({ status: "success", test_output, duration_ms: duration })
-      .eq("id", runId);
+    await updateRun({ status: "success", test_output, duration_ms: duration });
 
     return new Response(
       JSON.stringify({ test_output, duration_ms: duration, status: "success" }),
@@ -177,13 +194,11 @@ Deno.serve(async (req) => {
   } catch (e) {
     const duration = Date.now() - startedAt;
     const msg = e instanceof Error ? e.message : "Erro desconhecido";
-    await admin
-      .from("skill_test_runs")
-      .update({ status: "error", error_message: msg, duration_ms: duration })
-      .eq("id", runId);
+    await updateRun({ status: "error", error_message: msg, duration_ms: duration });
     return new Response(JSON.stringify({ error: "Erro ao executar teste." }), {
       status: 500,
       headers: { ...corsHeaders, "Content-Type": "application/json" },
     });
   }
 });
+
