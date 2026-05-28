@@ -76,10 +76,6 @@ export function SkillTestPanel({
 
   const runTest = useMutation({
     mutationFn: async (): Promise<TestResult> => {
-      if (stateless) {
-        // Modo preview sem persistência: chama AI direto via edge function
-  const runTest = useMutation({
-    mutationFn: async (): Promise<TestResult> => {
       const start = Date.now();
       const requestBody: Record<string, unknown> = { test_input: input };
       if (stateless) {
