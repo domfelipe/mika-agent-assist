@@ -62,3 +62,7 @@ verify_jwt = false
 
 [functions.create-skill-from-agent]
 verify_jwt = false
+
+[functions.admin-backfill-runtime]
+verify_jwt = false
+
