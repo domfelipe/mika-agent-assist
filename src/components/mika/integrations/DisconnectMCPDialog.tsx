@@ -20,6 +20,7 @@ import { invokeFunction } from "@/lib/invoke-function";
 interface Props {
   open: boolean;
   onOpenChange: (open: boolean) => void;
+  onDisconnected?: () => void;
   integrationId: string;
   mcpSlug: string;
   mcpName: string;
@@ -28,6 +29,7 @@ interface Props {
 export function DisconnectMCPDialog({
   open,
   onOpenChange,
+  onDisconnected,
   integrationId,
   mcpSlug,
   mcpName,
@@ -49,6 +51,7 @@ export function DisconnectMCPDialog({
       runtime_sync_warning?: string | null;
     }>("disconnect-integration", {
       integration_id: integrationId,
+      force_pause_jobs: dependentJobs.length > 0,
     });
     setSubmitting(false);
     if (error) {
@@ -56,13 +59,18 @@ export function DisconnectMCPDialog({
       return;
     }
     toast.success(`${mcpName} desconectado.`);
+    if ((data?.paused_jobs_count ?? 0) > 0) {
+      toast.info(`${data!.paused_jobs_count} automação(ões) pausada(s).`);
+    }
     if (data?.runtime_sync_warning) {
       toast.warning("Integração removida, mas o runtime do agente não sincronizou.");
     }
     queryClient.invalidateQueries({ queryKey: ["user-integrations"] });
     queryClient.invalidateQueries({ queryKey: ["user-integration-limits"] });
     onOpenChange(false);
+    onDisconnected?.();
   }
+
 
   return (
     <AlertDialog open={open} onOpenChange={onOpenChange}>
@@ -101,7 +109,8 @@ export function DisconnectMCPDialog({
                         )}
                       </ul>
                       <p className="mt-2 text-xs">
-                        Pause ou exclua essas automações antes de desconectar.
+                        Elas serão pausadas automaticamente ao desconectar.
+
                       </p>
                     </div>
                   </div>
@@ -117,7 +126,8 @@ export function DisconnectMCPDialog({
               e.preventDefault();
               handleDisconnect();
             }}
-            disabled={submitting || isLoading || hasActiveJobs}
+            disabled={submitting || isLoading}
+
             className="bg-destructive text-destructive-foreground hover:bg-destructive/90"
           >
             {submitting ? "Desconectando..." : "Desconectar"}
