@@ -37,6 +37,9 @@ Deno.serve(async (req) => {
   let body: { skill_version_id?: string; test_input?: string };
   try {
     body = await req.json();
+  let body: { skill_version_id?: string; test_input?: string; markdown_content?: string };
+  try {
+    body = await req.json();
   } catch {
     return new Response(JSON.stringify({ error: "JSON inválido" }), {
       status: 400,
@@ -44,53 +47,62 @@ Deno.serve(async (req) => {
     });
   }
 
-  const { skill_version_id, test_input } = body;
-  if (!skill_version_id || !test_input || test_input.trim().length === 0) {
+  const { skill_version_id, test_input, markdown_content } = body;
+  if (!test_input || test_input.trim().length === 0) {
     return new Response(
-      JSON.stringify({ error: "skill_version_id e test_input são obrigatórios" }),
+      JSON.stringify({ error: "test_input é obrigatório" }),
       { status: 400, headers: { ...corsHeaders, "Content-Type": "application/json" } },
     );
   }
 
-  // Verifica ownership: skill_version -> skill -> user_id
-  const { data: versionRow, error: vErr } = await admin
-    .from("skill_versions")
-    .select("id, markdown_content, skills!inner(user_id)")
-    .eq("id", skill_version_id)
-    .maybeSingle();
+  // Stateless mode: markdown_content direto (preview de nova skill, sem persistência)
+  const isStateless =
+    !!markdown_content &&
+    markdown_content.trim().length > 0 &&
+    (!skill_version_id || skill_version_id === "preview");
 
-  if (vErr || !versionRow) {
-    return new Response(JSON.stringify({ error: "Versão não encontrada" }), {
-      status: 404,
-      headers: { ...corsHeaders, "Content-Type": "application/json" },
-    });
+  let resolvedMarkdown: string | null = null;
+  let persistedVersionId: string | null = null;
+
+  if (isStateless) {
+    if (markdown_content!.length > 50000) {
+      return new Response(JSON.stringify({ error: "markdown_content excede 50.000 caracteres" }), {
+        status: 400,
+        headers: { ...corsHeaders, "Content-Type": "application/json" },
+      });
+    }
+    resolvedMarkdown = markdown_content!;
+  } else {
+    if (!skill_version_id) {
+      return new Response(
+        JSON.stringify({ error: "skill_version_id ou markdown_content é obrigatório" }),
+        { status: 400, headers: { ...corsHeaders, "Content-Type": "application/json" } },
+      );
+    }
+    // Verifica ownership: skill_version -> skill -> user_id
+    const { data: versionRow, error: vErr } = await admin
+      .from("skill_versions")
+      .select("id, markdown_content, skills!inner(user_id)")
+      .eq("id", skill_version_id)
+      .maybeSingle();
+
+    if (vErr || !versionRow) {
+      return new Response(JSON.stringify({ error: "Versão não encontrada" }), {
+        status: 404,
+        headers: { ...corsHeaders, "Content-Type": "application/json" },
+      });
+    }
+    // @ts-expect-error supabase nested type
+    if (versionRow.skills.user_id !== userId) {
+      return new Response(JSON.stringify({ error: "Acesso negado" }), {
+        status: 403,
+        headers: { ...corsHeaders, "Content-Type": "application/json" },
+      });
+    }
+    resolvedMarkdown = versionRow.markdown_content as string;
+    persistedVersionId = skill_version_id;
   }
-  // @ts-expect-error supabase nested type
-  if (versionRow.skills.user_id !== userId) {
-    return new Response(JSON.stringify({ error: "Acesso negado" }), {
-      status: 403,
-      headers: { ...corsHeaders, "Content-Type": "application/json" },
-    });
-  }
 
-  // Cria registro running
-  const { data: runRow, error: runErr } = await admin
-    .from("skill_test_runs")
-    .insert({
-      skill_version_id,
-      user_id: userId,
-      test_input,
-      status: "running",
-      test_type: "dry_run",
-    })
-    .select("id")
-    .single();
-
-  if (runErr || !runRow) {
-    console.error("Failed to create test run:", runErr);
-    return new Response(JSON.stringify({ error: "Falha ao registrar teste" }), {
-      status: 500,
-      headers: { ...corsHeaders, "Content-Type": "application/json" },
     });
   }
 
