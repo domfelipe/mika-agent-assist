@@ -23,19 +23,44 @@ export interface ProviderEnv {
   redirectUri: string;
 }
 
+function readFirstEnv(keys: string[]): string {
+  for (const key of keys) {
+    const value = Deno.env.get(key);
+    if (value) return value;
+  }
+  return "";
+}
+
 export function getProviderEnv(slug: ProviderSlug, redirectUri: string): ProviderEnv {
-  const map: Record<ProviderSlug, [string, string]> = {
-    google_workspace: ["GOOGLE_CLIENT_ID", "GOOGLE_CLIENT_SECRET"],
-    notion: ["NOTION_CLIENT_ID", "NOTION_CLIENT_SECRET"],
-    todoist: ["TODOIST_CLIENT_ID", "TODOIST_CLIENT_SECRET"],
-    calcom: ["CALCOM_CLIENT_ID", "CALCOM_CLIENT_SECRET"],
-    microsoft_365: ["MICROSOFT_CLIENT_ID", "MICROSOFT_CLIENT_SECRET"],
+  const map: Record<ProviderSlug, { id: string[]; secret: string[] }> = {
+    google_workspace: {
+      id: ["GOOGLE_CLIENT_ID", "GOOGLE_OAUTH_CLIENT_ID"],
+      secret: ["GOOGLE_CLIENT_SECRET", "GOOGLE_OAUTH_CLIENT_SECRET"],
+    },
+    notion: {
+      id: ["NOTION_CLIENT_ID", "NOTION_OAUTH_CLIENT_ID"],
+      secret: ["NOTION_CLIENT_SECRET", "NOTION_OAUTH_CLIENT_SECRET"],
+    },
+    todoist: {
+      id: ["TODOIST_CLIENT_ID", "TODOIST_OAUTH_CLIENT_ID"],
+      secret: ["TODOIST_CLIENT_SECRET", "TODOIST_OAUTH_CLIENT_SECRET"],
+    },
+    calcom: {
+      id: ["CALCOM_CLIENT_ID", "CALCOM_OAUTH_CLIENT_ID"],
+      secret: ["CALCOM_CLIENT_SECRET", "CALCOM_OAUTH_CLIENT_SECRET"],
+    },
+    microsoft_365: {
+      id: ["MICROSOFT_CLIENT_ID", "MICROSOFT_OAUTH_CLIENT_ID"],
+      secret: ["MICROSOFT_CLIENT_SECRET", "MICROSOFT_OAUTH_CLIENT_SECRET"],
+    },
   };
-  const [idKey, secretKey] = map[slug];
-  const clientId = Deno.env.get(idKey) ?? "";
-  const clientSecret = Deno.env.get(secretKey) ?? "";
+  const keys = map[slug];
+  const clientId = readFirstEnv(keys.id);
+  const clientSecret = readFirstEnv(keys.secret);
   if (!clientId || !clientSecret) {
-    throw new Error(`Credenciais OAuth ausentes para ${slug} (${idKey}/${secretKey})`);
+    throw new Error(
+      `Credenciais OAuth ausentes para ${slug} (${keys.id.join(" ou ")}/${keys.secret.join(" ou ")})`,
+    );
   }
   return { clientId, clientSecret, redirectUri };
 }
@@ -415,8 +440,8 @@ export async function revokeToken(
         }
         case "todoist": {
           // Todoist precisa client_id/secret + access_token no body
-          const clientId = Deno.env.get("TODOIST_CLIENT_ID") ?? "";
-          const clientSecret = Deno.env.get("TODOIST_CLIENT_SECRET") ?? "";
+          const clientId = readFirstEnv(["TODOIST_CLIENT_ID", "TODOIST_OAUTH_CLIENT_ID"]);
+          const clientSecret = readFirstEnv(["TODOIST_CLIENT_SECRET", "TODOIST_OAUTH_CLIENT_SECRET"]);
           const body = new URLSearchParams({
             client_id: clientId,
             client_secret: clientSecret,

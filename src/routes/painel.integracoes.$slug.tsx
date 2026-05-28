@@ -102,14 +102,19 @@ function IntegrationDetailPage() {
 
   async function handleTest() {
     setTesting(true);
-    const { data, error } = await invokeFunction<{ ok: boolean; account?: string }>(
+    const { data, error } = await invokeFunction<{
+      ok?: boolean;
+      success?: boolean;
+      account?: string;
+      account_info?: unknown;
+    }>(
       "test-integration",
       { integration_id: integration!.id },
     );
     setTesting(false);
     if (error) {
       toast.error(error.message);
-    } else if (data?.ok) {
+    } else if (data?.ok || data?.success) {
       toast.success("Conexão funcionando perfeitamente.");
     } else {
       toast.warning("Conexão respondeu, mas com aviso. Verifique status.");
@@ -289,18 +294,8 @@ function IntegrationDetailPage() {
 
       <DisconnectMCPDialog
         open={disconnectOpen}
-        onOpenChange={(o) => {
-          setDisconnectOpen(o);
-          if (!o) {
-            // se desconectou, volta para a lista
-            queryClient.invalidateQueries({ queryKey: ["user-integrations"] }).then(() => {
-              const stillConnected = integs.some((i) => i.id === integration.id);
-              if (!stillConnected) {
-                navigate({ to: "/painel/integracoes", search: {} });
-              }
-            });
-          }
-        }}
+        onOpenChange={setDisconnectOpen}
+        onDisconnected={() => navigate({ to: "/painel/integracoes", search: {} })}
         integrationId={integration.id}
         mcpSlug={mcp.slug}
         mcpName={mcp.name}
