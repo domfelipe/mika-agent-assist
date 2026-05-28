@@ -99,7 +99,11 @@ export function SkillTestPanel({
       }
       return data as TestResult;
     },
-
+    onSuccess: (r) => {
+      setResult(r);
+      qc.invalidateQueries({ queryKey: ["skill-test-runs", skillVersionId] });
+    },
+    onError: (e: unknown) => {
       setResult({
         status: "error",
         duration_ms: 0,
@@ -107,6 +111,7 @@ export function SkillTestPanel({
       });
     },
   });
+
 
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
