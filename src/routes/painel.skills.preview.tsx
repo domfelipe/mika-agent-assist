@@ -228,7 +228,7 @@ function SkillPreviewPage() {
           open={testOpen}
           onOpenChange={setTestOpen}
           skillName={(formInputs as Record<string, string>).name || "Skill"}
-          skillVersionId="preview"
+          skillVersionId=""
           triggerKeywords={(formInputs as Record<string, string>).trigger_keywords}
           stateless={{ markdown_content: markdown }}
         />
