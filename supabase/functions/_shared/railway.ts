@@ -130,14 +130,16 @@ export async function configureRailwayService(opts: {
 
 export async function deployRailwayService(opts: {
   token: string;
-  serviceId: string;
   environmentId: string;
   /** Use true on the first deploy of a freshly-created service (no prior deployment exists). */
   firstDeploy?: boolean;
+  /** Use true after changing the configured source image so Railway pulls the current source. */
+  fromSource?: boolean;
 }): Promise<void> {
   // serviceInstanceRedeploy só funciona se já existe um deployment.
-  // Para o primeiro deploy de um serviço recém-criado, usamos serviceInstanceDeployV2.
-  if (opts.firstDeploy) {
+  // Para o primeiro deploy de um serviço recém-criado, ou após trocar source.image,
+  // usamos DeployV2 para puxar a fonte/imagem configurada em vez de reusar o último deploy.
+  if (opts.firstDeploy || opts.fromSource) {
     const mutation = `
       mutation ServiceInstanceDeployV2($serviceId: String!, $environmentId: String!) {
         serviceInstanceDeployV2(serviceId: $serviceId, environmentId: $environmentId)
@@ -169,10 +171,11 @@ export async function deployRailwayService(opts: {
     // Fallback: serviço novo sem deploy anterior — redeploy falha, tenta V2.
     if (errStr.includes("no deployment") || errStr.includes("No deployments") || errStr.includes("not found")) {
       console.warn(`[deployRailwayService] redeploy sem deploy anterior, fallback para serviceInstanceDeployV2`);
-      await deployRailwayService({ ...opts, firstDeploy: true });
+      await deployRailwayService({ ...opts, firstDeploy: true, fromSource: false });
       return;
     }
     throw new Error(`serviceInstanceRedeploy failed: ${errStr}`);
+
   }
 }
 
