@@ -88,7 +88,7 @@ Deno.serve(async (req) => {
     // 1. Checa dependências
     const { data: dependentJobs } = await admin
       .from("scheduled_jobs")
-      .select("id, name")
+      .select("id, name, status")
       .eq("user_id", userId)
       .neq("status", "archived")
       .contains("required_mcp_slugs", [slug]);
@@ -104,7 +104,8 @@ Deno.serve(async (req) => {
     }
 
     let pausedCount = 0;
-    if (dependentJobs && dependentJobs.length > 0 && force_pause_jobs) {
+    const jobsToPause = (dependentJobs ?? []).filter((job) => job.status === "active");
+    if (jobsToPause.length > 0 && force_pause_jobs) {
       const { error: pErr } = await admin
         .from("scheduled_jobs")
         .update({
@@ -112,10 +113,12 @@ Deno.serve(async (req) => {
           auto_paused_reason: `Integração ${slug} foi desconectada`,
         })
         .eq("user_id", userId)
+        .eq("status", "active")
         .neq("status", "archived")
         .contains("required_mcp_slugs", [slug]);
-      if (!pErr) pausedCount = dependentJobs.length;
+      if (!pErr) pausedCount = jobsToPause.length;
     }
+
 
     // 2. Busca tokens ANTES de qualquer delete
     const accessToken = integ.access_token_vault_id
