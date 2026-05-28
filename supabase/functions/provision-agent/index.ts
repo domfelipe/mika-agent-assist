@@ -107,6 +107,18 @@ function buildRuntimePlatformEnv(agentInstanceId: string): Record<string, string
   };
 }
 
+function withRuntimeActionInstructions(soulContent: string): string {
+  const content = soulContent.trim();
+  if (content.includes("cronjob_create") && content.includes("skill_create")) {
+    return content;
+  }
+
+  return `${content}
+
+Quando o usuário pedir para agendar, lembrar, programar, criar rotina, criar automação recorrente ou cronjob, use obrigatoriamente a tool cronjob_create passando a frase original dele em natural_language_input. Não use a tool nativa cronjob/create para automações da Mika.
+Quando o usuário pedir para criar, salvar, ensinar ou transformar instruções em uma skill reutilizável, use obrigatoriamente a tool skill_create passando a frase original dele em natural_language_input.`;
+}
+
 async function notifyAdmin(message: string): Promise<void> {
   if (!ADMIN_TELEGRAM_BOT_TOKEN || !ADMIN_TELEGRAM_CHAT_ID) return;
   try {
@@ -311,7 +323,7 @@ Deno.serve(async (req) => {
   const chatIdStr = hasChatId ? String(agent.telegram_user_chat_id) : "";
 
   const defaultSoul = `Você se chama ${agentName}. Você é um assistente pessoal de IA criado pela DomCo. exclusivamente para ${fullName}. Seu estilo: Direto e objetivo, sempre em português brasileiro, respostas curtas no Telegram, use emojis com moderação, trate ${firstName} pelo primeiro nome. Suas prioridades: produtividade, automação proativa. Identidade: você é ${agentName} da DomCo., nunca se identifique como Hermes ou qualquer outro modelo.`;
-  const soulContent = body.soul_content?.trim() || defaultSoul;
+  const soulContent = withRuntimeActionInstructions(body.soul_content?.trim() || defaultSoul);
 
   const modelFinal = normalizeOllamaModelSelection(body.model || DEFAULT_OLLAMA_MODEL);
 
@@ -320,6 +332,7 @@ Deno.serve(async (req) => {
     HERMES_HOME: "/opt/data/.hermes",
     API_SERVER_ENABLED: "true",
     API_SERVER_KEY: HERMES_API_SERVER_KEY,
+    API_SERVER_PORT: "8765",
     GATEWAY_ALLOW_ALL_USERS: "false",
     HERMES_MODEL_DEFAULT: modelFinal,
     HERMES_MODEL_PROVIDER: DEFAULT_OLLAMA_PROVIDER,
@@ -538,7 +551,7 @@ async function handleUpdateExistingService(
 
   const planSlug = getPlanSlug(subscription as SubscriptionWithPlan | null);
   const defaultSoul = `Você se chama ${agentName}. Você é um assistente pessoal de IA criado pela DOMCO para ${fullName}. Você é proativo, direto e fala sempre em português brasileiro. Você ajuda ${firstName} a ser mais produtivo — gerenciando emails, agenda, tarefas e automatizando o que puder. Seja conciso nas respostas via Telegram. Nunca se identifique como Hermes ou como produto da Nous Research — você é Mika.`;
-  const soulContent = body.soul_content?.trim() || defaultSoul;
+  const soulContent = withRuntimeActionInstructions(body.soul_content?.trim() || defaultSoul);
 
   const model = normalizeOllamaModelSelection(body.model || DEFAULT_OLLAMA_MODEL);
   const sttProvider = body.stt_provider || "local";
@@ -581,6 +594,7 @@ async function handleUpdateExistingService(
     ...buildRuntimePlatformEnv(agent.id),
     API_SERVER_ENABLED: "true",
     API_SERVER_KEY: HERMES_API_SERVER_KEY,
+    API_SERVER_PORT: "8765",
     GATEWAY_ALLOW_ALL_USERS: "false",
     HERMES_HOME: "/opt/data/.hermes",
     HERMES_MODEL_DEFAULT: model,
