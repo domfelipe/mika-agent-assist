@@ -247,9 +247,11 @@ export async function ensureDefaultSkillsForAgent(
         description: template.description,
         trigger_keywords: template.trigger_keywords,
         status: "draft",
+        is_default: true,
       })
       .select("id")
       .single();
+
     const skill = skillData as { id: string } | null;
 
     if (skillErr || !skill) {
