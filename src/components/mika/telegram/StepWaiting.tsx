@@ -1,6 +1,5 @@
 "use client";
 
-import { useMemo } from "react";
 import { motion, AnimatePresence } from "framer-motion";
 import { MessageCircle, ExternalLink, CheckCircle2 } from "lucide-react";
 import { Button } from "@/components/ui/button";
@@ -14,6 +13,11 @@ interface Props {
 }
 
 const EMOJIS = ["🎉", "✨", "⭐", "🚀", "🎉", "✨", "⭐", "🚀", "🎉", "✨", "⭐", "🚀"];
+const EMOJI_POSITIONS = EMOJIS.map((_, index) => ({
+  x: ((index * 73) % 320) - 160,
+  y: ((index * 47) % 240) - 120,
+  rotate: ((index * 31) % 80) - 40,
+}));
 
 export function StepWaiting({ agentInstanceId, botUsername, connectedAt, onFinish }: Props) {
   const { received } = useTelegramFirstMessage({
@@ -22,15 +26,7 @@ export function StepWaiting({ agentInstanceId, botUsername, connectedAt, onFinis
     enabled: true,
   });
 
-  const positions = useMemo(
-    () =>
-      EMOJIS.map(() => ({
-        x: (Math.random() - 0.5) * 320,
-        y: (Math.random() - 0.5) * 240,
-        rotate: (Math.random() - 0.5) * 80,
-      })),
-    [],
-  );
+  const positions = EMOJI_POSITIONS;
 
   return (
     <div className="px-6 py-8 max-w-xl mx-auto">
@@ -56,11 +52,7 @@ export function StepWaiting({ agentInstanceId, botUsername, connectedAt, onFinis
             </div>
 
             <Button asChild size="lg" className="mt-6">
-              <a
-                href={`https://t.me/${botUsername}`}
-                target="_blank"
-                rel="noopener noreferrer"
-              >
+              <a href={`https://t.me/${botUsername}`} target="_blank" rel="noopener noreferrer">
                 Abrir meu bot no Telegram <ExternalLink className="ml-2 h-4 w-4" />
               </a>
             </Button>
@@ -103,8 +95,8 @@ export function StepWaiting({ agentInstanceId, botUsername, connectedAt, onFinis
               </div>
               <h2 className="mt-4 text-2xl font-bold tracking-tight">🎉 Mika conectado!</h2>
               <p className="mt-2 text-muted-foreground">
-                Você recebeu a primeira resposta do seu agente. Ele ainda está em modo de teste,
-                mas em breve vai responder de verdade.
+                Você recebeu a primeira resposta do seu agente. Ele ainda está em modo de teste, mas
+                em breve vai responder de verdade.
               </p>
 
               <Button size="lg" className="mt-8 min-w-56" onClick={onFinish}>

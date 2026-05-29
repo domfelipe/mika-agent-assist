@@ -24,8 +24,10 @@ Já configuradas via `.env` (gerado automaticamente pelo Lovable Cloud):
 - `PADDLE_API_KEY` / `PADDLE_WEBHOOK_SECRET`
 - `SUPABASE_SERVICE_ROLE_KEY`
 - `RAILWAY_API_TOKEN` — token da Railway Public API, usado por `provision-agent`/`suspend-agent`/`resume-agent` para criar e gerenciar containers Hermes.
-- `OLLAMA_API_KEY` — chave do Ollama Cloud, injetada como env var no container Hermes (imagem custom `ghcr.io/domfelipe/hermes-agent-custom:latest`).
-- `HERMES_API_SERVER_KEY` — token usado pelo API server interno do Hermes (`API_SERVER_KEY`). Valor atual: `HermesRailwayKey2026SecureToken123456`.
+- `OLLAMA_API_KEY` — chave do Ollama Cloud, injetada como env var no container Hermes.
+- `HERMES_RUNTIME_IMAGE` — opcional; imagem Docker usada no Railway. Default: `ghcr.io/domfelipe/hermes-agent-custom:latest`.
+- `HERMES_API_SERVER_KEY` — token usado pelo API server interno do Hermes (`API_SERVER_KEY`). Gere um valor forte por ambiente e nunca versione no repo.
+- `INTERNAL_FUNCTION_SECRET` — segredo server-to-server usado pelo runtime Hermes para chamar Edge Functions internas, como `create-cronjob-from-agent` e `create-skill-from-agent`.
 - `TELEGRAM_MANAGER_BOT_TOKEN` — token do bot manager (`@mika_managerbot`) usado para criar bots dos clientes em 1 toque via Bot Management Mode do BotFather.
 - `TELEGRAM_MANAGER_BOT_USERNAME` — username do bot manager, padrão `mika_managerbot` (sem `@`).
 
@@ -42,18 +44,21 @@ Já configuradas via `.env` (gerado automaticamente pelo Lovable Cloud):
    ```
    Resposta esperada: `{ "webhook_set": "...", "telegram_response": { "ok": true } }`.
 
-> **Imagem Docker custom**: o container roda `ghcr.io/domfelipe/hermes-agent-custom:latest`, que já contém o `SOUL.md` embutido. Por isso não passamos mais `HERMES_SOUL_OVERRIDE` via env var, e o Dockerfile define o `CMD` (sem `startCommand` no Railway). Secrets removidos do projeto: `OPENROUTER_API_KEY`, `OPENAI_API_KEY`, `OPENAI_BASE_URL`, `HERMES_SOUL_OVERRIDE`.
+> **Imagem Docker custom**: por padrão o container roda `ghcr.io/domfelipe/hermes-agent-custom:latest`, mas `HERMES_RUNTIME_IMAGE` pode apontar para uma tag de branch/sha durante smoke. A imagem contém um `SOUL.md` base, e o `provision-agent` pode injetar `HERMES_SOUL_OVERRIDE` para aplicar a identidade do agente e as instruções obrigatórias de runtime.
 
-  > **Suspend/Resume via flag, não via stop.** Railway não permite parar containers sem redeploy. As Edge Functions `suspend-agent`/`resume-agent` usam a env var `HERMES_SUSPENDED` + `serviceInstanceRedeploy`:
-  > - `suspend` → upsert `HERMES_SUSPENDED=true` e redeploy → container entra em `sleep infinity`.
-  > - `resume` → upsert `HERMES_SUSPENDED=""` e redeploy → container sobe normal.
-  >
-  > Isso depende do start command verificar a flag. Novos serviços já são provisionados com o comando correto (`HERMES_START_COMMAND` em `_shared/railway.ts`):
-  > ```bash
-  > /bin/bash -c 'if [ "$HERMES_SUSPENDED" = "true" ]; then echo "Agent suspended" && sleep infinity; fi && if [ -n "$HERMES_SOUL_OVERRIDE" ]; then echo "$HERMES_SOUL_OVERRIDE" > /opt/data/SOUL.md; fi && /opt/hermes/docker/entrypoint.sh gateway run'
-  > ```
-  > **Para serviços Railway existentes (provisionados antes desta mudança):** atualize manualmente o Start Command via Railway UI/Agent para o comando acima — caso contrário `suspend-agent` apenas marcará `status='suspended'` no banco mas o container continuará rodando.
-- `OPENROUTER_API_KEY` — **obrigatório**. Injetado em cada container Hermes provisionado para que o agente possa chamar os modelos `openrouter/google/gemma-4-*-it`. Sem isso o `provision-agent` retorna 500.
+> **Suspend/Resume via flag, não via stop.** Railway não permite parar containers sem redeploy. As Edge Functions `suspend-agent`/`resume-agent` usam a env var `HERMES_SUSPENDED` + `serviceInstanceRedeploy`:
+>
+> - `suspend` → upsert `HERMES_SUSPENDED=true` e redeploy → container entra em `sleep infinity`.
+> - `resume` → upsert `HERMES_SUSPENDED=""` e redeploy → container sobe normal.
+>
+> Isso depende do start command verificar a flag. Novos serviços já são provisionados com o comando correto (`HERMES_START_COMMAND` em `_shared/railway.ts`):
+>
+> ```bash
+> /bin/bash -c 'if [ "$HERMES_SUSPENDED" = "true" ]; then echo "Agent suspended" && sleep infinity; fi && if [ -n "$HERMES_SOUL_OVERRIDE" ]; then echo "$HERMES_SOUL_OVERRIDE" > /opt/data/SOUL.md; fi && /opt/hermes/docker/entrypoint.sh gateway run'
+> ```
+>
+> **Para serviços Railway existentes (provisionados antes desta mudança):** use `admin-backfill-runtime` para reconciliar envs, imagem e start command. Não atualize manualmente secrets no Railway.
+
 - `ADMIN_TELEGRAM_BOT_TOKEN` — token do bot de admin (ex: `@mika_test2_bot`) usado pelo `payments-webhook` para enviar notificações de novos clientes, falhas de pagamento e cancelamentos.
 - `ADMIN_TELEGRAM_CHAT_ID` — chat ID do admin que recebe as notificações (ex: `179720882`).
 - (opcional, Fase 5) credenciais SSH para Hermes
@@ -155,13 +160,13 @@ Para cada provider abaixo, crie um OAuth app e configure a **Redirect URI**:
 https://smsarmgoirlcedmqvdgc.supabase.co/functions/v1/oauth-callback
 ```
 
-| Provider | Console | Scopes mínimos |
-|----------|---------|----------------|
+| Provider             | Console                                                                                                                      | Scopes mínimos                                                                                                 |
+| -------------------- | ---------------------------------------------------------------------------------------------------------------------------- | -------------------------------------------------------------------------------------------------------------- |
 | **Google Workspace** | [console.cloud.google.com](https://console.cloud.google.com) → APIs & Services → Credentials → OAuth 2.0 Client ID (Web app) | `openid email profile https://www.googleapis.com/auth/gmail.readonly https://www.googleapis.com/auth/calendar` |
-| **Microsoft 365** | [Azure Portal](https://portal.azure.com) → App registrations → New registration → Web | `openid email profile offline_access Mail.Read Calendars.ReadWrite` |
-| **Notion** | [notion.so/my-integrations](https://www.notion.so/my-integrations) → New integration (Public) | (definidos na integração) |
-| **Todoist** | [developer.todoist.com](https://developer.todoist.com/appconsole.html) → App management → Create app | `data:read_write` |
-| **Cal.com** | [app.cal.com/settings/developer](https://app.cal.com/settings/developer/oauth-clients) → New OAuth Client | `READ_BOOKING WRITE_BOOKING READ_PROFILE` |
+| **Microsoft 365**    | [Azure Portal](https://portal.azure.com) → App registrations → New registration → Web                                        | `openid email profile offline_access Mail.Read Calendars.ReadWrite`                                            |
+| **Notion**           | [notion.so/my-integrations](https://www.notion.so/my-integrations) → New integration (Public)                                | (definidos na integração)                                                                                      |
+| **Todoist**          | [developer.todoist.com](https://developer.todoist.com/appconsole.html) → App management → Create app                         | `data:read_write`                                                                                              |
+| **Cal.com**          | [app.cal.com/settings/developer](https://app.cal.com/settings/developer/oauth-clients) → New OAuth Client                    | `READ_BOOKING WRITE_BOOKING READ_PROFILE`                                                                      |
 
 #### 2. Adicionar os 10 secrets no Lovable Cloud
 
@@ -292,4 +297,3 @@ bun dev          # dev server (porta 8080)
 bun run build    # build de produção
 bun run typecheck
 ```
-
