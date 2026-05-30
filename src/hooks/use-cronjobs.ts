@@ -138,7 +138,7 @@ export function useCreateCronjob() {
       if (error) throw error;
       return normalizeJob(data);
     },
-    onSuccess: () => {
+    onSettled: () => {
       qc.invalidateQueries({ queryKey: ["cronjobs"] });
       qc.invalidateQueries({ queryKey: ["user-jobs-limits"] });
     },
