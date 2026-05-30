@@ -49,6 +49,7 @@ const HERMES_API_SERVER_KEY = Deno.env.get("HERMES_API_SERVER_KEY") ?? "";
 const CONTRACT_VERSION = "2026-05-28";
 
 const MODEL = "google/gemini-2.5-flash";
+const MAX_JOB_NAME_LENGTH = 60;
 
 const VALID_MCP_SLUGS = new Set([
   "google_workspace",
@@ -127,6 +128,28 @@ function tryParseJson(text: string): ParsedJob | null {
     }
   }
   return null;
+}
+
+function cleanTitleCandidate(value: string): string {
+  return value
+    .replace(/^mika[\s,:;-]+/i, "")
+    .replace(/\s+/g, " ")
+    .trim();
+}
+
+function truncateJobName(value: string): string {
+  const title = cleanTitleCandidate(value);
+  if (title.length <= MAX_JOB_NAME_LENGTH) return title;
+  return `${title.slice(0, MAX_JOB_NAME_LENGTH - 3).trimEnd()}...`;
+}
+
+function buildJobName(bodyName: string | undefined, actionPrompt: string, input: string): string {
+  const candidates = [bodyName ?? "", actionPrompt, input];
+  for (const candidate of candidates) {
+    const name = truncateJobName(candidate);
+    if (name.length > 0) return name;
+  }
+  return "Automacao Mika";
 }
 
 async function parseWithAI(input: string, tz: string): Promise<ParsedJob | null> {
@@ -284,8 +307,8 @@ Deno.serve(async (req) => {
     /* fallback */
   }
 
-  // 7) Nome: usa o fornecido ou deriva do input
-  const name = (body.name ?? "").trim() || input.slice(0, 80);
+  // 7) Nome: usa o fornecido ou deriva da ação, respeitando o CHECK (1..60 chars).
+  const name = buildJobName(body.name, actionPrompt, input);
   const description = body.description ?? null;
 
   // 8) Insert (RLS bypass via service role; trigger enforce_job_limit ainda valida)
