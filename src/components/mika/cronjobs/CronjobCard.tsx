@@ -68,14 +68,13 @@ export function CronjobCard({ job }: Props) {
 
   async function remove() {
     try {
-      await deleteMut.mutateAsync(job.id);
-      toast.success("Automação excluída.");
-      setConfirmDelete(false);
-
-      const { error: syncError } = await syncAgentRuntime(job.agent_instance_id, "cronjobs");
-      if (syncError) {
-        toast.warning("Automação removida, mas o runtime do agente não sincronizou.");
+      const result = await deleteMut.mutateAsync(job.id);
+      if (result.runtime_sync_warning) {
+        toast.warning("Automação removida do painel; limpeza final do runtime pendente.");
+      } else {
+        toast.success("Automação excluída.");
       }
+      setConfirmDelete(false);
     } catch (e) {
       toast.error(e instanceof Error ? e.message : "Erro ao excluir.");
     }
