@@ -69,6 +69,7 @@ export function useCronjob(id: string | undefined) {
         .select("*")
         .eq("id", id!)
         .eq("user_id", user!.id)
+        .neq("status", "archived")
         .maybeSingle();
       if (error) throw error;
       return data ? normalizeJob(data) : null;
