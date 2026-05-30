@@ -9,6 +9,7 @@ import { ptBR } from "date-fns/locale";
 import { toast } from "sonner";
 import { supabase } from "@/integrations/supabase/client";
 import { syncAgentSkills } from "@/lib/sync-agent-skills";
+import { deleteSkill } from "@/lib/delete-skill";
 import { Button } from "@/components/ui/button";
 import {
   DropdownMenu,
@@ -76,15 +77,36 @@ export function SkillCard({ skill }: { skill: Skill }) {
   };
 
   const handleArchive = () => {
-    updateStatus.mutate("archived", {
-      onSuccess: async () => {
-        toast.success("Skill arquivada");
-        setConfirmArchive(false);
-        await syncRuntimeAfterMutation("Skill arquivada");
-      },
-      onError: (e: unknown) => toast.error(e instanceof Error ? e.message : "Erro ao arquivar"),
-    });
+    handleArchiveMutation.mutate("archive");
   };
+
+  const handleArchiveMutation = useMutation({
+    mutationFn: async (action: "archive" | "delete") => {
+      const { data, error } = await deleteSkill(skill.id, action);
+      if (error) throw new Error(error.message);
+      if (!data?.success) throw new Error("Erro ao atualizar skill.");
+      return data;
+    },
+    onSuccess: (data, action) => {
+      if (data.runtime_sync_warning) {
+        toast.warning(
+          action === "delete"
+            ? "Skill arquivada; exclusão final do runtime pendente."
+            : "Skill arquivada no painel; sync com o runtime pendente.",
+        );
+      } else {
+        toast.success(action === "delete" ? "Skill deletada" : "Skill arquivada");
+      }
+      if (action === "archive") {
+        setConfirmArchive(false);
+      } else {
+        setConfirmDelete(false);
+      }
+      qc.invalidateQueries({ queryKey: ["skills"] });
+      qc.invalidateQueries({ queryKey: ["user-limits"] });
+    },
+    onError: (e: unknown) => toast.error(e instanceof Error ? e.message : "Erro ao atualizar"),
+  });
 
   const handleRestore = () => {
     updateStatus.mutate("draft", {
@@ -104,15 +126,20 @@ export function SkillCard({ skill }: { skill: Skill }) {
 
   const handleDelete = useMutation({
     mutationFn: async () => {
-      const { error } = await supabase.from("skills").delete().eq("id", skill.id);
-      if (error) throw error;
+      const { data, error } = await deleteSkill(skill.id, "delete");
+      if (error) throw new Error(error.message);
+      if (!data?.success) throw new Error("Erro ao deletar skill.");
+      return data;
     },
-    onSuccess: async () => {
-      toast.success("Skill deletada");
+    onSuccess: (data) => {
+      if (data.runtime_sync_warning) {
+        toast.warning("Skill arquivada; exclusão final do runtime pendente.");
+      } else {
+        toast.success("Skill deletada");
+      }
       qc.invalidateQueries({ queryKey: ["skills"] });
       qc.invalidateQueries({ queryKey: ["user-limits"] });
       setConfirmDelete(false);
-      await syncRuntimeAfterMutation("Skill deletada");
     },
     onError: (e: unknown) => toast.error(e instanceof Error ? e.message : "Erro ao deletar"),
   });
