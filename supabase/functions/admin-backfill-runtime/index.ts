@@ -2,6 +2,7 @@
 // Admin-only. Para cada agent_instance com railway_service_id, reaplica:
 //   - HERMES_RUNTIME_IMAGE (imagem corrigida)
 //   - API_SERVER_PORT=8765
+//   - HERMES_HOME=/opt/data/.hermes
 //   - envs MIKA_* / HERMES_* obrigatórias do contrato runtime
 // e dispara redeploy no Railway. NÃO recria serviço, NÃO toca tokens sensíveis
 // (TELEGRAM_BOT_TOKEN, OLLAMA_API_KEY etc). Sempre roda em modo dry_run por padrão.
@@ -47,6 +48,7 @@ function buildBackfillEnv(agentInstanceId: string): Record<string, string> {
     AGENT_INSTANCE_ID: agentInstanceId,
     API_SERVER_KEY: HERMES_API_SERVER_KEY,
     API_SERVER_PORT: "8765",
+    HERMES_HOME: "/opt/data/.hermes",
     HERMES_AGENT_INSTANCE_ID: agentInstanceId,
     HERMES_CREATE_CRONJOB_URL: createCronjobUrl,
     HERMES_CREATE_SKILL_URL: createSkillUrl,
