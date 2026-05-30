@@ -50,6 +50,7 @@ export function useCronjobs() {
         .from("scheduled_jobs")
         .select("*")
         .eq("user_id", user!.id)
+        .neq("status", "archived")
         .order("created_at", { ascending: false });
       if (error) throw error;
       return (data ?? []).map(normalizeJob);
