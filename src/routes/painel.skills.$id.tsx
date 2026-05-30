@@ -12,7 +12,7 @@ import { toast } from "sonner";
 import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/hooks/use-auth";
 import { useSkill } from "@/hooks/use-skills";
-import { syncAgentSkills } from "@/lib/sync-agent-skills";
+import { deleteSkill } from "@/lib/delete-skill";
 import { SkillStatusBadge } from "@/components/mika/skills/SkillStatusBadge";
 import { SkillTestPanel } from "@/components/mika/skills/SkillTestPanel";
 import { Button } from "@/components/ui/button";
@@ -171,25 +171,19 @@ function SkillDetailPage() {
   // Archive
   const archiveSkill = useMutation({
     mutationFn: async () => {
-      const { error } = await supabase
-        .from("skills")
-        .update({ status: "archived", updated_at: new Date().toISOString() })
-        .eq("id", id);
-      if (error) throw error;
+      const { data, error } = await deleteSkill(id, "archive");
+      if (error) throw new Error(error.message);
+      if (!data?.success) throw new Error("Erro ao arquivar skill.");
+      return data;
     },
-    onSuccess: () => {
-      toast.success("Skill arquivada");
+    onSuccess: (data) => {
+      if (data.runtime_sync_warning) {
+        toast.warning("Skill arquivada no painel; sync com o runtime pendente.");
+      } else {
+        toast.success("Skill arquivada");
+      }
       qc.invalidateQueries({ queryKey: ["skills"] });
       qc.invalidateQueries({ queryKey: ["user-limits"] });
-      if (skill.data?.agent_instance_id) {
-        void syncAgentSkills(skill.data.agent_instance_id).then(({ error }) => {
-          if (error) {
-            toast.warning("Skill arquivada, mas o sync com o container falhou.", {
-              description: error.message,
-            });
-          }
-        });
-      }
       navigate({ to: "/painel/skills" });
     },
     onError: (e: unknown) => toast.error(e instanceof Error ? e.message : "Erro"),
