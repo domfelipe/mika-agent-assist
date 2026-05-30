@@ -3,6 +3,7 @@
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/hooks/use-auth";
+import { invokeFunction } from "@/lib/invoke-function";
 
 export interface ScheduledJob {
   id: string;
@@ -49,6 +50,7 @@ export function useCronjobs() {
         .from("scheduled_jobs")
         .select("*")
         .eq("user_id", user!.id)
+        .neq("status", "archived")
         .order("created_at", { ascending: false });
       if (error) throw error;
       return (data ?? []).map(normalizeJob);
@@ -67,6 +69,7 @@ export function useCronjob(id: string | undefined) {
         .select("*")
         .eq("id", id!)
         .eq("user_id", user!.id)
+        .neq("status", "archived")
         .maybeSingle();
       if (error) throw error;
       return data ? normalizeJob(data) : null;
@@ -135,7 +138,7 @@ export function useCreateCronjob() {
       if (error) throw error;
       return normalizeJob(data);
     },
-    onSuccess: () => {
+    onSettled: () => {
       qc.invalidateQueries({ queryKey: ["cronjobs"] });
       qc.invalidateQueries({ queryKey: ["user-jobs-limits"] });
     },
@@ -178,8 +181,17 @@ export function useDeleteCronjob() {
   const qc = useQueryClient();
   return useMutation({
     mutationFn: async (id: string) => {
-      const { error } = await supabase.from("scheduled_jobs").delete().eq("id", id);
-      if (error) throw error;
+      const { data, error } = await invokeFunction<{
+        success: boolean;
+        job_id: string;
+        agent_instance_id: string;
+        archived: boolean;
+        deleted: boolean;
+        runtime_sync_warning: string | null;
+      }>("delete-cronjob", { job_id: id });
+      if (error) throw new Error(error.message);
+      if (!data?.success) throw new Error("Erro ao excluir automação.");
+      return data;
     },
     onSuccess: () => {
       qc.invalidateQueries({ queryKey: ["cronjobs"] });
