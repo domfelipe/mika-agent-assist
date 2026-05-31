@@ -34,24 +34,24 @@ function readFirstEnv(keys: string[]): string {
 export function getProviderEnv(slug: ProviderSlug, redirectUri: string): ProviderEnv {
   const map: Record<ProviderSlug, { id: string[]; secret: string[] }> = {
     google_workspace: {
-      id: ["GOOGLE_CLIENT_ID", "GOOGLE_OAUTH_CLIENT_ID"],
-      secret: ["GOOGLE_CLIENT_SECRET", "GOOGLE_OAUTH_CLIENT_SECRET"],
+      id: ["GOOGLE_OAUTH_CLIENT_ID", "GOOGLE_CLIENT_ID"],
+      secret: ["GOOGLE_OAUTH_CLIENT_SECRET", "GOOGLE_CLIENT_SECRET"],
     },
     notion: {
-      id: ["NOTION_CLIENT_ID", "NOTION_OAUTH_CLIENT_ID"],
-      secret: ["NOTION_CLIENT_SECRET", "NOTION_OAUTH_CLIENT_SECRET"],
+      id: ["NOTION_OAUTH_CLIENT_ID", "NOTION_CLIENT_ID"],
+      secret: ["NOTION_OAUTH_CLIENT_SECRET", "NOTION_CLIENT_SECRET"],
     },
     todoist: {
-      id: ["TODOIST_CLIENT_ID", "TODOIST_OAUTH_CLIENT_ID"],
-      secret: ["TODOIST_CLIENT_SECRET", "TODOIST_OAUTH_CLIENT_SECRET"],
+      id: ["TODOIST_OAUTH_CLIENT_ID", "TODOIST_CLIENT_ID"],
+      secret: ["TODOIST_OAUTH_CLIENT_SECRET", "TODOIST_CLIENT_SECRET"],
     },
     calcom: {
-      id: ["CALCOM_CLIENT_ID", "CALCOM_OAUTH_CLIENT_ID"],
-      secret: ["CALCOM_CLIENT_SECRET", "CALCOM_OAUTH_CLIENT_SECRET"],
+      id: ["CALCOM_OAUTH_CLIENT_ID", "CALCOM_CLIENT_ID"],
+      secret: ["CALCOM_OAUTH_CLIENT_SECRET", "CALCOM_CLIENT_SECRET"],
     },
     microsoft_365: {
-      id: ["MICROSOFT_CLIENT_ID", "MICROSOFT_OAUTH_CLIENT_ID"],
-      secret: ["MICROSOFT_CLIENT_SECRET", "MICROSOFT_OAUTH_CLIENT_SECRET"],
+      id: ["MICROSOFT_OAUTH_CLIENT_ID", "MICROSOFT_CLIENT_ID"],
+      secret: ["MICROSOFT_OAUTH_CLIENT_SECRET", "MICROSOFT_CLIENT_SECRET"],
     },
   };
   const keys = map[slug];
@@ -441,8 +441,8 @@ export async function revokeToken(
         }
         case "todoist": {
           // Todoist precisa client_id/secret + access_token no body
-          const clientId = readFirstEnv(["TODOIST_CLIENT_ID", "TODOIST_OAUTH_CLIENT_ID"]);
-          const clientSecret = readFirstEnv(["TODOIST_CLIENT_SECRET", "TODOIST_OAUTH_CLIENT_SECRET"]);
+          const clientId = readFirstEnv(["TODOIST_OAUTH_CLIENT_ID", "TODOIST_CLIENT_ID"]);
+          const clientSecret = readFirstEnv(["TODOIST_OAUTH_CLIENT_SECRET", "TODOIST_CLIENT_SECRET"]);
 
           const body = new URLSearchParams({
             client_id: clientId,
