@@ -23,6 +23,58 @@ export interface ProviderEnv {
   redirectUri: string;
 }
 
+function sanitizeProviderLogValue(value: unknown): string | null {
+  if (typeof value !== "string") return null;
+  const normalized = value.replace(/\s+/g, " ").trim();
+  if (!normalized) return null;
+
+  return normalized
+    .replace(/[A-Za-z0-9_-]{24,}/g, "[redacted]")
+    .slice(0, 220);
+}
+
+async function logOAuthHttpFailure(
+  label: string,
+  res: Response,
+  tokenUrl: string,
+  redirectUri?: string,
+): Promise<void> {
+  let errorCode: string | null = null;
+  let errorDescription: string | null = null;
+
+  try {
+    const contentType = res.headers.get("content-type") ?? "";
+    if (contentType.includes("application/json")) {
+      const payload = await res.json() as {
+        error?: unknown;
+        error_description?: unknown;
+        error_uri?: unknown;
+      };
+      errorCode = sanitizeProviderLogValue(payload.error);
+      errorDescription = sanitizeProviderLogValue(payload.error_description ?? payload.error_uri);
+    } else {
+      errorDescription = sanitizeProviderLogValue(await res.text());
+    }
+  } catch (_) {
+    errorDescription = "unreadable_error_payload";
+  }
+
+  let tokenHost = "invalid_token_url";
+  try {
+    tokenHost = new URL(tokenUrl).host;
+  } catch (_) { /* keep fallback */ }
+
+  console.error(
+    [
+      `${label} status=${res.status}`,
+      `error=${errorCode ?? "unknown"}`,
+      `description=${errorDescription ?? "unavailable"}`,
+      `token_host=${tokenHost}`,
+      redirectUri ? `redirect_uri=${redirectUri}` : null,
+    ].filter(Boolean).join(" "),
+  );
+}
+
 function readFirstEnv(keys: string[]): string {
   for (const key of keys) {
     const value = Deno.env.get(key);
@@ -116,7 +168,7 @@ export function buildAuthorizeUrl(
 }
 
 /**
- * Troca o `code` por tokens. NUNCA loga response body.
+ * Troca o `code` por tokens. NUNCA loga response body bruto nem tokens.
  */
 export async function exchangeCodeForTokens(
   slug: ProviderSlug,
@@ -139,7 +191,7 @@ export async function exchangeCodeForTokens(
         body,
       });
       if (!res.ok) {
-        console.error(`google token exchange status=${res.status}`);
+        await logOAuthHttpFailure("google token exchange", res, tokenUrl, env.redirectUri);
         throw new Error("provider_error");
       }
       const tokens = await res.json() as {
@@ -186,7 +238,7 @@ export async function exchangeCodeForTokens(
         }),
       });
       if (!res.ok) {
-        console.error(`notion token exchange status=${res.status}`);
+        await logOAuthHttpFailure("notion token exchange", res, tokenUrl, env.redirectUri);
         throw new Error("provider_error");
       }
       const t = await res.json() as {
@@ -218,7 +270,7 @@ export async function exchangeCodeForTokens(
         body,
       });
       if (!res.ok) {
-        console.error(`microsoft token exchange status=${res.status}`);
+        await logOAuthHttpFailure("microsoft token exchange", res, tokenUrl, env.redirectUri);
         throw new Error("provider_error");
       }
       const t = await res.json() as {
@@ -263,7 +315,7 @@ export async function exchangeCodeForTokens(
         body,
       });
       if (!res.ok) {
-        console.error(`calcom token exchange status=${res.status}`);
+        await logOAuthHttpFailure("calcom token exchange", res, tokenUrl, env.redirectUri);
         throw new Error("provider_error");
       }
       const t = await res.json() as {
@@ -304,7 +356,7 @@ export async function exchangeCodeForTokens(
         body,
       });
       if (!res.ok) {
-        console.error(`todoist token exchange status=${res.status}`);
+        await logOAuthHttpFailure("todoist token exchange", res, tokenUrl);
         throw new Error("provider_error");
       }
       const t = await res.json() as { access_token: string };
@@ -332,7 +384,7 @@ export async function exchangeCodeForTokens(
 }
 
 /**
- * Refresh access_token usando refresh_token. NUNCA loga body.
+ * Refresh access_token usando refresh_token. NUNCA loga body bruto nem tokens.
  */
 export async function refreshAccessToken(
   slug: ProviderSlug,
@@ -355,11 +407,11 @@ export async function refreshAccessToken(
     body,
   });
   if (res.status === 400 || res.status === 401) {
-    console.error(`refresh ${slug} invalid_grant status=${res.status}`);
+    await logOAuthHttpFailure(`refresh ${slug} invalid_grant`, res, tokenUrl);
     throw new Error("invalid_grant");
   }
   if (!res.ok) {
-    console.error(`refresh ${slug} status=${res.status}`);
+    await logOAuthHttpFailure(`refresh ${slug}`, res, tokenUrl);
     throw new Error("provider_error");
   }
   const t = await res.json() as {
