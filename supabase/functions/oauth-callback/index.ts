@@ -15,7 +15,7 @@ const RAILWAY_API_TOKEN = Deno.env.get("RAILWAY_API_TOKEN") ?? "";
 const HERMES_API_SERVER_KEY = Deno.env.get("HERMES_API_SERVER_KEY") ?? "";
 
 function siteUrl(): string {
-  return Deno.env.get("SITE_URL") ?? "https://798b89e5-0dc6-412a-81be-a4b6dfea7b6c.lovable.app";
+  return (Deno.env.get("SITE_URL") ?? "https://mika.domco.ai").replace(/\/$/, "");
 }
 
 function redirect(path: string): Response {
