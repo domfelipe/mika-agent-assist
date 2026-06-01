@@ -75,12 +75,22 @@ async function logOAuthHttpFailure(
   );
 }
 
-function readFirstEnv(keys: string[]): string {
+interface EnvLookupResult {
+  key: string | null;
+  value: string;
+  trimmed: boolean;
+}
+
+function readFirstEnv(keys: string[]): EnvLookupResult {
   for (const key of keys) {
     const value = Deno.env.get(key);
-    if (value) return value;
+    if (!value) continue;
+
+    const trimmed = value.trim();
+    if (trimmed) return { key, value: trimmed, trimmed: trimmed !== value };
   }
-  return "";
+
+  return { key: null, value: "", trimmed: false };
 }
 
 export function getProviderEnv(slug: ProviderSlug, redirectUri: string): ProviderEnv {
@@ -109,12 +119,23 @@ export function getProviderEnv(slug: ProviderSlug, redirectUri: string): Provide
   const keys = map[slug];
   const clientId = readFirstEnv(keys.id);
   const clientSecret = readFirstEnv(keys.secret);
-  if (!clientId || !clientSecret) {
+  if (!clientId.value || !clientSecret.value) {
     throw new Error(
       `Credenciais OAuth ausentes para ${slug} (${keys.id.join(" ou ")}/${keys.secret.join(" ou ")})`,
     );
   }
-  return { clientId, clientSecret, redirectUri };
+
+  console.info(
+    [
+      `oauth env selected provider=${slug}`,
+      `client_id_key=${clientId.key ?? "missing"}`,
+      `client_secret_key=${clientSecret.key ?? "missing"}`,
+      `client_id_trimmed=${String(clientId.trimmed)}`,
+      `client_secret_trimmed=${String(clientSecret.trimmed)}`,
+    ].join(" "),
+  );
+
+  return { clientId: clientId.value, clientSecret: clientSecret.value, redirectUri };
 }
 
 
@@ -493,8 +514,8 @@ export async function revokeToken(
         }
         case "todoist": {
           // Todoist precisa client_id/secret + access_token no body
-          const clientId = readFirstEnv(["TODOIST_OAUTH_CLIENT_ID", "TODOIST_CLIENT_ID"]);
-          const clientSecret = readFirstEnv(["TODOIST_OAUTH_CLIENT_SECRET", "TODOIST_CLIENT_SECRET"]);
+          const clientId = readFirstEnv(["TODOIST_OAUTH_CLIENT_ID", "TODOIST_CLIENT_ID"]).value;
+          const clientSecret = readFirstEnv(["TODOIST_OAUTH_CLIENT_SECRET", "TODOIST_CLIENT_SECRET"]).value;
 
           const body = new URLSearchParams({
             client_id: clientId,
